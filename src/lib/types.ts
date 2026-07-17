@@ -42,12 +42,21 @@ export interface DayEntry {
   booking: number;
   isSunday: boolean;
   isStat: boolean;
+  dayOff?: boolean;
   fromSheet?: boolean;
   sheetPlat?: number;
   sheetPay?: number;
 }
 
 export type EntriesMap = Record<string, DayEntry>;
+
+export type DayFieldName =
+  | "nonPlatform"
+  | "callup"
+  | "booking"
+  | "isSunday"
+  | "isStat"
+  | "dayOff";
 
 export interface DayComputed {
   platMin: number;
@@ -59,6 +68,7 @@ export interface DayComputed {
   booking: number;
   isSunday: boolean;
   isStat: boolean;
+  dayOff: boolean;
   pieces: EntryPiece[];
 }
 
@@ -96,5 +106,6 @@ export function newEmptyDayEntry(): DayEntry {
     booking: 0,
     isSunday: false,
     isStat: false,
+    dayOff: false,
   };
 }

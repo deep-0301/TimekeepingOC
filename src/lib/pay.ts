@@ -17,6 +17,7 @@ const EMPTY_DAY: DayComputed = {
   booking: 0,
   isSunday: false,
   isStat: false,
+  dayOff: false,
   pieces: [],
 };
 
@@ -26,6 +27,22 @@ export function computeDay(
 ): DayComputed {
   const e = entries[dateStr];
   if (!e) return EMPTY_DAY;
+
+  if (e.dayOff) {
+    return {
+      platMin: 0,
+      payMin: 0,
+      matched: true,
+      fromSheet: false,
+      nonPlatform: 0,
+      callup: 0,
+      booking: 0,
+      isSunday: !!e.isSunday,
+      isStat: !!e.isStat,
+      dayOff: true,
+      pieces: [],
+    };
+  }
 
   if (e.fromSheet) {
     return {
@@ -38,6 +55,7 @@ export function computeDay(
       booking: e.booking || 0,
       isSunday: !!e.isSunday,
       isStat: !!e.isStat,
+      dayOff: false,
       pieces: e.pieces || [],
     };
   }
@@ -81,6 +99,7 @@ export function computeDay(
     booking: e.booking || 0,
     isSunday: !!e.isSunday,
     isStat: !!e.isStat,
+    dayOff: false,
     pieces: e.pieces,
   };
 }

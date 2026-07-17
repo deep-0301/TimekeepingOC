@@ -1,5 +1,5 @@
 import { fmtDate } from "@/lib/dateUtils";
-import type { EntriesMap, PaySettings } from "@/lib/types";
+import type { DayFieldName, EntriesMap, PaySettings } from "@/lib/types";
 import DayCard from "./DayCard";
 
 interface DaysListProps {
@@ -10,7 +10,7 @@ interface DaysListProps {
   onClearSheetDay: (dateStr: string) => void;
   onUpdateDayField: (
     dateStr: string,
-    field: "nonPlatform" | "callup" | "booking" | "isSunday" | "isStat",
+    field: DayFieldName,
     value: number | boolean
   ) => void;
 }

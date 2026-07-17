@@ -285,6 +285,22 @@ input[type="text"].run-search {
   border-left-color: var(--red);
 }
 
+.day-card.is-dayoff {
+  border-left-color: var(--line);
+  background: repeating-linear-gradient(
+    135deg,
+    var(--card),
+    var(--card) 10px,
+    #f4f5f1 10px,
+    #f4f5f1 20px
+  );
+}
+
+.badge.dayoff {
+  background: #e4e6e8;
+  color: var(--ink-soft);
+}
+
 .day-head {
   display: flex;
   justify-content: space-between;
@@ -407,4 +423,128 @@ textarea.sheet-paste {
   border: 1px solid var(--line);
   border-radius: 6px;
   margin-top: 8px;
+}
+
+.cal-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.cal-month-label {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  min-width: 160px;
+  text-align: center;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.cal-weekday {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-align: center;
+  padding-bottom: 4px;
+}
+
+.cal-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: 58px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+  padding: 6px 4px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  color: var(--ink);
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.cal-cell:hover {
+  border-color: var(--steel);
+}
+
+.cal-cell-out {
+  opacity: 0.35;
+}
+
+.cal-cell-selected {
+  border-color: var(--steel-dark);
+  border-width: 2px;
+}
+
+.cal-cell-dayoff {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--card),
+    var(--card) 8px,
+    #f4f5f1 8px,
+    #f4f5f1 16px
+  );
+}
+
+.cal-cell-date {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.cal-cell-off {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.cal-cell-runs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  justify-content: center;
+}
+
+.cal-run-chip {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  background: #e4eef2;
+  color: var(--steel-dark);
+  padding: 1px 4px;
+  border-radius: 3px;
+  line-height: 1.4;
+}
+
+.day-editor {
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #fbfbf9;
+}
+
+.day-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-display);
+  font-size: 14px;
+}
+
+.day-editor-pieces {
+  margin-bottom: 8px;
 }

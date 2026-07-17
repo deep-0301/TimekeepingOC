@@ -8,6 +8,7 @@ import { store } from "@/lib/storage";
 import {
   DEFAULT_SETTINGS,
   newEmptyDayEntry,
+  type DayFieldName,
   type EntriesMap,
   type EntryPiece,
   type PaySettings,
@@ -18,6 +19,7 @@ import WeekNav from "@/components/WeekNav";
 import SettingsPanel from "@/components/SettingsPanel";
 import RunSearch from "@/components/RunSearch";
 import BookingSheetImport from "@/components/BookingSheetImport";
+import MonthCalendar from "@/components/MonthCalendar";
 import DaysList from "@/components/DaysList";
 import SummaryTable from "@/components/SummaryTable";
 
@@ -135,14 +137,14 @@ export default function Home() {
   );
 
   const updateDayField = useCallback(
-    (
-      dateStr: string,
-      field: "nonPlatform" | "callup" | "booking" | "isSunday" | "isStat",
-      value: number | boolean
-    ) => {
+    (dateStr: string, field: DayFieldName, value: number | boolean) => {
       updateEntries((prev) => {
         const day = prev[dateStr] ? { ...prev[dateStr] } : newEmptyDayEntry();
-        if (field === "isSunday" || field === "isStat") {
+        if (
+          field === "isSunday" ||
+          field === "isStat" ||
+          field === "dayOff"
+        ) {
           day[field] = value as boolean;
         } else {
           day[field] = value as number;
@@ -151,6 +153,13 @@ export default function Home() {
       });
     },
     [updateEntries]
+  );
+
+  const toggleDayOff = useCallback(
+    (dateStr: string, value: boolean) => {
+      updateDayField(dateStr, "dayOff", value);
+    },
+    [updateDayField]
   );
 
   const saveSettings = useCallback(async (next: PaySettings) => {
@@ -200,6 +209,15 @@ export default function Home() {
       {settingsOpen && (
         <SettingsPanel settings={settings} onSave={saveSettings} />
       )}
+
+      <MonthCalendar
+        entries={entries}
+        settings={settings}
+        onAddShift={addShiftToDate}
+        onRemovePiece={removePiece}
+        onClearSheetDay={clearSheetDay}
+        onToggleDayOff={toggleDayOff}
+      />
 
       <RunSearch weekDays={weekDays} onAddShift={addShiftToDate} />
 
