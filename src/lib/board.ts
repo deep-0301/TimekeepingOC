@@ -12,6 +12,11 @@ export interface RunIndexEntry {
   platmin: number;
 }
 
+/** Drops the trailing "Station"/"Garage" word for a compact display label. */
+export function shortLocation(name: string): string {
+  return name.replace(/\s+(Station|Garage)$/i, "");
+}
+
 export const runIndex: Record<string, RunIndexEntry[]> = {};
 BOARD_DATA.forEach((shift, si) => {
   shift[3].forEach((r) => {

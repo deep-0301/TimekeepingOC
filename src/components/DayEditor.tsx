@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { runIndex, searchRuns } from "@/lib/board";
+import { runIndex, searchRuns, shortLocation } from "@/lib/board";
 import { computeDay } from "@/lib/pay";
 import { fmtHM, parseDateStr } from "@/lib/dateUtils";
 import { getHolidayForDate } from "@/lib/statHolidays";
@@ -268,7 +268,9 @@ export default function DayEditor({
                 <div className="piece-row" key={idx}>
                   <span>
                     {p.run} &nbsp; {p.onTime}&rarr;{p.offTime} &nbsp;{" "}
-                    <span className="shift-tag">shift {p.shiftId}</span>
+                    <span className="shift-tag">
+                      {shortLocation(p.onLoc)}&rarr;{shortLocation(p.offLoc)}
+                    </span>
                   </span>
                   <button
                     className="danger"
