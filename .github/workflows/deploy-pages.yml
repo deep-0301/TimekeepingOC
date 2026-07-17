@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - claude/github-repo-connection-hvn7i7
   workflow_dispatch:
 
 permissions:
