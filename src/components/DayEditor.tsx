@@ -49,7 +49,11 @@ export default function DayEditor({
     [query, isDayOff, isSpare]
   );
 
-  const spareRunMatch = spareRunInput ? runIndex[spareRunInput]?.[0] : null;
+  const spareRunMatches = spareRunInput ? runIndex[spareRunInput] || [] : [];
+  const selectedMatchIndex =
+    day?.spare?.runNumber === spareRunInput
+      ? day.spare.runMatchIndex ?? 0
+      : null;
 
   function patchSpare(patch: Partial<SpareInfo>) {
     const current: SpareInfo = day?.spare || {
@@ -230,7 +234,9 @@ export default function DayEditor({
                 onChange={(e) => {
                   const v = e.target.value;
                   setSpareRunInput(v);
-                  patchSpare({ runNumber: v.trim() ? v.trim() : null });
+                  if (!v.trim()) {
+                    patchSpare({ runNumber: null, runMatchIndex: undefined });
+                  }
                 }}
               />
             </div>
@@ -250,11 +256,36 @@ export default function DayEditor({
               </div>
             )}
           </div>
-          {day.spare.runNumber && (
-            <div className="note">
-              {spareRunMatch
-                ? `Found: ${spareRunInput} — ${spareRunMatch.on}→${spareRunMatch.off}, ${fmtHM(spareRunMatch.platmin)} plat, ${spareRunMatch.onloc} → ${spareRunMatch.offloc}`
-                : `No run "${spareRunInput}" found in the loaded board — pay will use 0 platform time for it until a valid run number is entered.`}
+          {spareRunInput.trim() !== "" && (
+            <div className="search-results">
+              {spareRunMatches.length === 0 ? (
+                <div className="note">
+                  No run &ldquo;{spareRunInput}&rdquo; found in the loaded
+                  board — pay will use 0 platform time for it until a valid
+                  run number is picked.
+                </div>
+              ) : (
+                spareRunMatches.map((m, idx) => (
+                  <div className="result-card" key={idx}>
+                    <div className="details">
+                      {m.on}&rarr;{m.off} &nbsp;{" "}
+                      {shortLocation(m.onloc)}&rarr;{shortLocation(m.offloc)}{" "}
+                      &nbsp; <b>{fmtHM(m.platmin)}</b> plat
+                    </div>
+                    <button
+                      className="small"
+                      onClick={() =>
+                        patchSpare({
+                          runNumber: spareRunInput.trim(),
+                          runMatchIndex: idx,
+                        })
+                      }
+                    >
+                      {selectedMatchIndex === idx ? "✓ Selected" : "Use this"}
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           )}
         </div>

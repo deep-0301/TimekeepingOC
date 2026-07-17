@@ -51,6 +51,9 @@ export interface SpareInfo {
   guaranteeHrs: number;
   standbyHrsUsed: number;
   runNumber: string | null;
+  /** Which of runIndex[runNumber]'s matching pieces was picked, when a run
+   * number appears more than once in the loaded board. */
+  runMatchIndex?: number;
 }
 
 export interface DayEntry {

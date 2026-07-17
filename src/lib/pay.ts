@@ -70,30 +70,30 @@ export function computeDay(
       };
     }
     const runMatches = runIndex[sp.runNumber] || [];
-    const runPlatMin = runMatches.length > 0 ? runMatches[0].platmin : 0;
+    const chosen = runMatches[sp.runMatchIndex ?? 0];
+    const runPlatMin = chosen ? chosen.platmin : 0;
     const standbyMin = (sp.standbyHrsUsed || 0) * 60;
     const totalMin = standbyMin + runPlatMin;
-    const pieces: EntryPiece[] =
-      runMatches.length > 0
-        ? [
-            {
-              run: sp.runNumber,
-              shiftId: "spare",
-              shiftPlat: 0,
-              shiftPay: 0,
-              onTime: runMatches[0].on,
-              offTime: runMatches[0].off,
-              onLoc: runMatches[0].onloc,
-              offLoc: runMatches[0].offloc,
-              platMin: runPlatMin,
-              allRuns: [sp.runNumber],
-            },
-          ]
-        : [];
+    const pieces: EntryPiece[] = chosen
+      ? [
+          {
+            run: sp.runNumber,
+            shiftId: "spare",
+            shiftPlat: 0,
+            shiftPay: 0,
+            onTime: chosen.on,
+            offTime: chosen.off,
+            onLoc: chosen.onloc,
+            offLoc: chosen.offloc,
+            platMin: runPlatMin,
+            allRuns: [sp.runNumber],
+          },
+        ]
+      : [];
     return {
       platMin: totalMin,
       payMin: totalMin,
-      matched: runMatches.length > 0,
+      matched: !!chosen,
       fromSheet: false,
       nonPlatform: e.nonPlatform || 0,
       callup: (e.callup || 0) + SPARE_CALLUP_HRS,
