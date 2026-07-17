@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { searchRuns } from "@/lib/board";
 import { computeDay } from "@/lib/pay";
-import { fmtHM } from "@/lib/dateUtils";
+import { fmtHM, parseDateStr } from "@/lib/dateUtils";
+import { getHolidayForDate } from "@/lib/statHolidays";
 import type { DayFieldName, EntriesMap } from "@/lib/types";
 
 interface DayEditorProps {
@@ -34,6 +35,7 @@ export default function DayEditor({
   const isDayOff = !!day?.dayOff;
   const dc = computeDay(entries, dateStr);
   const pieces = isDayOff ? [] : dc.pieces;
+  const holiday = getHolidayForDate(parseDateStr(dateStr));
 
   const { results, truncated } = useMemo(
     () => (isDayOff ? { results: [], truncated: false } : searchRuns(query)),
@@ -41,13 +43,32 @@ export default function DayEditor({
   );
 
   return (
-    <div className="day-editor">
+    <div className={"day-editor" + (isDayOff ? " is-dayoff" : "")}>
       <div className="day-editor-head">
         <strong>{dateStr}</strong>
         <button className="ghost small" onClick={onClose}>
           Close
         </button>
       </div>
+
+      {holiday && (
+        <div className="holiday-banner">
+          <span>
+            📅 {holiday.name}{" "}
+            <span className="badge estimate">
+              {holiday.category === "general" ? "statutory" : "designated"}
+            </span>
+          </span>
+          {!day?.isStat && (
+            <button
+              className="small"
+              onClick={() => onUpdateDayField(dateStr, "isStat", true)}
+            >
+              Mark as stat holiday
+            </button>
+          )}
+        </div>
+      )}
 
       {!isDayOff && (
         <div className="day-stats" style={{ margin: "6px 0" }}>

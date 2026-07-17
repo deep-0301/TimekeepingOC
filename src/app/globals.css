@@ -9,6 +9,10 @@
   --steel-dark: #2b4557;
   --red: #c1443c;
   --green: #3c7a5c;
+  --dayoff-bg: #ded4f2;
+  --dayoff-ink: #5b3f96;
+  --holiday: #a9790a;
+  --holiday-bg: #fbead2;
 
   --font-sans: var(--font-inter), sans-serif;
   --font-display: var(--font-oswald), sans-serif;
@@ -445,13 +449,16 @@ textarea.sheet-paste {
 }
 
 .cal-cell-dayoff {
-  background: repeating-linear-gradient(
-    135deg,
-    var(--card),
-    var(--card) 8px,
-    #f4f5f1 8px,
-    #f4f5f1 16px
-  );
+  background: var(--dayoff-bg);
+  border-color: var(--dayoff-ink);
+}
+
+.cal-cell-holiday {
+  border-top: 3px solid var(--holiday);
+}
+
+.cal-cell-holiday:not(.cal-cell-dayoff) {
+  background: var(--holiday-bg);
 }
 
 .cal-cell-date {
@@ -460,12 +467,22 @@ textarea.sheet-paste {
   font-weight: 600;
 }
 
+.cal-cell-holiday-label {
+  font-family: var(--font-sans);
+  font-size: 8.5px;
+  font-weight: 600;
+  line-height: 1.15;
+  text-align: center;
+  color: var(--holiday);
+}
+
 .cal-cell-off {
   font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: var(--ink-soft);
+  font-weight: 700;
+  color: var(--dayoff-ink);
 }
 
 .cal-cell-runs {
@@ -493,6 +510,11 @@ textarea.sheet-paste {
   background: #fbfbf9;
 }
 
+.day-editor.is-dayoff {
+  background: var(--dayoff-bg);
+  border-color: var(--dayoff-ink);
+}
+
 .day-editor-head {
   display: flex;
   align-items: center;
@@ -503,4 +525,19 @@ textarea.sheet-paste {
 
 .day-editor-pieces {
   margin-bottom: 8px;
+}
+
+.holiday-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--holiday-bg);
+  color: var(--holiday);
+  font-size: 13px;
+  font-weight: 600;
 }

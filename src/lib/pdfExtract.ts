@@ -76,6 +76,15 @@ export async function extractPdfText(
     "This looks like a scanned PDF (no text layer) — running OCR, this can take a bit…"
   );
   const { recognize } = await import("tesseract.js");
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+  const tesseractOptions = {
+    workerPath: `${basePath}/tesseract/worker.min.js`,
+    workerBlobURL: false,
+    corePath: `${basePath}/tesseract/tesseract-core-lstm.js`,
+    langPath: `${basePath}/tesseract/lang`,
+    cachePath: `${basePath}/tesseract/lang`,
+    gzip: true,
+  };
   let ocrText = "";
   for (let p = 1; p <= pdf.numPages; p++) {
     onProgress?.(`OCR: reading page ${p} of ${pdf.numPages}…`);
@@ -86,7 +95,7 @@ export async function extractPdfText(
     canvas.height = viewport.height;
     const ctx = canvas.getContext("2d")!;
     await page.render({ canvasContext: ctx, viewport, canvas }).promise;
-    const result = await recognize(canvas, "eng");
+    const result = await recognize(canvas, "eng", tesseractOptions);
     ocrText += result.data.text + "\n";
   }
   return ocrText;

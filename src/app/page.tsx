@@ -211,9 +211,9 @@ export default function Home() {
         onUpdateDayField={updateDayField}
       />
 
-      <RunSearch weekDays={weekDays} onAddShift={addShiftToDate} />
-
       <BookingSheetImport onImport={updateEntries} />
+
+      <RunSearch weekDays={weekDays} onAddShift={addShiftToDate} />
 
       <section className="summary panel">
         <h2>Pay Period Summary (this week)</h2>

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { computeDay } from "@/lib/pay";
 import { fmtDate } from "@/lib/dateUtils";
+import { getHolidayForDate } from "@/lib/statHolidays";
 import type { DayFieldName, EntriesMap, PaySettings } from "@/lib/types";
 import DayEditor from "./DayEditor";
 
@@ -104,6 +105,7 @@ export default function MonthCalendar({
           const dateStr = fmtDate(d);
           const inMonth = d.getMonth() === viewMonth.getMonth();
           const dc = computeDay(entries, dateStr);
+          const holiday = getHolidayForDate(d);
           const runCodes = [
             ...new Set(dc.pieces.map((p) => p.run)),
           ];
@@ -114,14 +116,19 @@ export default function MonthCalendar({
               className={
                 "cal-cell" +
                 (inMonth ? "" : " cal-cell-out") +
+                (holiday ? " cal-cell-holiday" : "") +
                 (dc.dayOff ? " cal-cell-dayoff" : "") +
                 (isSelected ? " cal-cell-selected" : "")
               }
+              title={holiday ? holiday.name : undefined}
               onClick={() =>
                 setSelectedDate((prev) => (prev === dateStr ? null : dateStr))
               }
             >
               <span className="cal-cell-date">{d.getDate()}</span>
+              {holiday && (
+                <span className="cal-cell-holiday-label">{holiday.name}</span>
+              )}
               {dc.dayOff ? (
                 <span className="cal-cell-off">OFF</span>
               ) : (

@@ -9,8 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@tesseract.js-data/eng": "^1.0.0",
     "next": "16.2.10",
-    "pdfjs-dist": "^6.1.200",
+    "pdfjs-dist": "^5.4.624",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "tesseract.js": "^7.0.0"

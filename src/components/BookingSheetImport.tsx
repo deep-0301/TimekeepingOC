@@ -42,7 +42,7 @@ export default function BookingSheetImport({
     setParseStatus(`${parsedBlocks.length} block(s) found.`);
 
     const workBlocks = parsedBlocks.filter(
-      (b) => !b.isDayOff && b.rows.length > 0
+      (b) => b.isDayOff || b.rows.length > 0
     );
     setBlocks(workBlocks);
     const inc: Record<number, boolean> = {};
@@ -90,6 +90,13 @@ export default function BookingSheetImport({
         const day = next[dateStr]
           ? { ...next[dateStr] }
           : newEmptyDayEntry();
+        if (b.isDayOff) {
+          day.dayOff = true;
+          day.pieces = [];
+          next[dateStr] = day;
+          count++;
+          return;
+        }
         const hasTotals = !!(b.totalPlat && b.totalPay);
         const anySpare = b.rows.some((r) => r.isSpare);
         if (hasTotals) {
@@ -130,11 +137,16 @@ export default function BookingSheetImport({
     <section className="panel">
       <h2>Import your booking sheet</h2>
       <div className="note">
-        Upload your Employee Booking Sheet PDF directly — it reads the file
-        in your browser, and if it&apos;s a scanned PDF (no selectable text)
-        it automatically runs OCR on it. Either way, it pulls out every
-        shift, the season start date, and your day-off pattern
-        automatically. You can also paste text manually below if
+        Upload your Employee Booking Sheet PDF and it updates the calendar
+        above directly — it reads the file in your browser, and if
+        it&apos;s a scanned PDF (no selectable text) it automatically runs
+        OCR on it, entirely on your device. Works with both kinds of sheet:
+        your regular Monday–Friday board, and the weekend/general-spare
+        sheet with explicit holiday-shift dates (e.g. &ldquo;Canada Day
+        SPARE 01-Jul-2026&rdquo;). It pulls out every shift, run number,
+        the season start date, and day-off/holiday markers automatically —
+        upload both sheets one after another and they&apos;ll merge onto
+        the same calendar. You can also paste text manually below if
         you&apos;d rather.
       </div>
       <div style={{ marginTop: 8 }}>
@@ -188,14 +200,17 @@ export default function BookingSheetImport({
               {blocks.map((b, i) => {
                 const hasTotals = !!(b.totalPlat && b.totalPay);
                 const anySpare = b.rows.some((r) => r.isSpare);
-                const kind = hasTotals
+                const kind = b.isDayOff
+                  ? "Day off"
+                  : hasTotals
                   ? "Driving day"
                   : anySpare
                   ? "Spare / standby"
                   : "Unclear — check manually";
                 const runsDesc = b.rows.map((r) => r.run).join(" + ");
                 let hoursDesc = "";
-                if (hasTotals) hoursDesc = `Plat ${b.totalPlat} / Pay ${b.totalPay}`;
+                if (b.isDayOff) hoursDesc = "";
+                else if (hasTotals) hoursDesc = `Plat ${b.totalPlat} / Pay ${b.totalPay}`;
                 else if (anySpare) {
                   const totalMin = b.rows.reduce(
                     (a, r) => a + hmToMin(r.totalGuarantee),
