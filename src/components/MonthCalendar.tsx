@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { computeDay } from "@/lib/pay";
 import { fmtDate } from "@/lib/dateUtils";
-import type { EntriesMap, PaySettings } from "@/lib/types";
+import type { DayFieldName, EntriesMap, PaySettings } from "@/lib/types";
 import DayEditor from "./DayEditor";
 
 interface MonthCalendarProps {
@@ -12,7 +12,11 @@ interface MonthCalendarProps {
   onAddShift: (si: number, dateStr: string) => void;
   onRemovePiece: (dateStr: string, idx: number) => void;
   onClearSheetDay: (dateStr: string) => void;
-  onToggleDayOff: (dateStr: string, value: boolean) => void;
+  onUpdateDayField: (
+    dateStr: string,
+    field: DayFieldName,
+    value: number | boolean
+  ) => void;
 }
 
 const WEEKDAY_LABELS_SUN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -24,7 +28,7 @@ export default function MonthCalendar({
   onAddShift,
   onRemovePiece,
   onClearSheetDay,
-  onToggleDayOff,
+  onUpdateDayField,
 }: MonthCalendarProps) {
   const [viewMonth, setViewMonth] = useState(() => {
     const d = new Date();
@@ -146,7 +150,7 @@ export default function MonthCalendar({
           onAddShift={onAddShift}
           onRemovePiece={onRemovePiece}
           onClearSheetDay={onClearSheetDay}
-          onToggleDayOff={onToggleDayOff}
+          onUpdateDayField={onUpdateDayField}
           onClose={() => setSelectedDate(null)}
         />
       )}

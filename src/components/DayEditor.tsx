@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { searchRuns } from "@/lib/board";
+import { computeDay } from "@/lib/pay";
 import { fmtHM } from "@/lib/dateUtils";
-import type { EntriesMap } from "@/lib/types";
+import type { DayFieldName, EntriesMap } from "@/lib/types";
 
 interface DayEditorProps {
   dateStr: string;
@@ -11,7 +12,11 @@ interface DayEditorProps {
   onAddShift: (si: number, dateStr: string) => void;
   onRemovePiece: (dateStr: string, idx: number) => void;
   onClearSheetDay: (dateStr: string) => void;
-  onToggleDayOff: (dateStr: string, value: boolean) => void;
+  onUpdateDayField: (
+    dateStr: string,
+    field: DayFieldName,
+    value: number | boolean
+  ) => void;
   onClose: () => void;
 }
 
@@ -21,13 +26,14 @@ export default function DayEditor({
   onAddShift,
   onRemovePiece,
   onClearSheetDay,
-  onToggleDayOff,
+  onUpdateDayField,
   onClose,
 }: DayEditorProps) {
   const [query, setQuery] = useState("");
   const day = entries[dateStr];
   const isDayOff = !!day?.dayOff;
-  const pieces = isDayOff ? [] : day?.pieces ?? [];
+  const dc = computeDay(entries, dateStr);
+  const pieces = isDayOff ? [] : dc.pieces;
 
   const { results, truncated } = useMemo(
     () => (isDayOff ? { results: [], truncated: false } : searchRuns(query)),
@@ -43,13 +49,94 @@ export default function DayEditor({
         </button>
       </div>
 
-      <div className="toggle-row" style={{ margin: "8px 0" }}>
-        <input
-          type="checkbox"
-          checked={isDayOff}
-          onChange={(e) => onToggleDayOff(dateStr, e.target.checked)}
-        />
-        <label>Day off</label>
+      {!isDayOff && (
+        <div className="day-stats" style={{ margin: "6px 0" }}>
+          Plat <b>{fmtHM(dc.platMin)}</b> · Pay <b>{fmtHM(dc.payMin)}</b>{" "}
+          {pieces.length > 0 &&
+            (dc.fromSheet ? (
+              <span className="badge match">from booking sheet</span>
+            ) : dc.matched ? (
+              <span className="badge match">board match</span>
+            ) : (
+              <span className="badge estimate">estimate</span>
+            ))}
+        </div>
+      )}
+
+      <div className="day-editor-extras">
+        <div className="field">
+          <label>Non-Platform (standby, hrs)</label>
+          <input
+            type="number"
+            step="0.25"
+            value={day?.nonPlatform || ""}
+            onChange={(e) =>
+              onUpdateDayField(
+                dateStr,
+                "nonPlatform",
+                parseFloat(e.target.value) || 0
+              )
+            }
+          />
+        </div>
+        <div className="field">
+          <label>Callup (hrs)</label>
+          <input
+            type="number"
+            step="0.25"
+            value={day?.callup || ""}
+            onChange={(e) =>
+              onUpdateDayField(dateStr, "callup", parseFloat(e.target.value) || 0)
+            }
+          />
+        </div>
+        <div className="field">
+          <label>Booking hrs</label>
+          <input
+            type="number"
+            step="0.25"
+            value={day?.booking || ""}
+            onChange={(e) =>
+              onUpdateDayField(dateStr, "booking", parseFloat(e.target.value) || 0)
+            }
+          />
+        </div>
+        <div className="field">
+          <label>Sunday?</label>
+          <div className="toggle-row">
+            <input
+              type="checkbox"
+              checked={!!day?.isSunday}
+              onChange={(e) =>
+                onUpdateDayField(dateStr, "isSunday", e.target.checked)
+              }
+            />
+          </div>
+        </div>
+        <div className="field">
+          <label>Stat holiday?</label>
+          <div className="toggle-row">
+            <input
+              type="checkbox"
+              checked={!!day?.isStat}
+              onChange={(e) =>
+                onUpdateDayField(dateStr, "isStat", e.target.checked)
+              }
+            />
+          </div>
+        </div>
+        <div className="field">
+          <label>Day off?</label>
+          <div className="toggle-row">
+            <input
+              type="checkbox"
+              checked={isDayOff}
+              onChange={(e) =>
+                onUpdateDayField(dateStr, "dayOff", e.target.checked)
+              }
+            />
+          </div>
+        </div>
       </div>
 
       {!isDayOff && (
@@ -66,7 +153,7 @@ export default function DayEditor({
                     className="danger"
                     title="Remove"
                     onClick={() =>
-                      day?.fromSheet
+                      dc.fromSheet
                         ? onClearSheetDay(dateStr)
                         : onRemovePiece(dateStr, idx)
                     }

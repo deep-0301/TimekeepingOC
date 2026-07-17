@@ -20,7 +20,6 @@ import SettingsPanel from "@/components/SettingsPanel";
 import RunSearch from "@/components/RunSearch";
 import BookingSheetImport from "@/components/BookingSheetImport";
 import MonthCalendar from "@/components/MonthCalendar";
-import DaysList from "@/components/DaysList";
 import SummaryTable from "@/components/SummaryTable";
 
 export default function Home() {
@@ -155,13 +154,6 @@ export default function Home() {
     [updateEntries]
   );
 
-  const toggleDayOff = useCallback(
-    (dateStr: string, value: boolean) => {
-      updateDayField(dateStr, "dayOff", value);
-    },
-    [updateDayField]
-  );
-
   const saveSettings = useCallback(async (next: PaySettings) => {
     setSettings(next);
     try {
@@ -216,29 +208,12 @@ export default function Home() {
         onAddShift={addShiftToDate}
         onRemovePiece={removePiece}
         onClearSheetDay={clearSheetDay}
-        onToggleDayOff={toggleDayOff}
+        onUpdateDayField={updateDayField}
       />
 
       <RunSearch weekDays={weekDays} onAddShift={addShiftToDate} />
 
       <BookingSheetImport onImport={updateEntries} />
-
-      <section className="panel">
-        <h2>Add manually</h2>
-        <div className="note">
-          For anything not covered by your booking sheet or the run search —
-          add it directly on a day below.
-        </div>
-      </section>
-
-      <DaysList
-        weekDays={weekDays}
-        entries={entries}
-        settings={settings}
-        onRemovePiece={removePiece}
-        onClearSheetDay={clearSheetDay}
-        onUpdateDayField={updateDayField}
-      />
 
       <section className="summary panel">
         <h2>Pay Period Summary (this week)</h2>
