@@ -6,23 +6,27 @@ import {
   parseBookingSheetText,
   type SheetBlock,
 } from "@/lib/bookingSheetParser";
-import { fmtDate, fmtHM } from "@/lib/dateUtils";
+import { fmtDate, fmtHM, parseDateStr } from "@/lib/dateUtils";
 import { extractPdfText } from "@/lib/pdfExtract";
 import { newEmptyDayEntry, type EntriesMap, type EntryPiece } from "@/lib/types";
 
 interface BookingSheetImportProps {
   onImport: (updater: (prev: EntriesMap) => EntriesMap) => void;
+  onSeasonAnchorDetected: (dateStr: string) => void;
 }
 
 export default function BookingSheetImport({
   onImport,
+  onSeasonAnchorDetected,
 }: BookingSheetImportProps) {
   const [pasteText, setPasteText] = useState("");
   const [anchorDateInput, setAnchorDateInput] = useState("");
   const [parseStatus, setParseStatus] = useState("");
   const [blocks, setBlocks] = useState<SheetBlock[]>([]);
   const [included, setIncluded] = useState<Record<number, boolean>>({});
-  const [rowDates, setRowDates] = useState<Record<number, string>>({});
+  const [rowDatesList, setRowDatesList] = useState<Record<number, string[]>>(
+    {}
+  );
 
   function runParse(text: string) {
     if (!text.trim()) {
@@ -34,25 +38,29 @@ export default function BookingSheetImport({
       const [y, m, d] = anchorDateInput.split("-").map(Number);
       manualAnchor = new Date(y, m - 1, d);
     }
-    const { anchorDate, blocks: parsedBlocks } = parseBookingSheetText(
-      text,
-      manualAnchor
-    );
-    if (anchorDate) setAnchorDateInput(fmtDate(anchorDate));
-    setParseStatus(`${parsedBlocks.length} block(s) found.`);
+    const { anchorDate, seasonEndDate, blocks: parsedBlocks } =
+      parseBookingSheetText(text, manualAnchor);
+    if (anchorDate) {
+      setAnchorDateInput(fmtDate(anchorDate));
+      onSeasonAnchorDetected(fmtDate(anchorDate));
+    }
+    const seasonNote = seasonEndDate
+      ? ` Season runs to ${fmtDate(seasonEndDate)} — repeating patterns are applied to every matching week through then.`
+      : "";
+    setParseStatus(`${parsedBlocks.length} block(s) found.${seasonNote}`);
 
     const workBlocks = parsedBlocks.filter(
       (b) => b.isDayOff || b.rows.length > 0
     );
     setBlocks(workBlocks);
     const inc: Record<number, boolean> = {};
-    const dates: Record<number, string> = {};
+    const dates: Record<number, string[]> = {};
     workBlocks.forEach((b, i) => {
       inc[i] = true;
-      dates[i] = b.date ? fmtDate(b.date) : "";
+      dates[i] = b.dates.map(fmtDate);
     });
     setIncluded(inc);
-    setRowDates(dates);
+    setRowDatesList(dates);
   }
 
   async function handleFile(file: File) {
@@ -79,54 +87,78 @@ export default function BookingSheetImport({
     }
   }
 
+  function handleBaseDateChange(i: number, newBaseDateStr: string) {
+    const current = rowDatesList[i] || [];
+    if (current.length === 0 || !newBaseDateStr) {
+      setRowDatesList({ ...rowDatesList, [i]: [newBaseDateStr] });
+      return;
+    }
+    const oldBase = parseDateStr(current[0]);
+    const newBase = parseDateStr(newBaseDateStr);
+    const deltaDays = Math.round(
+      (newBase.getTime() - oldBase.getTime()) / 86400000
+    );
+    const shifted = current.map((ds) => {
+      const d = parseDateStr(ds);
+      d.setDate(d.getDate() + deltaDays);
+      return fmtDate(d);
+    });
+    setRowDatesList({ ...rowDatesList, [i]: shifted });
+  }
+
   function handleImport() {
     let count = 0;
     onImport((prev) => {
       const next = { ...prev };
       blocks.forEach((b, i) => {
         if (!included[i]) return;
-        const dateStr = rowDates[i];
-        if (!dateStr) return;
-        const day = next[dateStr]
-          ? { ...next[dateStr] }
-          : newEmptyDayEntry();
-        if (b.isDayOff) {
-          day.dayOff = true;
-          day.pieces = [];
-          next[dateStr] = day;
-          count++;
-          return;
-        }
+        const dateStrs = rowDatesList[i] || [];
         const hasTotals = !!(b.totalPlat && b.totalPay);
         const anySpare = b.rows.some((r) => r.isSpare);
-        if (hasTotals) {
-          day.pieces = b.rows.map(
-            (r): EntryPiece => ({
-              run: r.run,
-              shiftId: r.shiftCode,
-              onTime: r.onTime,
-              offTime: r.offTime,
-              onLoc: r.onLoc,
-              offLoc: r.offLoc,
-              platMin: hmToMin(r.segPlat || r.totalGuarantee),
-              shiftPlat: 0,
-              shiftPay: 0,
-              allRuns: b.rows.map((rr) => rr.run),
-            })
-          );
-          day.fromSheet = true;
-          day.sheetPlat = hmToMin(b.totalPlat);
-          day.sheetPay = hmToMin(b.totalPay);
-        } else if (anySpare) {
-          const totalMin = b.rows.reduce(
-            (a, r) => a + hmToMin(r.totalGuarantee),
-            0
-          );
-          day.nonPlatform = (day.nonPlatform || 0) + totalMin / 60;
-        }
-        if (b.isHoliday) day.isStat = true;
-        next[dateStr] = day;
-        count++;
+        dateStrs.forEach((dateStr) => {
+          if (!dateStr) return;
+          const day = next[dateStr] ? { ...next[dateStr] } : newEmptyDayEntry();
+          if (b.isDayOff) {
+            day.dayOff = true;
+            day.pieces = [];
+            next[dateStr] = day;
+            count++;
+            return;
+          }
+          if (hasTotals) {
+            day.pieces = b.rows.map(
+              (r): EntryPiece => ({
+                run: r.run,
+                shiftId: r.shiftCode,
+                onTime: r.onTime,
+                offTime: r.offTime,
+                onLoc: r.onLoc,
+                offLoc: r.offLoc,
+                platMin: hmToMin(r.segPlat || r.totalGuarantee),
+                shiftPlat: 0,
+                shiftPay: 0,
+                allRuns: b.rows.map((rr) => rr.run),
+              })
+            );
+            day.fromSheet = true;
+            day.sheetPlat = hmToMin(b.totalPlat);
+            day.sheetPay = hmToMin(b.totalPay);
+          } else if (anySpare) {
+            const totalMin = b.rows.reduce(
+              (a, r) => a + hmToMin(r.totalGuarantee),
+              0
+            );
+            const guaranteeHrs = totalMin / 60;
+            day.spare = {
+              guaranteeHrs,
+              standbyHrsUsed: guaranteeHrs,
+              runNumber: null,
+            };
+          }
+          if (b.isHoliday) day.isStat = true;
+          next[dateStr] = day;
+          count++;
+        });
       });
       return next;
     });
@@ -143,11 +175,14 @@ export default function BookingSheetImport({
         OCR on it, entirely on your device. Works with both kinds of sheet:
         your regular Monday–Friday board, and the weekend/general-spare
         sheet with explicit holiday-shift dates (e.g. &ldquo;Canada Day
-        SPARE 01-Jul-2026&rdquo;). It pulls out every shift, run number,
-        the season start date, and day-off/holiday markers automatically —
-        upload both sheets one after another and they&apos;ll merge onto
-        the same calendar. You can also paste text manually below if
-        you&apos;d rather.
+        SPARE 01-Jul-2026&rdquo;). Each weekly pattern is applied to every
+        matching week for the whole season (from the season start through
+        the season end date printed on the sheet) — the calendar updates
+        for the entire booking period, not just the first week or two shown
+        on the page. Upload the regular sheet first, then the
+        weekend/holiday sheet after — its explicit holiday dates will
+        correctly override the regular pattern on those days. You can also
+        paste text manually below if you&apos;d rather.
       </div>
       <div style={{ marginTop: 8 }}>
         <input
@@ -192,8 +227,9 @@ export default function BookingSheetImport({
       {blocks.length === 0 ? null : (
         <>
           <div className="note" style={{ marginTop: 10 }}>
-            Review below, uncheck anything you don&apos;t want, fix any date
-            that looks off, then import.
+            Review below, uncheck anything you don&apos;t want, fix the first
+            date if it looks off (the rest of that pattern&apos;s dates shift
+            with it), then import.
           </div>
           <table className="summary-table" style={{ marginTop: 6 }}>
             <tbody>
@@ -218,6 +254,7 @@ export default function BookingSheetImport({
                   );
                   hoursDesc = `${fmtHM(totalMin)} standby`;
                 }
+                const dates = rowDatesList[i] || [];
                 return (
                   <tr key={i}>
                     <td style={{ whiteSpace: "nowrap" }}>
@@ -231,10 +268,8 @@ export default function BookingSheetImport({
                       <input
                         type="date"
                         style={{ width: 135 }}
-                        value={rowDates[i] || ""}
-                        onChange={(e) =>
-                          setRowDates({ ...rowDates, [i]: e.target.value })
-                        }
+                        value={dates[0] || ""}
+                        onChange={(e) => handleBaseDateChange(i, e.target.value)}
                       />
                     </td>
                     <td>
@@ -253,6 +288,11 @@ export default function BookingSheetImport({
                       >
                         {runsDesc} &nbsp; {hoursDesc}
                       </span>
+                      {dates.length > 1 && (
+                        <div className="note" style={{ margin: "2px 0 0" }}>
+                          Repeats {dates.length}×: {dates.join(", ")}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );

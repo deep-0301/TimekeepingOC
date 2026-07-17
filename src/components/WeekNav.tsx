@@ -18,7 +18,7 @@ export default function WeekNav({
   return (
     <nav className="week-nav">
       <button className="ghost" onClick={onPrevWeek}>
-        ◀ Prev week
+        ◀ Prev period
       </button>
       <input
         type="date"
@@ -26,7 +26,7 @@ export default function WeekNav({
         onChange={(e) => e.target.value && onPickDate(e.target.value)}
       />
       <button className="ghost" onClick={onNextWeek}>
-        Next week ▶
+        Next period ▶
       </button>
       <div className="spacer" />
       <button className="ghost" onClick={onToggleSettings}>

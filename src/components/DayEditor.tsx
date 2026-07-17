@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { searchRuns } from "@/lib/board";
+import { runIndex, searchRuns } from "@/lib/board";
 import { computeDay } from "@/lib/pay";
 import { fmtHM, parseDateStr } from "@/lib/dateUtils";
 import { getHolidayForDate } from "@/lib/statHolidays";
-import type { DayFieldName, EntriesMap } from "@/lib/types";
+import type { DayFieldName, EntriesMap, SpareInfo } from "@/lib/types";
 
 interface DayEditorProps {
   dateStr: string;
@@ -18,6 +18,7 @@ interface DayEditorProps {
     field: DayFieldName,
     value: number | boolean
   ) => void;
+  onUpdateSpare: (dateStr: string, spare: SpareInfo | null) => void;
   onClose: () => void;
 }
 
@@ -28,19 +29,36 @@ export default function DayEditor({
   onRemovePiece,
   onClearSheetDay,
   onUpdateDayField,
+  onUpdateSpare,
   onClose,
 }: DayEditorProps) {
   const [query, setQuery] = useState("");
+  const [spareRunInput, setSpareRunInput] = useState(
+    entries[dateStr]?.spare?.runNumber || ""
+  );
   const day = entries[dateStr];
   const isDayOff = !!day?.dayOff;
+  const isSpare = !!day?.spare;
   const dc = computeDay(entries, dateStr);
   const pieces = isDayOff ? [] : dc.pieces;
   const holiday = getHolidayForDate(parseDateStr(dateStr));
 
   const { results, truncated } = useMemo(
-    () => (isDayOff ? { results: [], truncated: false } : searchRuns(query)),
-    [query, isDayOff]
+    () =>
+      isDayOff || isSpare ? { results: [], truncated: false } : searchRuns(query),
+    [query, isDayOff, isSpare]
   );
+
+  const spareRunMatch = spareRunInput ? runIndex[spareRunInput]?.[0] : null;
+
+  function patchSpare(patch: Partial<SpareInfo>) {
+    const current: SpareInfo = day?.spare || {
+      guaranteeHrs: 8,
+      standbyHrsUsed: 8,
+      runNumber: null,
+    };
+    onUpdateSpare(dateStr, { ...current, ...patch });
+  }
 
   return (
     <div className={"day-editor" + (isDayOff ? " is-dayoff" : "")}>
@@ -73,7 +91,9 @@ export default function DayEditor({
       {!isDayOff && (
         <div className="day-stats" style={{ margin: "6px 0" }}>
           Plat <b>{fmtHM(dc.platMin)}</b> · Pay <b>{fmtHM(dc.payMin)}</b>{" "}
-          {pieces.length > 0 &&
+          {isSpare && <span className="badge estimate">spare</span>}
+          {!isSpare &&
+            pieces.length > 0 &&
             (dc.fromSheet ? (
               <span className="badge match">from booking sheet</span>
             ) : dc.matched ? (
@@ -158,9 +178,89 @@ export default function DayEditor({
             />
           </div>
         </div>
+        <div className="field">
+          <label>Spare / standby?</label>
+          <div className="toggle-row">
+            <input
+              type="checkbox"
+              checked={isSpare}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  onUpdateSpare(dateStr, {
+                    guaranteeHrs: 8,
+                    standbyHrsUsed: 8,
+                    runNumber: null,
+                  });
+                } else {
+                  setSpareRunInput("");
+                  onUpdateSpare(dateStr, null);
+                }
+              }}
+            />
+          </div>
+        </div>
       </div>
 
-      {!isDayOff && (
+      {isSpare && day?.spare && (
+        <div className="spare-panel">
+          <div className="note">
+            Spares guarantee at least the platform hours below if never
+            dispatched. Enter a run number if put to work — pay becomes
+            standby hours used (if any) plus that run&apos;s platform time,
+            plus a flat 30-minute callup.
+          </div>
+          <div className="day-editor-extras">
+            <div className="field">
+              <label>Guarantee (hrs)</label>
+              <input
+                type="number"
+                step="0.25"
+                value={day.spare.guaranteeHrs}
+                onChange={(e) =>
+                  patchSpare({ guaranteeHrs: parseFloat(e.target.value) || 0 })
+                }
+              />
+            </div>
+            <div className="field">
+              <label>Run number (if dispatched)</label>
+              <input
+                type="text"
+                value={spareRunInput}
+                placeholder="e.g. 68-03"
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setSpareRunInput(v);
+                  patchSpare({ runNumber: v.trim() ? v.trim() : null });
+                }}
+              />
+            </div>
+            {day.spare.runNumber && (
+              <div className="field">
+                <label>Standby hrs used before the run</label>
+                <input
+                  type="number"
+                  step="0.25"
+                  value={day.spare.standbyHrsUsed}
+                  onChange={(e) =>
+                    patchSpare({
+                      standbyHrsUsed: parseFloat(e.target.value) || 0,
+                    })
+                  }
+                />
+              </div>
+            )}
+          </div>
+          {day.spare.runNumber && (
+            <div className="note">
+              {spareRunMatch
+                ? `Found: ${spareRunInput} — ${spareRunMatch.on}→${spareRunMatch.off}, ${fmtHM(spareRunMatch.platmin)} plat, ${spareRunMatch.onloc} → ${spareRunMatch.offloc}`
+                : `No run "${spareRunInput}" found in the loaded board — pay will use 0 platform time for it until a valid run number is entered.`}
+            </div>
+          )}
+        </div>
+      )}
+
+      {!isDayOff && !isSpare && (
         <>
           {pieces.length > 0 && (
             <div className="day-editor-pieces">

@@ -47,6 +47,8 @@ export interface SheetBlock {
   totalPlat: string | null;
   totalPay: string | null;
   date: Date | null;
+  /** All dates this block's pattern applies to across the season (repeat occurrences). */
+  dates: Date[];
 }
 
 function extractTimeTokens(s: string) {
@@ -75,7 +77,7 @@ export function hmToMin(t: string | null | undefined): number {
 export function parseBookingSheetText(
   text: string,
   manualAnchor: Date | null
-): { anchorDate: Date | null; blocks: SheetBlock[] } {
+): { anchorDate: Date | null; seasonEndDate: Date | null; blocks: SheetBlock[] } {
   const rawLines = text
     .split("\n")
     .map((l) => l.trim())
@@ -83,21 +85,26 @@ export function parseBookingSheetText(
   const blocks: SheetBlock[] = [];
   let current: SheetBlock | null = null;
   let anchorDate: Date | null = manualAnchor || null;
+  let seasonEndDate: Date | null = null;
 
   function pushCurrent() {
     if (current) blocks.push(current);
     current = null;
   }
 
+  function ymd8(s: string): Date {
+    return new Date(
+      parseInt(s.slice(0, 4)),
+      parseInt(s.slice(4, 6)) - 1,
+      parseInt(s.slice(6, 8))
+    );
+  }
+
   for (const line of rawLines) {
-    const seasonMatch = line.match(/^(\d{8})\s*-\s*.*\d{8}\s*$/);
-    if (seasonMatch && !manualAnchor && !anchorDate) {
-      const s = seasonMatch[1];
-      anchorDate = new Date(
-        parseInt(s.slice(0, 4)),
-        parseInt(s.slice(4, 6)) - 1,
-        parseInt(s.slice(6, 8))
-      );
+    const seasonMatch = line.match(/^(\d{8})\s*-\s*.*?(\d{8})\s*$/);
+    if (seasonMatch) {
+      if (!manualAnchor && !anchorDate) anchorDate = ymd8(seasonMatch[1]);
+      if (!seasonEndDate) seasonEndDate = ymd8(seasonMatch[2]);
       continue;
     }
     if (/^EMPLOYEE BOOKING SHEET$/i.test(line)) continue;
@@ -130,6 +137,7 @@ export function parseBookingSheetText(
           totalPlat: null,
           totalPay: null,
           date: null,
+          dates: [],
         };
       } else if (dateMatch) {
         pushCurrent();
@@ -145,6 +153,7 @@ export function parseBookingSheetText(
           totalPlat: null,
           totalPay: null,
           date: null,
+          dates: [],
         };
       }
       continue;
@@ -213,5 +222,29 @@ export function parseBookingSheetText(
     }
   });
 
-  return { anchorDate, blocks };
+  // A weekday+cycle block's pattern repeats every `cycleLength` weeks for
+  // the rest of the season (e.g. a 2-week bid cycle repeats all summer).
+  // Explicit-date (holiday) blocks are one-off and never repeat.
+  const cycleLength = blocks.reduce(
+    (max, b) => (b.weekday && b.cycleN ? Math.max(max, b.cycleN) : max),
+    0
+  );
+  blocks.forEach((b) => {
+    if (!b.date) {
+      b.dates = [];
+    } else if (b.explicitDate || !b.weekday || cycleLength <= 1) {
+      b.dates = [b.date];
+    } else {
+      const dates: Date[] = [];
+      const d = new Date(b.date);
+      const end = seasonEndDate ?? b.date;
+      while (d <= end) {
+        dates.push(new Date(d));
+        d.setDate(d.getDate() + 7 * cycleLength);
+      }
+      b.dates = dates;
+    }
+  });
+
+  return { anchorDate, seasonEndDate, blocks };
 }

@@ -97,6 +97,16 @@ export default function SettingsPanel({ settings, onSave }: SettingsPanelProps) 
             <option value="monday">Monday</option>
           </select>
         </div>
+        <div className="field">
+          <label>Pay period start (any known period-start date)</label>
+          <input
+            type="date"
+            value={form.payPeriodAnchor}
+            onChange={(e) =>
+              setForm({ ...form, payPeriodAnchor: e.target.value })
+            }
+          />
+        </div>
       </div>
       <div className="note">
         Sunday premium is applied as the extra portion on top of Regular Pay —

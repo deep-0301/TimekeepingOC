@@ -5,11 +5,11 @@ import { searchRuns } from "@/lib/board";
 import { fmtDate, fmtHM, dayLabel } from "@/lib/dateUtils";
 
 interface RunSearchProps {
-  weekDays: Date[];
+  periodDays: Date[];
   onAddShift: (si: number, dateStr: string) => void;
 }
 
-export default function RunSearch({ weekDays, onAddShift }: RunSearchProps) {
+export default function RunSearch({ periodDays, onAddShift }: RunSearchProps) {
   const [query, setQuery] = useState("");
   const [selectedDates, setSelectedDates] = useState<Record<number, string>>(
     {}
@@ -17,7 +17,7 @@ export default function RunSearch({ weekDays, onAddShift }: RunSearchProps) {
 
   const { results, truncated } = useMemo(() => searchRuns(query), [query]);
 
-  const dateOptions = weekDays.map((d) => ({
+  const dateOptions = periodDays.map((d) => ({
     value: fmtDate(d),
     label: dayLabel(d),
   }));

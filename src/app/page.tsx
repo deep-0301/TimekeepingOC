@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BOARD_DATA } from "@/lib/board";
 import { parseDateStr } from "@/lib/dateUtils";
-import { computeWeek, getWeekDatesFor } from "@/lib/pay";
+import { computeWeek, getPayPeriodDatesFor } from "@/lib/pay";
 import { store } from "@/lib/storage";
 import {
   DEFAULT_SETTINGS,
@@ -12,6 +12,7 @@ import {
   type EntriesMap,
   type EntryPiece,
   type PaySettings,
+  type SpareInfo,
 } from "@/lib/types";
 
 import Header from "@/components/Header";
@@ -154,6 +155,17 @@ export default function Home() {
     [updateEntries]
   );
 
+  const updateSpare = useCallback(
+    (dateStr: string, spare: SpareInfo | null) => {
+      updateEntries((prev) => {
+        const day = prev[dateStr] ? { ...prev[dateStr] } : newEmptyDayEntry();
+        day.spare = spare;
+        return { ...prev, [dateStr]: day };
+      });
+    },
+    [updateEntries]
+  );
+
   const saveSettings = useCallback(async (next: PaySettings) => {
     setSettings(next);
     try {
@@ -164,12 +176,24 @@ export default function Home() {
     }
   }, []);
 
-  const weekDays = getWeekDatesFor(refDate, settings);
-  const weekComputed = computeWeek(entries, weekDays, settings);
+  const updatePayPeriodAnchor = useCallback(
+    (dateStr: string) => {
+      setSettings((prev) => {
+        if (prev.payPeriodAnchor === dateStr) return prev;
+        const next = { ...prev, payPeriodAnchor: dateStr };
+        store.saveSettings(next).catch(() => {});
+        return next;
+      });
+    },
+    []
+  );
 
-  const start = weekDays[0];
-  const end = weekDays[6];
-  const weekLabel =
+  const periodDays = getPayPeriodDatesFor(refDate, settings);
+  const periodComputed = computeWeek(entries, periodDays, settings);
+
+  const start = periodDays[0];
+  const end = periodDays[13];
+  const periodLabel =
     start.toLocaleDateString(undefined, { month: "short", day: "numeric" }) +
     " – " +
     end.toLocaleDateString(undefined, { month: "short", day: "numeric" });
@@ -177,21 +201,21 @@ export default function Home() {
   return (
     <div id="app">
       <Header
-        weekLabel={weekLabel}
-        grossPay={weekComputed.grossPay}
-        payHrs={weekComputed.sumPay / 60}
+        weekLabel={periodLabel}
+        grossPay={periodComputed.grossPay}
+        payHrs={periodComputed.sumPay / 60}
       />
 
       <WeekNav
         refDate={refDate}
         onPrevWeek={() => {
           const d = new Date(refDate);
-          d.setDate(d.getDate() - 7);
+          d.setDate(d.getDate() - 14);
           setRefDate(d);
         }}
         onNextWeek={() => {
           const d = new Date(refDate);
-          d.setDate(d.getDate() + 7);
+          d.setDate(d.getDate() + 14);
           setRefDate(d);
         }}
         onPickDate={(dateStr) => setRefDate(parseDateStr(dateStr))}
@@ -209,15 +233,19 @@ export default function Home() {
         onRemovePiece={removePiece}
         onClearSheetDay={clearSheetDay}
         onUpdateDayField={updateDayField}
+        onUpdateSpare={updateSpare}
       />
 
-      <BookingSheetImport onImport={updateEntries} />
+      <BookingSheetImport
+        onImport={updateEntries}
+        onSeasonAnchorDetected={updatePayPeriodAnchor}
+      />
 
-      <RunSearch weekDays={weekDays} onAddShift={addShiftToDate} />
+      <RunSearch periodDays={periodDays} onAddShift={addShiftToDate} />
 
       <section className="summary panel">
-        <h2>Pay Period Summary (this week)</h2>
-        <SummaryTable week={weekComputed} settings={settings} />
+        <h2>Pay Period Summary ({periodLabel})</h2>
+        <SummaryTable week={periodComputed} settings={settings} />
       </section>
 
       <footer className="status">{statusLine}</footer>

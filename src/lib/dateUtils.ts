@@ -53,3 +53,31 @@ export function getWeekDates(
   }
   return days;
 }
+
+const MS_PER_DAY = 86400000;
+
+/**
+ * The 14-day biweekly pay period containing `ref`, aligned so that
+ * `anchor` (any known period-start date) always begins a period.
+ */
+export function getPayPeriodDates(ref: Date, anchor: Date): Date[] {
+  const refMid = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
+  const anchorMid = new Date(
+    anchor.getFullYear(),
+    anchor.getMonth(),
+    anchor.getDate()
+  );
+  const diffDays = Math.round(
+    (refMid.getTime() - anchorMid.getTime()) / MS_PER_DAY
+  );
+  const periodIndex = Math.floor(diffDays / 14);
+  const start = new Date(anchorMid);
+  start.setDate(start.getDate() + periodIndex * 14);
+  const days: Date[] = [];
+  for (let i = 0; i < 14; i++) {
+    const day = new Date(start);
+    day.setDate(start.getDate() + i);
+    days.push(day);
+  }
+  return days;
+}

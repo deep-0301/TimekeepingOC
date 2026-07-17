@@ -4,7 +4,12 @@ import { useMemo, useState } from "react";
 import { computeDay } from "@/lib/pay";
 import { fmtDate } from "@/lib/dateUtils";
 import { getHolidayForDate } from "@/lib/statHolidays";
-import type { DayFieldName, EntriesMap, PaySettings } from "@/lib/types";
+import type {
+  DayFieldName,
+  EntriesMap,
+  PaySettings,
+  SpareInfo,
+} from "@/lib/types";
 import DayEditor from "./DayEditor";
 
 interface MonthCalendarProps {
@@ -18,6 +23,7 @@ interface MonthCalendarProps {
     field: DayFieldName,
     value: number | boolean
   ) => void;
+  onUpdateSpare: (dateStr: string, spare: SpareInfo | null) => void;
 }
 
 const WEEKDAY_LABELS_SUN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -30,6 +36,7 @@ export default function MonthCalendar({
   onRemovePiece,
   onClearSheetDay,
   onUpdateDayField,
+  onUpdateSpare,
 }: MonthCalendarProps) {
   const [viewMonth, setViewMonth] = useState(() => {
     const d = new Date();
@@ -131,6 +138,14 @@ export default function MonthCalendar({
               )}
               {dc.dayOff ? (
                 <span className="cal-cell-off">OFF</span>
+              ) : dc.spare ? (
+                <span className="cal-cell-runs">
+                  <span className="cal-run-chip cal-spare-chip">
+                    {dc.spare.runNumber
+                      ? `SPARE→${dc.spare.runNumber}`
+                      : `SPARE ${dc.spare.guaranteeHrs}h`}
+                  </span>
+                </span>
               ) : (
                 <span className="cal-cell-runs">
                   {runCodes.slice(0, 3).map((r) => (
@@ -152,12 +167,14 @@ export default function MonthCalendar({
 
       {selectedDate && (
         <DayEditor
+          key={selectedDate}
           dateStr={selectedDate}
           entries={entries}
           onAddShift={onAddShift}
           onRemovePiece={onRemovePiece}
           onClearSheetDay={onClearSheetDay}
           onUpdateDayField={onUpdateDayField}
+          onUpdateSpare={onUpdateSpare}
           onClose={() => setSelectedDate(null)}
         />
       )}

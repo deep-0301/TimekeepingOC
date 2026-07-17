@@ -79,11 +79,6 @@ export function getStatHolidays(year: number): StatHoliday[] {
       name: "Thanksgiving Day",
       category: "general",
     },
-    {
-      date: new Date(year, 8, 30),
-      name: "National Day For Truth and Reconciliation",
-      category: "general",
-    },
     { date: new Date(year, 10, 11), name: "Remembrance Day", category: "general" },
     { date: new Date(year, 11, 25), name: "Christmas Day", category: "general" },
     { date: new Date(year, 11, 26), name: "Boxing Day", category: "general" },

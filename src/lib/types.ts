@@ -5,6 +5,10 @@ export interface PaySettings {
   sundayMultiplier: number;
   statHolidayPay: number;
   weekStart: "sunday" | "monday";
+  /** Any known pay-period-start date (yyyy-mm-dd); biweekly periods are
+   * computed as 14-day blocks aligned to this date. Updated automatically
+   * when a booking sheet's season start date is parsed. */
+  payPeriodAnchor: string;
 }
 
 export const DEFAULT_SETTINGS: PaySettings = {
@@ -14,6 +18,7 @@ export const DEFAULT_SETTINGS: PaySettings = {
   sundayMultiplier: 1.25,
   statHolidayPay: 257.79,
   weekStart: "sunday",
+  payPeriodAnchor: "2026-06-28",
 };
 
 /** A single board schedule row: [run, onTime, offTime, onLoc, offLoc, platMin] */
@@ -35,6 +40,19 @@ export interface EntryPiece {
   allRuns: string[];
 }
 
+/**
+ * A spare/standby assignment: guarantees `guaranteeHrs` of platform pay if
+ * never dispatched. If `runNumber` is set, the spare was put on that run —
+ * pay becomes `standbyHrsUsed` (time on standby before the run, if any)
+ * plus the run's own platform time, plus a flat 30-minute callup, regardless
+ * of garage.
+ */
+export interface SpareInfo {
+  guaranteeHrs: number;
+  standbyHrsUsed: number;
+  runNumber: string | null;
+}
+
 export interface DayEntry {
   pieces: EntryPiece[];
   nonPlatform: number;
@@ -46,6 +64,7 @@ export interface DayEntry {
   fromSheet?: boolean;
   sheetPlat?: number;
   sheetPay?: number;
+  spare?: SpareInfo | null;
 }
 
 export type EntriesMap = Record<string, DayEntry>;
@@ -70,6 +89,7 @@ export interface DayComputed {
   isStat: boolean;
   dayOff: boolean;
   pieces: EntryPiece[];
+  spare: SpareInfo | null;
 }
 
 export interface DayComputedWithOt extends DayComputed {
@@ -96,6 +116,9 @@ export interface WeekComputed {
   sumBooking: number;
   statDays: number;
   sundayHrs: number;
+  clcBreakHrs: number;
+  clcBreakPay: number;
+  totalHrs: number;
 }
 
 export function newEmptyDayEntry(): DayEntry {
