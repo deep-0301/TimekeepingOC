@@ -37,7 +37,7 @@ body {
 }
 
 #app {
-  max-width: 960px;
+  max-width: 1100px;
   margin: 0 auto;
   padding: 20px 16px 60px;
 }
@@ -181,6 +181,17 @@ input[type="text"].run-search {
   width: 100%;
   font-size: 15px;
   padding: 10px 12px;
+}
+
+select.period-select {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #fff;
+  color: var(--ink);
+  max-width: 220px;
 }
 
 .spacer {
@@ -424,30 +435,30 @@ textarea.sheet-paste {
 
 .cal-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 7px;
 }
 
 .cal-weekday {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--ink-soft);
   text-align: center;
-  padding-bottom: 4px;
+  padding-bottom: 6px;
 }
 
 .cal-cell {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  min-height: 58px;
+  gap: 5px;
+  min-height: 90px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--card);
-  padding: 6px 4px;
+  padding: 10px 6px;
   cursor: pointer;
   font-family: var(--font-sans);
   color: var(--ink);
@@ -484,22 +495,22 @@ textarea.sheet-paste {
 
 .cal-cell-date {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 600;
 }
 
 .cal-cell-holiday-label {
   font-family: var(--font-sans);
-  font-size: 8.5px;
+  font-size: 10px;
   font-weight: 600;
-  line-height: 1.15;
+  line-height: 1.2;
   text-align: center;
   color: var(--holiday);
 }
 
 .cal-cell-off {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10.5px;
   letter-spacing: 1px;
   text-transform: uppercase;
   font-weight: 700;
@@ -509,16 +520,16 @@ textarea.sheet-paste {
 .cal-cell-runs {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px;
+  gap: 3px;
   justify-content: center;
 }
 
 .cal-run-chip {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10.5px;
   background: #e4eef2;
   color: var(--steel-dark);
-  padding: 1px 4px;
+  padding: 2px 5px;
   border-radius: 3px;
   line-height: 1.4;
 }

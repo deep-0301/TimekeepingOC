@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BOARD_DATA } from "@/lib/board";
-import { parseDateStr } from "@/lib/dateUtils";
+import { fmtDate, parseDateStr } from "@/lib/dateUtils";
 import { computeWeek, getPayPeriodDatesFor } from "@/lib/pay";
 import { store } from "@/lib/storage";
 import {
@@ -198,6 +198,27 @@ export default function Home() {
     " – " +
     end.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
+  const currentPeriodValue = fmtDate(start);
+  const periodOptions = Array.from({ length: 30 }, (_, i) => {
+    const offset = i - 15;
+    const optStart = new Date(start);
+    optStart.setDate(optStart.getDate() + offset * 14);
+    const optEnd = new Date(optStart);
+    optEnd.setDate(optEnd.getDate() + 13);
+    const label =
+      optStart.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+      }) +
+      " – " +
+      optEnd.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    return { value: fmtDate(optStart), label };
+  });
+
   return (
     <div id="app">
       <Header
@@ -208,6 +229,8 @@ export default function Home() {
 
       <WeekNav
         refDate={refDate}
+        periodOptions={periodOptions}
+        currentPeriodValue={currentPeriodValue}
         onPrevWeek={() => {
           const d = new Date(refDate);
           d.setDate(d.getDate() - 14);
@@ -219,6 +242,7 @@ export default function Home() {
           setRefDate(d);
         }}
         onPickDate={(dateStr) => setRefDate(parseDateStr(dateStr))}
+        onSelectPeriod={(dateStr) => setRefDate(parseDateStr(dateStr))}
         onToggleSettings={() => setSettingsOpen((v) => !v)}
       />
 
