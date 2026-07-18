@@ -140,11 +140,7 @@ export default function Home() {
     (dateStr: string, field: DayFieldName, value: number | boolean) => {
       updateEntries((prev) => {
         const day = prev[dateStr] ? { ...prev[dateStr] } : newEmptyDayEntry();
-        if (
-          field === "isSunday" ||
-          field === "isStat" ||
-          field === "dayOff"
-        ) {
+        if (field === "isStat" || field === "dayOff") {
           day[field] = value as boolean;
         } else {
           day[field] = value as number;
@@ -229,8 +225,6 @@ export default function Home() {
 
       <WeekNav
         refDate={refDate}
-        periodOptions={periodOptions}
-        currentPeriodValue={currentPeriodValue}
         onPrevWeek={() => {
           const d = new Date(refDate);
           d.setDate(d.getDate() - 14);
@@ -242,7 +236,6 @@ export default function Home() {
           setRefDate(d);
         }}
         onPickDate={(dateStr) => setRefDate(parseDateStr(dateStr))}
-        onSelectPeriod={(dateStr) => setRefDate(parseDateStr(dateStr))}
         onToggleSettings={() => setSettingsOpen((v) => !v)}
       />
 
@@ -268,7 +261,22 @@ export default function Home() {
       <RunSearch periodDays={periodDays} onAddShift={addShiftToDate} />
 
       <section className="summary panel">
-        <h2>Pay Period Summary ({periodLabel})</h2>
+        <div className="summary-head">
+          <h2>Pay Period Summary ({periodLabel})</h2>
+          <select
+            className="period-select"
+            value={currentPeriodValue}
+            onChange={(e) =>
+              e.target.value && setRefDate(parseDateStr(e.target.value))
+            }
+          >
+            {periodOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
         <SummaryTable week={periodComputed} settings={settings} />
       </section>
 

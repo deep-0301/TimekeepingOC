@@ -52,6 +52,18 @@ export default function SummaryTable({ week, settings }: SummaryTableProps) {
       earn: fmtMoney(week.callupPay),
     },
     {
+      label: "AVLC",
+      rate: fmtMoney(settings.baseRate),
+      hrs: week.sumAvlc.toFixed(2),
+      earn: fmtMoney(week.avlcPay),
+    },
+    {
+      label: "Late Arrival Adjustment",
+      rate: fmtMoney(settings.baseRate),
+      hrs: week.sumLateArrival.toFixed(2),
+      earn: fmtMoney(week.lateArrivalPay),
+    },
+    {
       label: `Sunday Premium (+${((settings.sundayMultiplier - 1) * 100).toFixed(0)}%)`,
       rate: fmtMoney(settings.baseRate * (settings.sundayMultiplier - 1)),
       hrs: week.sundayHrs.toFixed(2),

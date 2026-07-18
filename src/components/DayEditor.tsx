@@ -148,63 +148,88 @@ export default function DayEditor({
             }
           />
         </div>
-        <div className="field">
-          <label>Sunday?</label>
-          <div className="toggle-row">
-            <input
-              type="checkbox"
-              checked={!!day?.isSunday}
-              onChange={(e) =>
-                onUpdateDayField(dateStr, "isSunday", e.target.checked)
-              }
-            />
-          </div>
-        </div>
-        <div className="field">
-          <label>Stat holiday?</label>
-          <div className="toggle-row">
-            <input
-              type="checkbox"
-              checked={!!day?.isStat}
-              onChange={(e) =>
-                onUpdateDayField(dateStr, "isStat", e.target.checked)
-              }
-            />
-          </div>
-        </div>
-        <div className="field">
-          <label>Day off?</label>
-          <div className="toggle-row">
-            <input
-              type="checkbox"
-              checked={isDayOff}
-              onChange={(e) =>
-                onUpdateDayField(dateStr, "dayOff", e.target.checked)
-              }
-            />
-          </div>
-        </div>
-        <div className="field">
-          <label>Spare / standby?</label>
-          <div className="toggle-row">
-            <input
-              type="checkbox"
-              checked={isSpare}
-              onChange={(e) => {
-                if (e.target.checked) {
-                  onUpdateSpare(dateStr, {
-                    guaranteeHrs: 8,
-                    standbyHrsUsed: 8,
-                    runNumber: null,
-                  });
-                } else {
-                  setSpareRunInput("");
-                  onUpdateSpare(dateStr, null);
+        {dc.fromSheet ? (
+          <>
+            <div className="field">
+              <label>AVLC (hrs)</label>
+              <input
+                type="number"
+                step="0.25"
+                value={day?.avlcHrs || ""}
+                onChange={(e) =>
+                  onUpdateDayField(
+                    dateStr,
+                    "avlcHrs",
+                    parseFloat(e.target.value) || 0
+                  )
                 }
-              }}
-            />
-          </div>
-        </div>
+              />
+            </div>
+            <div className="field">
+              <label>Revised time off (late arrival, hrs)</label>
+              <input
+                type="number"
+                step="0.25"
+                value={day?.lateArrivalHrs || ""}
+                onChange={(e) =>
+                  onUpdateDayField(
+                    dateStr,
+                    "lateArrivalHrs",
+                    parseFloat(e.target.value) || 0
+                  )
+                }
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="field">
+              <label>Stat holiday?</label>
+              <div className="toggle-row">
+                <input
+                  type="checkbox"
+                  checked={!!day?.isStat}
+                  onChange={(e) =>
+                    onUpdateDayField(dateStr, "isStat", e.target.checked)
+                  }
+                />
+              </div>
+            </div>
+            <div className="field">
+              <label>Day off?</label>
+              <div className="toggle-row">
+                <input
+                  type="checkbox"
+                  checked={isDayOff}
+                  onChange={(e) =>
+                    onUpdateDayField(dateStr, "dayOff", e.target.checked)
+                  }
+                />
+              </div>
+            </div>
+            <div className="field">
+              <label>Spare / standby?</label>
+              <div className="toggle-row">
+                <input
+                  type="checkbox"
+                  checked={isSpare}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      onUpdateSpare(dateStr, {
+                        guaranteeHrs: 8,
+                        standbyHrsUsed: 8,
+                        runNumber: null,
+                      });
+                    } else {
+                      setSpareRunInput("");
+                      onUpdateSpare(dateStr, null);
+                    }
+                  }}
+                />
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {isSpare && day?.spare && (

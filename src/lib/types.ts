@@ -62,7 +62,10 @@ export interface DayEntry {
   nonPlatform: number;
   callup: number;
   booking: number;
-  isSunday: boolean;
+  /** Additional pay-code hours from the AVLC line on the booking sheet. */
+  avlcHrs?: number;
+  /** Off-duty time adjustment (hrs) when a shift's finish shifted due to a late arrival. */
+  lateArrivalHrs?: number;
   isStat: boolean;
   dayOff?: boolean;
   fromSheet?: boolean;
@@ -77,7 +80,8 @@ export type DayFieldName =
   | "nonPlatform"
   | "callup"
   | "booking"
-  | "isSunday"
+  | "avlcHrs"
+  | "lateArrivalHrs"
   | "isStat"
   | "dayOff";
 
@@ -89,6 +93,9 @@ export interface DayComputed {
   nonPlatform: number;
   callup: number;
   booking: number;
+  avlc: number;
+  lateArrival: number;
+  /** Derived from the calendar date itself, not stored per-entry. */
   isSunday: boolean;
   isStat: boolean;
   dayOff: boolean;
@@ -118,6 +125,10 @@ export interface WeekComputed {
   sumNonPlat: number;
   sumCallup: number;
   sumBooking: number;
+  sumAvlc: number;
+  avlcPay: number;
+  sumLateArrival: number;
+  lateArrivalPay: number;
   statDays: number;
   sundayHrs: number;
   clcBreakHrs: number;
@@ -131,7 +142,6 @@ export function newEmptyDayEntry(): DayEntry {
     nonPlatform: 0,
     callup: 0,
     booking: 0,
-    isSunday: false,
     isStat: false,
     dayOff: false,
   };

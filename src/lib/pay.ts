@@ -1,5 +1,10 @@
 import { BOARD_DATA } from "./board";
-import { fmtDate, getPayPeriodDates, getWeekDates } from "./dateUtils";
+import {
+  fmtDate,
+  getPayPeriodDates,
+  getWeekDates,
+  isSundayDate,
+} from "./dateUtils";
 import type {
   DayComputed,
   DayComputedWithOt,
@@ -11,7 +16,7 @@ import type {
 
 const SPARE_CALLUP_HRS = 0.5;
 
-const EMPTY_DAY: DayComputed = {
+const EMPTY_DAY: Omit<DayComputed, "isSunday"> = {
   platMin: 0,
   payMin: 0,
   matched: false,
@@ -19,7 +24,8 @@ const EMPTY_DAY: DayComputed = {
   nonPlatform: 0,
   callup: 0,
   booking: 0,
-  isSunday: false,
+  avlc: 0,
+  lateArrival: 0,
   isStat: false,
   dayOff: false,
   pieces: [],
@@ -31,7 +37,8 @@ export function computeDay(
   dateStr: string
 ): DayComputed {
   const e = entries[dateStr];
-  if (!e) return EMPTY_DAY;
+  const isSunday = isSundayDate(dateStr);
+  if (!e) return { ...EMPTY_DAY, isSunday };
 
   if (e.dayOff) {
     return {
@@ -42,7 +49,9 @@ export function computeDay(
       nonPlatform: 0,
       callup: 0,
       booking: 0,
-      isSunday: !!e.isSunday,
+      avlc: 0,
+      lateArrival: 0,
+      isSunday,
       isStat: !!e.isStat,
       dayOff: true,
       pieces: [],
@@ -62,7 +71,9 @@ export function computeDay(
         nonPlatform: e.nonPlatform || 0,
         callup: e.callup || 0,
         booking: e.booking || 0,
-        isSunday: !!e.isSunday,
+        avlc: e.avlcHrs || 0,
+        lateArrival: e.lateArrivalHrs || 0,
+        isSunday,
         isStat: !!e.isStat,
         dayOff: false,
         pieces: [],
@@ -101,7 +112,9 @@ export function computeDay(
       nonPlatform: e.nonPlatform || 0,
       callup: (e.callup || 0) + SPARE_CALLUP_HRS,
       booking: e.booking || 0,
-      isSunday: !!e.isSunday,
+      avlc: e.avlcHrs || 0,
+      lateArrival: e.lateArrivalHrs || 0,
+      isSunday,
       isStat: !!e.isStat,
       dayOff: false,
       pieces,
@@ -118,7 +131,9 @@ export function computeDay(
       nonPlatform: e.nonPlatform || 0,
       callup: e.callup || 0,
       booking: e.booking || 0,
-      isSunday: !!e.isSunday,
+      avlc: e.avlcHrs || 0,
+      lateArrival: e.lateArrivalHrs || 0,
+      isSunday,
       isStat: !!e.isStat,
       dayOff: false,
       pieces: e.pieces || [],
@@ -163,7 +178,9 @@ export function computeDay(
     nonPlatform: e.nonPlatform || 0,
     callup: e.callup || 0,
     booking: e.booking || 0,
-    isSunday: !!e.isSunday,
+    avlc: e.avlcHrs || 0,
+    lateArrival: e.lateArrivalHrs || 0,
+    isSunday,
     isStat: !!e.isStat,
     dayOff: false,
     pieces: e.pieces,
@@ -181,6 +198,8 @@ export function computeWeek(
   let sumNonPlat = 0;
   let sumCallup = 0;
   let sumBooking = 0;
+  let sumAvlc = 0;
+  let sumLateArrival = 0;
   let statDays = 0;
   let sundayHrs = 0;
   let otMin = 0;
@@ -196,6 +215,8 @@ export function computeWeek(
     sumNonPlat += dc.nonPlatform;
     sumCallup += dc.callup;
     sumBooking += dc.booking;
+    sumAvlc += dc.avlc;
+    sumLateArrival += dc.lateArrival;
     if (dc.isStat) statDays++;
     if (dc.isSunday) sundayHrs += dc.payMin / 60;
     return { dateStr, ...dc, dayOt };
@@ -211,6 +232,8 @@ export function computeWeek(
   const nonPlatPay = sumNonPlat * settings.baseRate;
   const callupPay = sumCallup * settings.baseRate;
   const bookingPay = sumBooking * settings.baseRate;
+  const avlcPay = sumAvlc * settings.baseRate;
+  const lateArrivalPay = sumLateArrival * settings.baseRate;
   const sundayPay =
     sundayHrs * settings.baseRate * (settings.sundayMultiplier - 1);
   const statPay = statDays * settings.statHolidayPay;
@@ -230,6 +253,8 @@ export function computeWeek(
     nonPlatPay +
     callupPay +
     bookingPay +
+    avlcPay +
+    lateArrivalPay +
     sundayPay +
     statPay;
 
@@ -240,6 +265,8 @@ export function computeWeek(
     sumNonPlat +
     sumCallup +
     sumBooking +
+    sumAvlc +
+    sumLateArrival +
     sundayHrs;
 
   return {
@@ -259,6 +286,10 @@ export function computeWeek(
     sumNonPlat,
     sumCallup,
     sumBooking,
+    sumAvlc,
+    avlcPay,
+    sumLateArrival,
+    lateArrivalPay,
     statDays,
     sundayHrs,
     clcBreakHrs,

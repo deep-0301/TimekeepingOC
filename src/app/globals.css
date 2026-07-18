@@ -215,6 +215,19 @@ select.period-select {
   color: var(--ink-soft);
 }
 
+.summary-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.summary-head h2 {
+  margin: 0;
+}
+
 .hidden {
   display: none;
 }

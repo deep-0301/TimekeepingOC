@@ -27,6 +27,11 @@ export function parseDateStr(s: string): Date {
   return new Date(y, m - 1, d);
 }
 
+/** Sunday is a fixed fact about a calendar date — never a manual entry. */
+export function isSundayDate(dateStr: string): boolean {
+  return parseDateStr(dateStr).getDay() === 0;
+}
+
 export function dayLabel(d: Date): string {
   return d.toLocaleDateString(undefined, {
     weekday: "short",

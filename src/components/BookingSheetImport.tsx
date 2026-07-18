@@ -168,22 +168,6 @@ export default function BookingSheetImport({
   return (
     <section className="panel">
       <h2>Import your booking sheet</h2>
-      <div className="note">
-        Upload your Employee Booking Sheet PDF and it updates the calendar
-        above directly — it reads the file in your browser, and if
-        it&apos;s a scanned PDF (no selectable text) it automatically runs
-        OCR on it, entirely on your device. Works with both kinds of sheet:
-        your regular Monday–Friday board, and the weekend/general-spare
-        sheet with explicit holiday-shift dates (e.g. &ldquo;Canada Day
-        SPARE 01-Jul-2026&rdquo;). Each weekly pattern is applied to every
-        matching week for the whole season (from the season start through
-        the season end date printed on the sheet) — the calendar updates
-        for the entire booking period, not just the first week or two shown
-        on the page. Upload the regular sheet first, then the
-        weekend/holiday sheet after — its explicit holiday dates will
-        correctly override the regular pattern on those days. You can also
-        paste text manually below if you&apos;d rather.
-      </div>
       <div style={{ marginTop: 8 }}>
         <input
           type="file"
