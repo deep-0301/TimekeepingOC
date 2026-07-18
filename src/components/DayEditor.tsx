@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { runIndex, searchRuns, shortLocation } from "@/lib/board";
+import { getShiftsForRun, searchRuns, shortLocation } from "@/lib/board";
 import { computeDay } from "@/lib/pay";
 import { fmtHM, parseDateStr } from "@/lib/dateUtils";
 import { getHolidayForDate } from "@/lib/statHolidays";
@@ -49,10 +49,12 @@ export default function DayEditor({
     [query, isDayOff, isSpare]
   );
 
-  const spareRunMatches = spareRunInput ? runIndex[spareRunInput] || [] : [];
-  const selectedMatchIndex =
-    day?.spare?.runNumber === spareRunInput
-      ? day.spare.runMatchIndex ?? 0
+  const spareShiftMatches = spareRunInput
+    ? getShiftsForRun(spareRunInput.trim())
+    : [];
+  const selectedShiftIndex =
+    day?.spare?.runNumber === spareRunInput.trim()
+      ? day.spare.shiftIndex ?? null
       : null;
 
   function patchSpare(patch: Partial<SpareInfo>) {
@@ -235,7 +237,7 @@ export default function DayEditor({
                   const v = e.target.value;
                   setSpareRunInput(v);
                   if (!v.trim()) {
-                    patchSpare({ runNumber: null, runMatchIndex: undefined });
+                    patchSpare({ runNumber: null, shiftIndex: null });
                   }
                 }}
               />
@@ -258,33 +260,45 @@ export default function DayEditor({
           </div>
           {spareRunInput.trim() !== "" && (
             <div className="search-results">
-              {spareRunMatches.length === 0 ? (
+              {spareShiftMatches.length === 0 ? (
                 <div className="note">
                   No run &ldquo;{spareRunInput}&rdquo; found in the loaded
                   board — pay will use 0 platform time for it until a valid
                   run number is picked.
                 </div>
               ) : (
-                spareRunMatches.map((m, idx) => (
-                  <div className="result-card" key={idx}>
-                    <div className="details">
-                      {m.on}&rarr;{m.off} &nbsp;{" "}
-                      {shortLocation(m.onloc)}&rarr;{shortLocation(m.offloc)}{" "}
-                      &nbsp; <b>{fmtHM(m.platmin)}</b> plat
+                spareShiftMatches.map(({ si, shift }) => {
+                  const [shiftId, totalPlat, totalPay, runs] = shift;
+                  return (
+                    <div className="result-card" key={si}>
+                      <div className="details">
+                        <span className="shift-tag">shift {shiftId}</span>
+                        &nbsp; {runs.length} piece(s) &nbsp; total{" "}
+                        <b>{fmtHM(totalPlat)}</b> plat / <b>{fmtHM(totalPay)}</b>{" "}
+                        pay
+                        {runs.map((r, idx) => (
+                          <div key={idx}>
+                            &bull; {r[0]} &nbsp; {r[1]}&rarr;{r[2]} &nbsp;{" "}
+                            {shortLocation(r[3])}&rarr;{shortLocation(r[4])}
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        className="small"
+                        onClick={() =>
+                          patchSpare({
+                            runNumber: spareRunInput.trim(),
+                            shiftIndex: si,
+                          })
+                        }
+                      >
+                        {selectedShiftIndex === si
+                          ? "✓ Selected"
+                          : "+ Add whole shift"}
+                      </button>
                     </div>
-                    <button
-                      className="small"
-                      onClick={() =>
-                        patchSpare({
-                          runNumber: spareRunInput.trim(),
-                          runMatchIndex: idx,
-                        })
-                      }
-                    >
-                      {selectedMatchIndex === idx ? "✓ Selected" : "Use this"}
-                    </button>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           )}

@@ -44,16 +44,17 @@ export interface EntryPiece {
  * A spare/standby assignment: guarantees `guaranteeHrs` of platform pay if
  * never dispatched. If `runNumber` is set, the spare was put on that run —
  * pay becomes `standbyHrsUsed` (time on standby before the run, if any)
- * plus the run's own platform time, plus a flat 30-minute callup, regardless
- * of garage.
+ * plus the WHOLE shift that run belongs to (its full platform time, same
+ * as any other driving day), plus a flat 30-minute callup, regardless of
+ * garage.
  */
 export interface SpareInfo {
   guaranteeHrs: number;
   standbyHrsUsed: number;
   runNumber: string | null;
-  /** Which of runIndex[runNumber]'s matching pieces was picked, when a run
-   * number appears more than once in the loaded board. */
-  runMatchIndex?: number;
+  /** Board index (into BOARD_DATA) of the shift the run was dispatched to,
+   * when a run number belongs to more than one shift in the loaded board. */
+  shiftIndex?: number | null;
 }
 
 export interface DayEntry {

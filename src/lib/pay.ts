@@ -1,4 +1,4 @@
-import { runIndex } from "./board";
+import { BOARD_DATA } from "./board";
 import { fmtDate, getPayPeriodDates, getWeekDates } from "./dateUtils";
 import type {
   DayComputed,
@@ -69,31 +69,34 @@ export function computeDay(
         spare: sp,
       };
     }
-    const runMatches = runIndex[sp.runNumber] || [];
-    const chosen = runMatches[sp.runMatchIndex ?? 0];
-    const runPlatMin = chosen ? chosen.platmin : 0;
+    const shift =
+      sp.shiftIndex != null ? BOARD_DATA[sp.shiftIndex] : undefined;
+    const shiftPlatMin = shift ? shift[1] : 0;
+    const shiftPayMin = shift ? shift[2] : 0;
     const standbyMin = (sp.standbyHrsUsed || 0) * 60;
-    const totalMin = standbyMin + runPlatMin;
-    const pieces: EntryPiece[] = chosen
-      ? [
-          {
-            run: sp.runNumber,
-            shiftId: "spare",
-            shiftPlat: 0,
-            shiftPay: 0,
-            onTime: chosen.on,
-            offTime: chosen.off,
-            onLoc: chosen.onloc,
-            offLoc: chosen.offloc,
-            platMin: runPlatMin,
-            allRuns: [sp.runNumber],
-          },
-        ]
+    const totalPlatMin = standbyMin + shiftPlatMin;
+    const totalPayMin = standbyMin + shiftPayMin;
+    const allRuns = shift ? shift[3].map((r) => r[0]) : [];
+    const pieces: EntryPiece[] = shift
+      ? shift[3].map(
+          (r): EntryPiece => ({
+            run: r[0],
+            shiftId: shift[0],
+            shiftPlat: shift[1],
+            shiftPay: shift[2],
+            onTime: r[1],
+            offTime: r[2],
+            onLoc: r[3],
+            offLoc: r[4],
+            platMin: r[5],
+            allRuns,
+          })
+        )
       : [];
     return {
-      platMin: totalMin,
-      payMin: totalMin,
-      matched: !!chosen,
+      platMin: totalPlatMin,
+      payMin: totalPayMin,
+      matched: !!shift,
       fromSheet: false,
       nonPlatform: e.nonPlatform || 0,
       callup: (e.callup || 0) + SPARE_CALLUP_HRS,

@@ -32,6 +32,22 @@ export interface ShiftSearchResult {
   matchedRuns: Set<string>;
 }
 
+/** Every distinct shift (by board index) that contains this exact run
+ * number as one of its pieces. A run number can appear in more than one
+ * shift, but within a shift it names one piece of a whole multi-piece
+ * shift - the whole shift is what should be added, not just that piece. */
+export function getShiftsForRun(run: string): { si: number; shift: BoardShift }[] {
+  const instances = runIndex[run] || [];
+  const seen = new Set<number>();
+  const out: { si: number; shift: BoardShift }[] = [];
+  instances.forEach((inst) => {
+    if (seen.has(inst.si)) return;
+    seen.add(inst.si);
+    out.push({ si: inst.si, shift: BOARD_DATA[inst.si] });
+  });
+  return out;
+}
+
 const MAX_RESULTS = 60;
 
 export function searchRuns(query: string): {
