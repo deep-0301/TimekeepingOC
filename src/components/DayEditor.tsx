@@ -111,77 +111,75 @@ export default function DayEditor({
       )}
 
       <div className="day-editor-extras">
-        <div className="field">
-          <label>Non-Platform (standby, hrs)</label>
-          <input
-            type="number"
-            step="0.25"
-            value={day?.nonPlatform || ""}
-            onChange={(e) =>
-              onUpdateDayField(
-                dateStr,
-                "nonPlatform",
-                parseFloat(e.target.value) || 0
-              )
-            }
-          />
-        </div>
-        <div className="field">
-          <label>Callup (hrs)</label>
-          <input
-            type="number"
-            step="0.25"
-            value={day?.callup || ""}
-            onChange={(e) =>
-              onUpdateDayField(dateStr, "callup", parseFloat(e.target.value) || 0)
-            }
-          />
-        </div>
-        <div className="field">
-          <label>Booking hrs</label>
-          <input
-            type="number"
-            step="0.25"
-            value={day?.booking || ""}
-            onChange={(e) =>
-              onUpdateDayField(dateStr, "booking", parseFloat(e.target.value) || 0)
-            }
-          />
-        </div>
-        {dc.fromSheet ? (
+        {isSpare && (
           <>
             <div className="field">
-              <label>AVLC (hrs)</label>
+              <label>Non-Platform (standby, hrs)</label>
               <input
                 type="number"
                 step="0.25"
-                value={day?.avlcHrs || ""}
+                value={day?.nonPlatform || ""}
                 onChange={(e) =>
                   onUpdateDayField(
                     dateStr,
-                    "avlcHrs",
+                    "nonPlatform",
                     parseFloat(e.target.value) || 0
                   )
                 }
               />
             </div>
             <div className="field">
-              <label>Revised time off (late arrival, hrs)</label>
+              <label>Callup (hrs)</label>
               <input
                 type="number"
                 step="0.25"
-                value={day?.lateArrivalHrs || ""}
+                value={day?.callup || ""}
                 onChange={(e) =>
                   onUpdateDayField(
                     dateStr,
-                    "lateArrivalHrs",
+                    "callup",
                     parseFloat(e.target.value) || 0
                   )
                 }
               />
             </div>
           </>
-        ) : (
+        )}
+        {dc.fromSheet && (
+          <div className="field">
+            <label>AVLC — arrived late?</label>
+            <div className="toggle-row">
+              <input
+                type="checkbox"
+                checked={!!day?.avlc}
+                onChange={(e) =>
+                  onUpdateDayField(dateStr, "avlc", e.target.checked)
+                }
+              />
+              <span className="note" style={{ margin: 0 }}>
+                +5 min platform (revised time)
+              </span>
+            </div>
+          </div>
+        )}
+        {!isSpare && !dc.fromSheet && (
+          <div className="field">
+            <label>Booking hrs</label>
+            <input
+              type="number"
+              step="0.25"
+              value={day?.booking || ""}
+              onChange={(e) =>
+                onUpdateDayField(
+                  dateStr,
+                  "booking",
+                  parseFloat(e.target.value) || 0
+                )
+              }
+            />
+          </div>
+        )}
+        {!dc.fromSheet && (
           <>
             <div className="field">
               <label>Stat holiday?</label>

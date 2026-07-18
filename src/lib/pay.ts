@@ -15,6 +15,8 @@ import type {
 } from "./types";
 
 const SPARE_CALLUP_HRS = 0.5;
+/** Arrive-Late/Come-time rule: a flat 5-minute platform-time credit. */
+const AVLC_MIN = 5;
 
 const EMPTY_DAY: Omit<DayComputed, "isSunday"> = {
   platMin: 0,
@@ -24,8 +26,7 @@ const EMPTY_DAY: Omit<DayComputed, "isSunday"> = {
   nonPlatform: 0,
   callup: 0,
   booking: 0,
-  avlc: 0,
-  lateArrival: 0,
+  avlcApplied: false,
   isStat: false,
   dayOff: false,
   pieces: [],
@@ -49,8 +50,7 @@ export function computeDay(
       nonPlatform: 0,
       callup: 0,
       booking: 0,
-      avlc: 0,
-      lateArrival: 0,
+      avlcApplied: false,
       isSunday,
       isStat: !!e.isStat,
       dayOff: true,
@@ -71,8 +71,7 @@ export function computeDay(
         nonPlatform: e.nonPlatform || 0,
         callup: e.callup || 0,
         booking: e.booking || 0,
-        avlc: e.avlcHrs || 0,
-        lateArrival: e.lateArrivalHrs || 0,
+        avlcApplied: false,
         isSunday,
         isStat: !!e.isStat,
         dayOff: false,
@@ -112,8 +111,7 @@ export function computeDay(
       nonPlatform: e.nonPlatform || 0,
       callup: (e.callup || 0) + SPARE_CALLUP_HRS,
       booking: e.booking || 0,
-      avlc: e.avlcHrs || 0,
-      lateArrival: e.lateArrivalHrs || 0,
+      avlcApplied: false,
       isSunday,
       isStat: !!e.isStat,
       dayOff: false,
@@ -123,16 +121,17 @@ export function computeDay(
   }
 
   if (e.fromSheet) {
+    const avlcApplied = !!e.avlc;
+    const avlcMin = avlcApplied ? AVLC_MIN : 0;
     return {
-      platMin: e.sheetPlat || 0,
-      payMin: e.sheetPay || 0,
+      platMin: (e.sheetPlat || 0) + avlcMin,
+      payMin: (e.sheetPay || 0) + avlcMin,
       matched: true,
       fromSheet: true,
-      nonPlatform: e.nonPlatform || 0,
-      callup: e.callup || 0,
-      booking: e.booking || 0,
-      avlc: e.avlcHrs || 0,
-      lateArrival: e.lateArrivalHrs || 0,
+      nonPlatform: 0,
+      callup: 0,
+      booking: 0,
+      avlcApplied,
       isSunday,
       isStat: !!e.isStat,
       dayOff: false,
@@ -175,11 +174,10 @@ export function computeDay(
     payMin,
     matched,
     fromSheet: false,
-    nonPlatform: e.nonPlatform || 0,
-    callup: e.callup || 0,
+    nonPlatform: 0,
+    callup: 0,
     booking: e.booking || 0,
-    avlc: e.avlcHrs || 0,
-    lateArrival: e.lateArrivalHrs || 0,
+    avlcApplied: false,
     isSunday,
     isStat: !!e.isStat,
     dayOff: false,
@@ -198,8 +196,6 @@ export function computeWeek(
   let sumNonPlat = 0;
   let sumCallup = 0;
   let sumBooking = 0;
-  let sumAvlc = 0;
-  let sumLateArrival = 0;
   let statDays = 0;
   let sundayHrs = 0;
   let otMin = 0;
@@ -215,8 +211,6 @@ export function computeWeek(
     sumNonPlat += dc.nonPlatform;
     sumCallup += dc.callup;
     sumBooking += dc.booking;
-    sumAvlc += dc.avlc;
-    sumLateArrival += dc.lateArrival;
     if (dc.isStat) statDays++;
     if (dc.isSunday) sundayHrs += dc.payMin / 60;
     return { dateStr, ...dc, dayOt };
@@ -232,8 +226,6 @@ export function computeWeek(
   const nonPlatPay = sumNonPlat * settings.baseRate;
   const callupPay = sumCallup * settings.baseRate;
   const bookingPay = sumBooking * settings.baseRate;
-  const avlcPay = sumAvlc * settings.baseRate;
-  const lateArrivalPay = sumLateArrival * settings.baseRate;
   const sundayPay =
     sundayHrs * settings.baseRate * (settings.sundayMultiplier - 1);
   const statPay = statDays * settings.statHolidayPay;
@@ -253,8 +245,6 @@ export function computeWeek(
     nonPlatPay +
     callupPay +
     bookingPay +
-    avlcPay +
-    lateArrivalPay +
     sundayPay +
     statPay;
 
@@ -265,8 +255,6 @@ export function computeWeek(
     sumNonPlat +
     sumCallup +
     sumBooking +
-    sumAvlc +
-    sumLateArrival +
     sundayHrs;
 
   return {
@@ -286,10 +274,6 @@ export function computeWeek(
     sumNonPlat,
     sumCallup,
     sumBooking,
-    sumAvlc,
-    avlcPay,
-    sumLateArrival,
-    lateArrivalPay,
     statDays,
     sundayHrs,
     clcBreakHrs,

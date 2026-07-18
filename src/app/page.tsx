@@ -140,7 +140,7 @@ export default function Home() {
     (dateStr: string, field: DayFieldName, value: number | boolean) => {
       updateEntries((prev) => {
         const day = prev[dateStr] ? { ...prev[dateStr] } : newEmptyDayEntry();
-        if (field === "isStat" || field === "dayOff") {
+        if (field === "isStat" || field === "dayOff" || field === "avlc") {
           day[field] = value as boolean;
         } else {
           day[field] = value as number;

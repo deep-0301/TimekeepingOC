@@ -62,10 +62,10 @@ export interface DayEntry {
   nonPlatform: number;
   callup: number;
   booking: number;
-  /** Additional pay-code hours from the AVLC line on the booking sheet. */
-  avlcHrs?: number;
-  /** Off-duty time adjustment (hrs) when a shift's finish shifted due to a late arrival. */
-  lateArrivalHrs?: number;
+  /** Arrive-Late/Come-time rule: a flat 5-minute platform-time credit for a
+   * late arrival on a booked (booking-sheet) day — counts as platform hours,
+   * not a separate pay category. */
+  avlc?: boolean;
   isStat: boolean;
   dayOff?: boolean;
   fromSheet?: boolean;
@@ -80,8 +80,7 @@ export type DayFieldName =
   | "nonPlatform"
   | "callup"
   | "booking"
-  | "avlcHrs"
-  | "lateArrivalHrs"
+  | "avlc"
   | "isStat"
   | "dayOff";
 
@@ -93,8 +92,8 @@ export interface DayComputed {
   nonPlatform: number;
   callup: number;
   booking: number;
-  avlc: number;
-  lateArrival: number;
+  /** Whether the AVLC late-arrival platform-time credit was applied. */
+  avlcApplied: boolean;
   /** Derived from the calendar date itself, not stored per-entry. */
   isSunday: boolean;
   isStat: boolean;
@@ -125,10 +124,6 @@ export interface WeekComputed {
   sumNonPlat: number;
   sumCallup: number;
   sumBooking: number;
-  sumAvlc: number;
-  avlcPay: number;
-  sumLateArrival: number;
-  lateArrivalPay: number;
   statDays: number;
   sundayHrs: number;
   clcBreakHrs: number;
