@@ -62,10 +62,13 @@ export interface DayEntry {
   nonPlatform: number;
   callup: number;
   booking: number;
-  /** Arrive-Late/Come-time rule: a flat 5-minute platform-time credit for a
-   * late arrival on a booked (booking-sheet) day — counts as platform hours,
-   * not a separate pay category. */
-  avlc?: boolean;
+  /** Arrive-Late/Come-time (hrs) — the raw late-arrival duration entered by
+   * the user. Entering this auto-fills revisedTimeHrs as avlcHrs + 5 min. */
+  avlcHrs?: number;
+  /** Revised report/relief time (hrs) — this is what actually counts as
+   * platform hours. Auto-derived from avlcHrs (+5 min) but can also be
+   * entered directly, in which case avlcHrs is left untouched. */
+  revisedTimeHrs?: number;
   isStat: boolean;
   dayOff?: boolean;
   fromSheet?: boolean;
@@ -80,7 +83,8 @@ export type DayFieldName =
   | "nonPlatform"
   | "callup"
   | "booking"
-  | "avlc"
+  | "avlcHrs"
+  | "revisedTimeHrs"
   | "isStat"
   | "dayOff";
 
@@ -92,8 +96,6 @@ export interface DayComputed {
   nonPlatform: number;
   callup: number;
   booking: number;
-  /** Whether the AVLC late-arrival platform-time credit was applied. */
-  avlcApplied: boolean;
   /** Derived from the calendar date itself, not stored per-entry. */
   isSunday: boolean;
   isStat: boolean;

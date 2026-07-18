@@ -7,6 +7,9 @@ import { fmtHM, parseDateStr } from "@/lib/dateUtils";
 import { getHolidayForDate } from "@/lib/statHolidays";
 import type { DayFieldName, EntriesMap, SpareInfo } from "@/lib/types";
 
+/** AVLC rule: revised time = AVLC time + 5 minutes. */
+const AVLC_BUMP_HRS = 5 / 60;
+
 interface DayEditorProps {
   dateStr: string;
   entries: EntriesMap;
@@ -146,21 +149,40 @@ export default function DayEditor({
           </>
         )}
         {dc.fromSheet && (
-          <div className="field">
-            <label>AVLC — arrived late?</label>
-            <div className="toggle-row">
+          <>
+            <div className="field">
+              <label>AVLC (hrs)</label>
               <input
-                type="checkbox"
-                checked={!!day?.avlc}
+                type="number"
+                step="0.01"
+                value={day?.avlcHrs || ""}
+                onChange={(e) => {
+                  const val = parseFloat(e.target.value) || 0;
+                  onUpdateDayField(dateStr, "avlcHrs", val);
+                  onUpdateDayField(
+                    dateStr,
+                    "revisedTimeHrs",
+                    val ? val + AVLC_BUMP_HRS : 0
+                  );
+                }}
+              />
+            </div>
+            <div className="field">
+              <label>Revised time (hrs, counts as platform)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={day?.revisedTimeHrs || ""}
                 onChange={(e) =>
-                  onUpdateDayField(dateStr, "avlc", e.target.checked)
+                  onUpdateDayField(
+                    dateStr,
+                    "revisedTimeHrs",
+                    parseFloat(e.target.value) || 0
+                  )
                 }
               />
-              <span className="note" style={{ margin: 0 }}>
-                +5 min platform (revised time)
-              </span>
             </div>
-          </div>
+          </>
         )}
         {!isSpare && !dc.fromSheet && (
           <div className="field">

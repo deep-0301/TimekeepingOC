@@ -15,8 +15,6 @@ import type {
 } from "./types";
 
 const SPARE_CALLUP_HRS = 0.5;
-/** Arrive-Late/Come-time rule: a flat 5-minute platform-time credit. */
-const AVLC_MIN = 5;
 
 const EMPTY_DAY: Omit<DayComputed, "isSunday"> = {
   platMin: 0,
@@ -26,7 +24,6 @@ const EMPTY_DAY: Omit<DayComputed, "isSunday"> = {
   nonPlatform: 0,
   callup: 0,
   booking: 0,
-  avlcApplied: false,
   isStat: false,
   dayOff: false,
   pieces: [],
@@ -50,7 +47,6 @@ export function computeDay(
       nonPlatform: 0,
       callup: 0,
       booking: 0,
-      avlcApplied: false,
       isSunday,
       isStat: !!e.isStat,
       dayOff: true,
@@ -71,7 +67,6 @@ export function computeDay(
         nonPlatform: e.nonPlatform || 0,
         callup: e.callup || 0,
         booking: e.booking || 0,
-        avlcApplied: false,
         isSunday,
         isStat: !!e.isStat,
         dayOff: false,
@@ -111,7 +106,6 @@ export function computeDay(
       nonPlatform: e.nonPlatform || 0,
       callup: (e.callup || 0) + SPARE_CALLUP_HRS,
       booking: e.booking || 0,
-      avlcApplied: false,
       isSunday,
       isStat: !!e.isStat,
       dayOff: false,
@@ -121,17 +115,15 @@ export function computeDay(
   }
 
   if (e.fromSheet) {
-    const avlcApplied = !!e.avlc;
-    const avlcMin = avlcApplied ? AVLC_MIN : 0;
+    const revisedMin = (e.revisedTimeHrs || 0) * 60;
     return {
-      platMin: (e.sheetPlat || 0) + avlcMin,
-      payMin: (e.sheetPay || 0) + avlcMin,
+      platMin: (e.sheetPlat || 0) + revisedMin,
+      payMin: (e.sheetPay || 0) + revisedMin,
       matched: true,
       fromSheet: true,
       nonPlatform: 0,
       callup: 0,
       booking: 0,
-      avlcApplied,
       isSunday,
       isStat: !!e.isStat,
       dayOff: false,
@@ -177,7 +169,6 @@ export function computeDay(
     nonPlatform: 0,
     callup: 0,
     booking: e.booking || 0,
-    avlcApplied: false,
     isSunday,
     isStat: !!e.isStat,
     dayOff: false,
