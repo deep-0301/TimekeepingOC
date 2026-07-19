@@ -4,6 +4,7 @@ import {
   getPayPeriodDates,
   getWeekDates,
   isSundayDate,
+  toMin,
 } from "./dateUtils";
 import type {
   DayComputed,
@@ -115,10 +116,18 @@ export function computeDay(
   }
 
   if (e.fromSheet) {
-    const revisedMin = e.revisedTimeMin || 0;
+    // AVLC/revised time are clock times, not durations - the extra platform
+    // credit is how far the revised time falls past the shift's scheduled
+    // finish (the last piece's off time), not the clock value itself.
+    const lastPiece = e.pieces?.[e.pieces.length - 1];
+    const scheduledOffMin = lastPiece ? toMin(lastPiece.offTime) : null;
+    const extraMin =
+      e.revisedTimeMin != null && scheduledOffMin != null
+        ? Math.max(0, e.revisedTimeMin - scheduledOffMin)
+        : 0;
     return {
-      platMin: (e.sheetPlat || 0) + revisedMin,
-      payMin: (e.sheetPay || 0) + revisedMin,
+      platMin: (e.sheetPlat || 0) + extraMin,
+      payMin: (e.sheetPay || 0) + extraMin,
       matched: true,
       fromSheet: true,
       nonPlatform: 0,
