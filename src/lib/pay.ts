@@ -115,7 +115,7 @@ export function computeDay(
   }
 
   if (e.fromSheet) {
-    const revisedMin = (e.revisedTimeHrs || 0) * 60;
+    const revisedMin = e.revisedTimeMin || 0;
     return {
       platMin: (e.sheetPlat || 0) + revisedMin,
       payMin: (e.sheetPay || 0) + revisedMin,

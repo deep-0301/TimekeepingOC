@@ -11,6 +11,14 @@ export function fmtHM(mins: number): string {
   return `${sign}${h}:${String(m).padStart(2, "0")}`;
 }
 
+/** Zero-padded "HH:MM", the value format <input type="time"> requires. */
+export function minToHHMM(mins: number): string {
+  mins = Math.max(0, Math.round(mins));
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 export function fmtDate(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");

@@ -62,13 +62,14 @@ export interface DayEntry {
   nonPlatform: number;
   callup: number;
   booking: number;
-  /** Arrive-Late/Come-time (hrs) — the raw late-arrival duration entered by
-   * the user. Entering this auto-fills revisedTimeHrs as avlcHrs + 5 min. */
-  avlcHrs?: number;
-  /** Revised report/relief time (hrs) — this is what actually counts as
-   * platform hours. Auto-derived from avlcHrs (+5 min) but can also be
-   * entered directly, in which case avlcHrs is left untouched. */
-  revisedTimeHrs?: number;
+  /** Arrive-Late/Come-time, in minutes — the raw late-arrival duration
+   * entered by the user as a time (H:MM). Entering this auto-fills
+   * revisedTimeMin as avlcMin + 5. */
+  avlcMin?: number;
+  /** Revised report/relief time, in minutes — this is what actually counts
+   * as platform hours. Auto-derived from avlcMin (+5 min) but can also be
+   * entered directly, in which case avlcMin is left untouched. */
+  revisedTimeMin?: number;
   isStat: boolean;
   dayOff?: boolean;
   fromSheet?: boolean;
@@ -83,8 +84,8 @@ export type DayFieldName =
   | "nonPlatform"
   | "callup"
   | "booking"
-  | "avlcHrs"
-  | "revisedTimeHrs"
+  | "avlcMin"
+  | "revisedTimeMin"
   | "isStat"
   | "dayOff";
 

@@ -3,12 +3,12 @@
 import { useMemo, useState } from "react";
 import { getShiftsForRun, searchRuns, shortLocation } from "@/lib/board";
 import { computeDay } from "@/lib/pay";
-import { fmtHM, parseDateStr } from "@/lib/dateUtils";
+import { fmtHM, minToHHMM, parseDateStr, toMin } from "@/lib/dateUtils";
 import { getHolidayForDate } from "@/lib/statHolidays";
 import type { DayFieldName, EntriesMap, SpareInfo } from "@/lib/types";
 
 /** AVLC rule: revised time = AVLC time + 5 minutes. */
-const AVLC_BUMP_HRS = 5 / 60;
+const AVLC_BUMP_MIN = 5;
 
 interface DayEditorProps {
   dateStr: string;
@@ -151,33 +151,35 @@ export default function DayEditor({
         {dc.fromSheet && (
           <>
             <div className="field">
-              <label>AVLC (hrs)</label>
+              <label>AVLC</label>
               <input
-                type="number"
-                step="0.01"
-                value={day?.avlcHrs || ""}
+                type="time"
+                value={day?.avlcMin != null ? minToHHMM(day.avlcMin) : ""}
                 onChange={(e) => {
-                  const val = parseFloat(e.target.value) || 0;
-                  onUpdateDayField(dateStr, "avlcHrs", val);
+                  const val = e.target.value ? toMin(e.target.value) : 0;
+                  onUpdateDayField(dateStr, "avlcMin", val);
                   onUpdateDayField(
                     dateStr,
-                    "revisedTimeHrs",
-                    val ? val + AVLC_BUMP_HRS : 0
+                    "revisedTimeMin",
+                    val ? val + AVLC_BUMP_MIN : 0
                   );
                 }}
               />
             </div>
             <div className="field">
-              <label>Revised time (hrs, counts as platform)</label>
+              <label>Revised time (counts as platform)</label>
               <input
-                type="number"
-                step="0.01"
-                value={day?.revisedTimeHrs || ""}
+                type="time"
+                value={
+                  day?.revisedTimeMin != null
+                    ? minToHHMM(day.revisedTimeMin)
+                    : ""
+                }
                 onChange={(e) =>
                   onUpdateDayField(
                     dateStr,
-                    "revisedTimeHrs",
-                    parseFloat(e.target.value) || 0
+                    "revisedTimeMin",
+                    e.target.value ? toMin(e.target.value) : 0
                   )
                 }
               />
