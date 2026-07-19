@@ -19,6 +19,34 @@ export default function BookingSheetImport({
   onImport,
   onSeasonAnchorDetected,
 }: BookingSheetImportProps) {
+  return (
+    <section className="panel">
+      <h2>Import your booking sheets</h2>
+      <div className="sheet-import-grid">
+        <BookingSheetSlot
+          title="Weekday (Mon–Fri) sheet"
+          onImport={onImport}
+          onSeasonAnchorDetected={onSeasonAnchorDetected}
+        />
+        <BookingSheetSlot
+          title="Weekend / holiday sheet"
+          onImport={onImport}
+          onSeasonAnchorDetected={onSeasonAnchorDetected}
+        />
+      </div>
+    </section>
+  );
+}
+
+interface BookingSheetSlotProps extends BookingSheetImportProps {
+  title: string;
+}
+
+function BookingSheetSlot({
+  title,
+  onImport,
+  onSeasonAnchorDetected,
+}: BookingSheetSlotProps) {
   const [pasteText, setPasteText] = useState("");
   const [anchorDateInput, setAnchorDateInput] = useState("");
   const [parseStatus, setParseStatus] = useState("");
@@ -166,9 +194,9 @@ export default function BookingSheetImport({
   }
 
   return (
-    <section className="panel">
-      <h2>Import your booking sheet</h2>
-      <div style={{ marginTop: 8 }}>
+    <div className="sheet-import-slot">
+      <h3>{title}</h3>
+      <div>
         <input
           type="file"
           accept=".pdf,.txt"
@@ -180,8 +208,8 @@ export default function BookingSheetImport({
       </div>
       <textarea
         className="sheet-paste"
-        rows={7}
-        placeholder="…or paste your booking sheet text here"
+        rows={6}
+        placeholder="…or paste this sheet's text here"
         value={pasteText}
         onChange={(e) => setPasteText(e.target.value)}
       />
@@ -203,10 +231,12 @@ export default function BookingSheetImport({
           />
         </div>
         <button onClick={() => runParse(pasteText)}>Parse</button>
-        <span className="note" style={{ margin: 0 }}>
-          {parseStatus}
-        </span>
       </div>
+      {parseStatus && (
+        <div className="note" style={{ marginTop: 6 }}>
+          {parseStatus}
+        </div>
+      )}
 
       {blocks.length === 0 ? null : (
         <>
@@ -288,6 +318,6 @@ export default function BookingSheetImport({
           </div>
         </>
       )}
-    </section>
+    </div>
   );
 }

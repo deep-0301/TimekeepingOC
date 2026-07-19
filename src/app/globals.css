@@ -430,6 +430,27 @@ textarea.sheet-paste {
   margin-top: 8px;
 }
 
+.sheet-import-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.sheet-import-slot {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.sheet-import-slot h3 {
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
 .cal-nav {
   display: flex;
   align-items: center;
