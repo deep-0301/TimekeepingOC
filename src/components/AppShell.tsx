@@ -4,21 +4,11 @@ import { parseDateStr } from "@/lib/dateUtils";
 import { AppStateProvider, useAppState } from "@/lib/AppStateContext";
 import Header from "@/components/Header";
 import WeekNav from "@/components/WeekNav";
-import SettingsPanel from "@/components/SettingsPanel";
 import TopNav from "@/components/TopNav";
 
 function Chrome({ children }: { children: React.ReactNode }) {
-  const {
-    settings,
-    refDate,
-    setRefDate,
-    statusLine,
-    settingsOpen,
-    setSettingsOpen,
-    saveSettings,
-    periodComputed,
-    periodLabel,
-  } = useAppState();
+  const { refDate, setRefDate, statusLine, periodComputed, periodLabel } =
+    useAppState();
 
   return (
     <div id="app">
@@ -41,12 +31,7 @@ function Chrome({ children }: { children: React.ReactNode }) {
           setRefDate(d);
         }}
         onPickDate={(dateStr) => setRefDate(parseDateStr(dateStr))}
-        onToggleSettings={() => setSettingsOpen((v) => !v)}
       />
-
-      {settingsOpen && (
-        <SettingsPanel settings={settings} onSave={saveSettings} />
-      )}
 
       <TopNav />
 

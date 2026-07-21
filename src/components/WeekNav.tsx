@@ -5,7 +5,6 @@ interface WeekNavProps {
   onPrevWeek: () => void;
   onNextWeek: () => void;
   onPickDate: (dateStr: string) => void;
-  onToggleSettings: () => void;
 }
 
 export default function WeekNav({
@@ -13,7 +12,6 @@ export default function WeekNav({
   onPrevWeek,
   onNextWeek,
   onPickDate,
-  onToggleSettings,
 }: WeekNavProps) {
   return (
     <nav className="week-nav">
@@ -27,10 +25,6 @@ export default function WeekNav({
       />
       <button className="ghost" onClick={onNextWeek}>
         Next period ▶
-      </button>
-      <div className="spacer" />
-      <button className="ghost" onClick={onToggleSettings}>
-        ⚙ Pay rules
       </button>
     </nav>
   );
