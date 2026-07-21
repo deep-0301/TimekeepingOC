@@ -514,17 +514,13 @@ textarea.sheet-paste {
   border-width: 2px;
 }
 
-.cal-cell-dayoff {
-  background: var(--dayoff-bg);
-  border-color: var(--dayoff-ink);
+.cal-cell-working {
+  background: #e4eef2;
+  border-color: var(--steel);
 }
 
 .cal-cell-holiday {
   border-top: 3px solid var(--holiday);
-}
-
-.cal-cell-holiday:not(.cal-cell-dayoff) {
-  background: var(--holiday-bg);
 }
 
 .cal-cell-date {
@@ -561,15 +557,12 @@ textarea.sheet-paste {
 .cal-run-chip {
   font-family: var(--font-mono);
   font-size: 10.5px;
-  background: #e4eef2;
+  font-weight: 600;
   color: var(--steel-dark);
-  padding: 2px 5px;
-  border-radius: 3px;
   line-height: 1.4;
 }
 
 .cal-spare-chip {
-  background: #fde8d8;
   color: #a15b1f;
 }
 

@@ -76,6 +76,7 @@ export default function MonthCalendar({
   });
 
   return (
+    <>
     <section className="panel">
       <h2>Calendar</h2>
       <div className="cal-nav">
@@ -117,6 +118,7 @@ export default function MonthCalendar({
             ...new Set(dc.pieces.map((p) => p.run)),
           ];
           const isSelected = selectedDate === dateStr;
+          const isWorking = !dc.dayOff && (dc.pieces.length > 0 || !!dc.spare);
           return (
             <button
               key={dateStr}
@@ -125,6 +127,7 @@ export default function MonthCalendar({
                 (inMonth ? "" : " cal-cell-out") +
                 (holiday ? " cal-cell-holiday" : "") +
                 (dc.dayOff ? " cal-cell-dayoff" : "") +
+                (isWorking ? " cal-cell-working" : "") +
                 (isSelected ? " cal-cell-selected" : "")
               }
               title={holiday ? holiday.name : undefined}
@@ -164,8 +167,11 @@ export default function MonthCalendar({
           );
         })}
       </div>
+    </section>
 
-      {selectedDate && (
+    {selectedDate && (
+      <section className="panel">
+        <h2>Day Details</h2>
         <DayEditor
           key={selectedDate}
           dateStr={selectedDate}
@@ -177,7 +183,8 @@ export default function MonthCalendar({
           onUpdateSpare={onUpdateSpare}
           onClose={() => setSelectedDate(null)}
         />
-      )}
-    </section>
+      </section>
+    )}
+    </>
   );
 }
