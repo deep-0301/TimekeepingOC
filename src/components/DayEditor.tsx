@@ -52,6 +52,15 @@ export default function DayEditor({
     [query, isDayOff, isSpare]
   );
 
+  const scheduledOffMin = dc.fromSheet
+    ? (() => {
+        const last = dc.pieces[dc.pieces.length - 1];
+        return last ? toMin(last.offTime) : null;
+      })()
+    : null;
+  const minAllowedHHMM =
+    scheduledOffMin != null ? minToHHMM(scheduledOffMin + 1) : undefined;
+
   const spareShiftMatches = spareRunInput
     ? getShiftsForRun(spareRunInput.trim())
     : [];
@@ -154,15 +163,21 @@ export default function DayEditor({
               <label>AVLC</label>
               <input
                 type="time"
-                value={day?.avlcMin != null ? minToHHMM(day.avlcMin) : ""}
+                min={minAllowedHHMM}
+                value={day?.avlcMin ? minToHHMM(day.avlcMin) : ""}
                 onChange={(e) => {
-                  const val = e.target.value ? toMin(e.target.value) : 0;
+                  if (!e.target.value) {
+                    onUpdateDayField(dateStr, "avlcMin", 0);
+                    onUpdateDayField(dateStr, "revisedTimeMin", 0);
+                    return;
+                  }
+                  const raw = toMin(e.target.value);
+                  const val =
+                    scheduledOffMin != null
+                      ? Math.max(raw, scheduledOffMin + 1)
+                      : raw;
                   onUpdateDayField(dateStr, "avlcMin", val);
-                  onUpdateDayField(
-                    dateStr,
-                    "revisedTimeMin",
-                    val ? val + AVLC_BUMP_MIN : 0
-                  );
+                  onUpdateDayField(dateStr, "revisedTimeMin", val + AVLC_BUMP_MIN);
                 }}
               />
             </div>
@@ -170,18 +185,20 @@ export default function DayEditor({
               <label>Revised time (counts as platform)</label>
               <input
                 type="time"
-                value={
-                  day?.revisedTimeMin != null
-                    ? minToHHMM(day.revisedTimeMin)
-                    : ""
-                }
-                onChange={(e) =>
-                  onUpdateDayField(
-                    dateStr,
-                    "revisedTimeMin",
-                    e.target.value ? toMin(e.target.value) : 0
-                  )
-                }
+                min={minAllowedHHMM}
+                value={day?.revisedTimeMin ? minToHHMM(day.revisedTimeMin) : ""}
+                onChange={(e) => {
+                  if (!e.target.value) {
+                    onUpdateDayField(dateStr, "revisedTimeMin", 0);
+                    return;
+                  }
+                  const raw = toMin(e.target.value);
+                  const val =
+                    scheduledOffMin != null
+                      ? Math.max(raw, scheduledOffMin + 1)
+                      : raw;
+                  onUpdateDayField(dateStr, "revisedTimeMin", val);
+                }}
               />
             </div>
           </>

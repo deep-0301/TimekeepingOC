@@ -76,6 +76,7 @@ export default function MonthCalendar({
   });
 
   return (
+    <>
     <section className="panel">
       <h2>Calendar</h2>
       <div className="cal-nav">
@@ -113,10 +114,8 @@ export default function MonthCalendar({
           const inMonth = d.getMonth() === viewMonth.getMonth();
           const dc = computeDay(entries, dateStr);
           const holiday = getHolidayForDate(d);
-          const runCodes = [
-            ...new Set(dc.pieces.map((p) => p.run)),
-          ];
           const isSelected = selectedDate === dateStr;
+          const isWorking = !dc.dayOff && (dc.pieces.length > 0 || !!dc.spare);
           return (
             <button
               key={dateStr}
@@ -125,6 +124,7 @@ export default function MonthCalendar({
                 (inMonth ? "" : " cal-cell-out") +
                 (holiday ? " cal-cell-holiday" : "") +
                 (dc.dayOff ? " cal-cell-dayoff" : "") +
+                (isWorking ? " cal-cell-working" : "") +
                 (isSelected ? " cal-cell-selected" : "")
               }
               title={holiday ? holiday.name : undefined}
@@ -136,36 +136,16 @@ export default function MonthCalendar({
               {holiday && (
                 <span className="cal-cell-holiday-label">{holiday.name}</span>
               )}
-              {dc.dayOff ? (
-                <span className="cal-cell-off">OFF</span>
-              ) : dc.spare ? (
-                <span className="cal-cell-runs">
-                  <span className="cal-run-chip cal-spare-chip">
-                    {dc.spare.runNumber
-                      ? `SPARE→${dc.spare.runNumber}`
-                      : `SPARE ${dc.spare.guaranteeHrs}h`}
-                  </span>
-                </span>
-              ) : (
-                <span className="cal-cell-runs">
-                  {runCodes.slice(0, 3).map((r) => (
-                    <span className="cal-run-chip" key={r}>
-                      {r}
-                    </span>
-                  ))}
-                  {runCodes.length > 3 && (
-                    <span className="cal-run-chip">
-                      +{runCodes.length - 3}
-                    </span>
-                  )}
-                </span>
-              )}
+              {dc.dayOff && <span className="cal-cell-off">OFF</span>}
             </button>
           );
         })}
       </div>
+    </section>
 
-      {selectedDate && (
+    {selectedDate && (
+      <section className="panel">
+        <h2>Day Details</h2>
         <DayEditor
           key={selectedDate}
           dateStr={selectedDate}
@@ -177,7 +157,8 @@ export default function MonthCalendar({
           onUpdateSpare={onUpdateSpare}
           onClose={() => setSelectedDate(null)}
         />
-      )}
-    </section>
+      </section>
+    )}
+    </>
   );
 }
