@@ -547,25 +547,6 @@ textarea.sheet-paste {
   color: var(--dayoff-ink);
 }
 
-.cal-cell-runs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-  justify-content: center;
-}
-
-.cal-run-chip {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 600;
-  color: var(--steel-dark);
-  line-height: 1.4;
-}
-
-.cal-spare-chip {
-  color: #a15b1f;
-}
-
 .spare-panel {
   margin: 8px 0;
   padding: 8px 10px;

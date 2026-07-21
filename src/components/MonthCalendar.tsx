@@ -114,9 +114,6 @@ export default function MonthCalendar({
           const inMonth = d.getMonth() === viewMonth.getMonth();
           const dc = computeDay(entries, dateStr);
           const holiday = getHolidayForDate(d);
-          const runCodes = [
-            ...new Set(dc.pieces.map((p) => p.run)),
-          ];
           const isSelected = selectedDate === dateStr;
           const isWorking = !dc.dayOff && (dc.pieces.length > 0 || !!dc.spare);
           return (
@@ -139,30 +136,7 @@ export default function MonthCalendar({
               {holiday && (
                 <span className="cal-cell-holiday-label">{holiday.name}</span>
               )}
-              {dc.dayOff ? (
-                <span className="cal-cell-off">OFF</span>
-              ) : dc.spare ? (
-                <span className="cal-cell-runs">
-                  <span className="cal-run-chip cal-spare-chip">
-                    {dc.spare.runNumber
-                      ? `SPARE→${dc.spare.runNumber}`
-                      : `SPARE ${dc.spare.guaranteeHrs}h`}
-                  </span>
-                </span>
-              ) : (
-                <span className="cal-cell-runs">
-                  {runCodes.slice(0, 3).map((r) => (
-                    <span className="cal-run-chip" key={r}>
-                      {r}
-                    </span>
-                  ))}
-                  {runCodes.length > 3 && (
-                    <span className="cal-run-chip">
-                      +{runCodes.length - 3}
-                    </span>
-                  )}
-                </span>
-              )}
+              {dc.dayOff && <span className="cal-cell-off">OFF</span>}
             </button>
           );
         })}
