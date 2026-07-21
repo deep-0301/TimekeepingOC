@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Oswald, Inter, IBM_Plex_Mono } from "next/font/google";
+import AppShell from "@/components/AppShell";
 import "./globals.css";
 
 const oswald = Oswald({
@@ -35,7 +36,9 @@ export default function RootLayout({
       lang="en"
       className={`${oswald.variable} ${inter.variable} ${plexMono.variable}`}
     >
-      <body>{children}</body>
+      <body>
+        <AppShell>{children}</AppShell>
+      </body>
     </html>
   );
 }

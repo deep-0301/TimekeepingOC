@@ -121,6 +121,34 @@ nav.week-nav {
   margin-bottom: 14px;
 }
 
+nav.top-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.top-nav-link {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink-soft);
+  text-decoration: none;
+  padding: 9px 14px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.top-nav-link:hover {
+  color: var(--ink);
+}
+
+.top-nav-link-active {
+  color: var(--steel-dark);
+  border-bottom-color: var(--steel-dark);
+}
+
 button {
   font-family: var(--font-sans);
   font-weight: 600;
