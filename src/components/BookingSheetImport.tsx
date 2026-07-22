@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   hmToMin,
   parseBookingSheetText,
@@ -25,11 +25,15 @@ export default function BookingSheetImport({
       <div className="sheet-import-grid">
         <BookingSheetSlot
           title="Weekday (Mon–Fri) sheet"
+          icon="🗓️"
+          accent="steel"
           onImport={onImport}
           onSeasonAnchorDetected={onSeasonAnchorDetected}
         />
         <BookingSheetSlot
           title="Weekend / holiday sheet"
+          icon="🎉"
+          accent="amber"
           onImport={onImport}
           onSeasonAnchorDetected={onSeasonAnchorDetected}
         />
@@ -40,23 +44,27 @@ export default function BookingSheetImport({
 
 interface BookingSheetSlotProps extends BookingSheetImportProps {
   title: string;
+  icon: string;
+  accent: "steel" | "amber";
 }
-
-const SEASONS = ["Winter", "Spring", "Summer", "Fall"];
 
 function BookingSheetSlot({
   title,
+  icon,
+  accent,
   onImport,
   onSeasonAnchorDetected,
 }: BookingSheetSlotProps) {
   const [pasteText, setPasteText] = useState("");
-  const [season, setSeason] = useState("");
+  const [fileName, setFileName] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
   const [parseStatus, setParseStatus] = useState("");
   const [blocks, setBlocks] = useState<SheetBlock[]>([]);
   const [included, setIncluded] = useState<Record<number, boolean>>({});
   const [rowDatesList, setRowDatesList] = useState<Record<number, string[]>>(
     {}
   );
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   function runParse(text: string) {
     if (!text.trim()) {
@@ -68,14 +76,11 @@ function BookingSheetSlot({
     if (anchorDate) {
       onSeasonAnchorDetected(fmtDate(anchorDate));
     }
-    const seasonPrefix = season ? `${season} season — ` : "";
     const dateRangeNote =
       anchorDate && seasonEndDate
         ? ` Runs ${fmtDate(anchorDate)} to ${fmtDate(seasonEndDate)} — repeating patterns are applied to every matching week through then.`
         : "";
-    setParseStatus(
-      `${seasonPrefix}${parsedBlocks.length} block(s) found.${dateRangeNote}`
-    );
+    setParseStatus(`${parsedBlocks.length} block(s) found.${dateRangeNote}`);
 
     const workBlocks = parsedBlocks.filter(
       (b) => b.isDayOff || b.rows.length > 0
@@ -92,6 +97,7 @@ function BookingSheetSlot({
   }
 
   async function handleFile(file: File) {
+    setFileName(file.name);
     setParseStatus("Reading file…");
     try {
       let text: string;
@@ -193,21 +199,61 @@ function BookingSheetSlot({
   }
 
   return (
-    <div className="sheet-import-slot">
-      <h3>{title}</h3>
-      <div>
+    <div className={"sheet-import-slot sheet-import-slot-" + accent}>
+      <h3>
+        <span className="sheet-import-icon">{icon}</span>
+        {title}
+      </h3>
+
+      <div
+        className={
+          "dropzone" +
+          (isDragging ? " dropzone-active" : "") +
+          (fileName ? " dropzone-has-file" : "")
+        }
+        onClick={() => fileInputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragging(false);
+          const file = e.dataTransfer.files?.[0];
+          if (file) handleFile(file);
+        }}
+      >
         <input
+          ref={fileInputRef}
           type="file"
           accept=".pdf,.txt"
+          className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (file) handleFile(file);
           }}
         />
+        {fileName ? (
+          <>
+            <div className="dropzone-icon">📄</div>
+            <div className="dropzone-filename">{fileName}</div>
+            <div className="dropzone-hint">Click or drop to replace</div>
+          </>
+        ) : (
+          <>
+            <div className="dropzone-icon">⬆️</div>
+            <div className="dropzone-title">
+              Drag &amp; drop your PDF here
+            </div>
+            <div className="dropzone-hint">or click to browse</div>
+          </>
+        )}
       </div>
+
       <textarea
         className="sheet-paste"
-        rows={6}
+        rows={5}
         placeholder="…or paste this sheet's text here"
         value={pasteText}
         onChange={(e) => setPasteText(e.target.value)}
@@ -216,22 +262,11 @@ function BookingSheetSlot({
         style={{
           display: "flex",
           gap: 10,
-          alignItems: "flex-end",
+          alignItems: "center",
           marginTop: 8,
           flexWrap: "wrap",
         }}
       >
-        <div className="field" style={{ flex: "0 0 auto" }}>
-          <label>Season</label>
-          <select value={season} onChange={(e) => setSeason(e.target.value)}>
-            <option value="">Choose season</option>
-            {SEASONS.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </div>
         <button onClick={() => runParse(pasteText)}>Parse</button>
       </div>
       {parseStatus && (
