@@ -1,5 +1,5 @@
--- Run this once in the Supabase SQL Editor (Dashboard > SQL Editor > New query)
--- for project nxjpabakfubquvnyyirs.
+-- Run this in the Supabase SQL Editor (Dashboard > SQL Editor > New query)
+-- for project nxjpabakfubquvnyyirs. Safe to run more than once.
 
 -- One row per signed-in operator, holding their whole calendar (entries)
 -- and pay rules (settings) as JSON.
@@ -12,14 +12,17 @@ create table if not exists app_data (
 
 alter table app_data enable row level security;
 
+drop policy if exists "select own app_data" on app_data;
 create policy "select own app_data"
   on app_data for select
   using (auth.uid() = user_id);
 
+drop policy if exists "insert own app_data" on app_data;
 create policy "insert own app_data"
   on app_data for insert
   with check (auth.uid() = user_id);
 
+drop policy if exists "update own app_data" on app_data;
 create policy "update own app_data"
   on app_data for update
   using (auth.uid() = user_id)
@@ -37,10 +40,12 @@ create table if not exists profiles (
 
 alter table profiles enable row level security;
 
+drop policy if exists "select own profile" on profiles;
 create policy "select own profile"
   on profiles for select
   using (auth.uid() = id);
 
+drop policy if exists "update own profile" on profiles;
 create policy "update own profile"
   on profiles for update
   using (auth.uid() = id)
@@ -64,7 +69,8 @@ begin
     new.raw_user_meta_data->>'first_name',
     new.raw_user_meta_data->>'last_name',
     new.raw_user_meta_data->>'operator_number'
-  );
+  )
+  on conflict (id) do nothing;
   return new;
 end;
 $$;
@@ -93,3 +99,17 @@ as $$
 $$;
 
 grant execute on function public.get_email_for_operator(text) to anon, authenticated;
+
+-- One-time backfill: creates missing profile rows for any account that
+-- signed up before the trigger above existed (the trigger only fires for
+-- NEW signups, it doesn't retroactively fix earlier ones). Safe to re-run -
+-- does nothing once every existing auth user already has a profile.
+insert into public.profiles (id, first_name, last_name, operator_number)
+select
+  u.id,
+  coalesce(u.raw_user_meta_data->>'first_name', 'Unknown'),
+  coalesce(u.raw_user_meta_data->>'last_name', 'Unknown'),
+  coalesce(u.raw_user_meta_data->>'operator_number', u.id::text)
+from auth.users u
+left join public.profiles p on p.id = u.id
+where p.id is null;
