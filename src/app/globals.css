@@ -407,6 +407,61 @@ select.period-select {
   font-size: 11px;
 }
 
+.day-location-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  margin-bottom: 10px;
+}
+
+.day-location-point b,
+.day-location-point {
+  color: var(--ink);
+}
+
+.day-location-time {
+  color: var(--ink-soft);
+  font-size: 11.5px;
+}
+
+.day-location-arrow {
+  color: var(--steel);
+}
+
+.manage-work-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--steel-dark);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.manage-work-toggle:hover {
+  background: rgba(61, 95, 122, 0.06);
+  border-color: var(--steel);
+}
+
+.manage-work-toggle.open {
+  background: rgba(61, 95, 122, 0.08);
+  border-color: var(--steel);
+}
+
+.manage-work-caret {
+  font-size: 10px;
+  transition: transform 0.15s;
+}
+
 .badge {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -643,6 +698,7 @@ textarea.sheet-paste {
 
 .cal-cell:hover {
   border-color: var(--steel);
+  background: #eef4f7;
 }
 
 .cal-cell-out {
@@ -657,6 +713,10 @@ textarea.sheet-paste {
 .cal-cell-working {
   background: #e4eef2;
   border-color: var(--steel);
+}
+
+.cal-cell-working:hover {
+  background: #d7e6ec;
 }
 
 .cal-cell-holiday {
@@ -685,6 +745,61 @@ textarea.sheet-paste {
   text-transform: uppercase;
   font-weight: 700;
   color: var(--dayoff-ink);
+}
+
+.cal-dot {
+  display: block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-top: 1px;
+}
+
+.cal-dot-working {
+  background: var(--steel);
+}
+
+.cal-dot-spare {
+  background: var(--amber);
+}
+
+.cal-dot-sick {
+  background: var(--red);
+}
+
+.cal-dot-legislative {
+  background: var(--dayoff-ink);
+}
+
+.cal-dot-dayoff {
+  background: var(--ink-soft);
+}
+
+.cal-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.cal-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+
+.cal-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.cal-legend-holiday {
+  border-top: 3px solid var(--holiday);
 }
 
 .spare-panel {

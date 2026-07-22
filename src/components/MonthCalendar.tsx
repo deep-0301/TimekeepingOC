@@ -117,6 +117,18 @@ export default function MonthCalendar({
           const holiday = getHolidayForDate(d);
           const isSelected = selectedDate === dateStr;
           const isWorking = !dc.dayOff && (dc.pieces.length > 0 || !!dc.spare);
+          const dayOffType = entries[dateStr]?.dayOffType;
+          const dotClass = dc.dayOff
+            ? dayOffType === "sick"
+              ? "cal-dot-sick"
+              : dayOffType === "legislative"
+              ? "cal-dot-legislative"
+              : "cal-dot-dayoff"
+            : dc.spare
+            ? "cal-dot-spare"
+            : isWorking
+            ? "cal-dot-working"
+            : "";
           return (
             <button
               key={dateStr}
@@ -138,9 +150,31 @@ export default function MonthCalendar({
                 <span className="cal-cell-holiday-label">{holiday.name}</span>
               )}
               {dc.dayOff && <span className="cal-cell-off">OFF</span>}
+              {dotClass && <span className={"cal-dot " + dotClass} />}
             </button>
           );
         })}
+      </div>
+
+      <div className="cal-legend">
+        <span className="cal-legend-item">
+          <span className="cal-dot cal-dot-working" /> Working
+        </span>
+        <span className="cal-legend-item">
+          <span className="cal-dot cal-dot-spare" /> Spare / standby
+        </span>
+        <span className="cal-legend-item">
+          <span className="cal-dot cal-dot-sick" /> Sick day
+        </span>
+        <span className="cal-legend-item">
+          <span className="cal-dot cal-dot-legislative" /> Legislative day
+        </span>
+        <span className="cal-legend-item">
+          <span className="cal-dot cal-dot-dayoff" /> Day off
+        </span>
+        <span className="cal-legend-item">
+          <span className="cal-legend-swatch cal-legend-holiday" /> Holiday
+        </span>
       </div>
     </section>
 

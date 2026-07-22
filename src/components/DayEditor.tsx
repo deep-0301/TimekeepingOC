@@ -108,6 +108,7 @@ export default function DayEditor({
   const [bookedAction, setBookedAction] = useState(() =>
     day?.avlcMin || day?.revisedTimeMin ? "late" : ""
   );
+  const [manageOpen, setManageOpen] = useState(false);
 
   const { results, truncated } = useMemo(
     () => (isSpare ? { results: [], truncated: false } : searchRuns(query)),
@@ -192,358 +193,387 @@ export default function DayEditor({
           ))}
       </div>
 
-      <div className="day-editor-extras">
-        {isSpare && (
-          <>
-            <div className="field">
-              <label>Non-Platform (standby, hrs)</label>
-              <input
-                type="number"
-                step="0.25"
-                value={day?.nonPlatform || ""}
-                onChange={(e) =>
-                  onUpdateDayField(
-                    dateStr,
-                    "nonPlatform",
-                    parseFloat(e.target.value) || 0
-                  )
-                }
-              />
-            </div>
-            <div className="field">
-              <label>Callup (hrs)</label>
-              <input
-                type="number"
-                step="0.25"
-                value={day?.callup || ""}
-                onChange={(e) =>
-                  onUpdateDayField(
-                    dateStr,
-                    "callup",
-                    parseFloat(e.target.value) || 0
-                  )
-                }
-              />
-            </div>
-          </>
-        )}
-        {dc.fromSheet && !isDayOff && (
-          <>
-            <div className="field">
-              <label>What happened?</label>
-              <select
-                value={bookedAction}
-                onChange={(e) => handleBookedActionChange(e.target.value)}
-              >
-                <option value="">Working as scheduled</option>
-                <option value="late">Arrived late</option>
-                <option value="dayoff">Take a day off</option>
-              </select>
-            </div>
-            {bookedAction === "late" && (
-              <>
-                <TimeField24
-                  label="AVLC"
-                  valueMin={day?.avlcMin}
-                  minAllowed={
-                    scheduledOffMin != null ? scheduledOffMin + 1 : undefined
-                  }
-                  onCommit={(val) => {
-                    onUpdateDayField(dateStr, "avlcMin", val);
-                    onUpdateDayField(
-                      dateStr,
-                      "revisedTimeMin",
-                      val ? val + AVLC_BUMP_MIN : 0
-                    );
-                  }}
-                />
-                <TimeField24
-                  label="Revised time (counts as platform)"
-                  valueMin={day?.revisedTimeMin}
-                  minAllowed={
-                    scheduledOffMin != null ? scheduledOffMin + 1 : undefined
-                  }
-                  onCommit={(val) =>
-                    onUpdateDayField(dateStr, "revisedTimeMin", val)
-                  }
-                />
-                <div className="field">
-                  <label>Reason</label>
-                  <select
-                    value={day?.lateReason || ""}
-                    onChange={(e) =>
-                      onUpdateDayField(dateStr, "lateReason", e.target.value)
-                    }
-                  >
-                    <option value="">Choose a reason</option>
-                    <option value="traffic_weather">Traffic or weather</option>
-                    <option value="extended">Extended</option>
-                  </select>
-                </div>
-              </>
-            )}
-          </>
-        )}
-        {isDayOff && (
-          <div className="field">
-            <label>Day off type</label>
-            <select
-              value={day?.dayOffType || ""}
-              onChange={(e) =>
-                onUpdateDayField(dateStr, "dayOffType", e.target.value)
-              }
-            >
-              <option value="">—</option>
-              <option value="sick">Sick day</option>
-              <option value="legislative">Legislative day</option>
-            </select>
-          </div>
-        )}
-        {!isSpare && !dc.fromSheet && (
-          <div className="field">
-            <label>Booking hrs</label>
-            <input
-              type="number"
-              step="0.25"
-              value={day?.booking || ""}
-              onChange={(e) =>
-                onUpdateDayField(
-                  dateStr,
-                  "booking",
-                  parseFloat(e.target.value) || 0
-                )
-              }
-            />
-          </div>
-        )}
-        {!dc.fromSheet && (
-          <>
-            <div className="field">
-              <label>Stat holiday?</label>
-              <div className="toggle-row">
-                <input
-                  type="checkbox"
-                  checked={!!day?.isStat}
-                  onChange={(e) =>
-                    onUpdateDayField(dateStr, "isStat", e.target.checked)
-                  }
-                />
-              </div>
-            </div>
-            <div className="field">
-              <label>Day off?</label>
-              <div className="toggle-row">
-                <input
-                  type="checkbox"
-                  checked={isDayOff}
-                  onChange={(e) =>
-                    onUpdateDayField(dateStr, "dayOff", e.target.checked)
-                  }
-                />
-              </div>
-            </div>
-            <div className="field">
-              <label>Spare / standby?</label>
-              <div className="toggle-row">
-                <input
-                  type="checkbox"
-                  checked={isSpare}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      onUpdateSpare(dateStr, {
-                        guaranteeHrs: 8,
-                        standbyHrsUsed: 8,
-                        runNumber: null,
-                      });
-                    } else {
-                      setSpareRunInput("");
-                      onUpdateSpare(dateStr, null);
-                    }
-                  }}
-                />
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-
-      {isSpare && day?.spare && (
-        <div className="spare-panel">
-          <div className="note">
-            Spares guarantee at least the platform hours below if never
-            dispatched. Enter a run number if put to work — pay becomes
-            standby hours used (if any) plus that run&apos;s platform time,
-            plus a flat 30-minute callup.
-          </div>
-          <div className="day-editor-extras">
-            <div className="field">
-              <label>Guarantee (hrs)</label>
-              <input
-                type="number"
-                step="0.25"
-                value={day.spare.guaranteeHrs}
-                onChange={(e) =>
-                  patchSpare({ guaranteeHrs: parseFloat(e.target.value) || 0 })
-                }
-              />
-            </div>
-            <div className="field">
-              <label>Run number (if dispatched)</label>
-              <input
-                type="text"
-                value={spareRunInput}
-                placeholder="e.g. 68-03"
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setSpareRunInput(v);
-                  if (!v.trim()) {
-                    patchSpare({ runNumber: null, shiftIndex: null });
-                  }
-                }}
-              />
-            </div>
-            {day.spare.runNumber && (
-              <div className="field">
-                <label>Standby hrs used before the run</label>
-                <input
-                  type="number"
-                  step="0.25"
-                  value={day.spare.standbyHrsUsed}
-                  onChange={(e) =>
-                    patchSpare({
-                      standbyHrsUsed: parseFloat(e.target.value) || 0,
-                    })
-                  }
-                />
-              </div>
-            )}
-          </div>
-          {spareRunInput.trim() !== "" && (
-            <div className="search-results">
-              {spareShiftMatches.length === 0 ? (
-                <div className="note">
-                  No run &ldquo;{spareRunInput}&rdquo; found in the loaded
-                  board — pay will use 0 platform time for it until a valid
-                  run number is picked.
-                </div>
-              ) : (
-                spareShiftMatches.map(({ si, shift }) => {
-                  const [shiftId, totalPlat, totalPay, runs] = shift;
-                  return (
-                    <div className="result-card" key={si}>
-                      <div className="details">
-                        <span className="shift-tag">shift {shiftId}</span>
-                        &nbsp; {runs.length} piece(s) &nbsp; total{" "}
-                        <b>{fmtHM(totalPlat)}</b> plat / <b>{fmtHM(totalPay)}</b>{" "}
-                        pay
-                        {runs.map((r, idx) => (
-                          <div key={idx}>
-                            &bull; {r[0]} &nbsp; {r[1]}&rarr;{r[2]} &nbsp;{" "}
-                            {shortLocation(r[3])}&rarr;{shortLocation(r[4])}
-                          </div>
-                        ))}
-                      </div>
-                      <button
-                        className="small"
-                        onClick={() =>
-                          patchSpare({
-                            runNumber: spareRunInput.trim(),
-                            shiftIndex: si,
-                          })
-                        }
-                      >
-                        {selectedShiftIndex === si
-                          ? "✓ Selected"
-                          : "+ Add whole shift"}
-                      </button>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          )}
+      {pieces.length > 0 && (
+        <div className="day-location-line">
+          <span className="day-location-point">
+            {shortLocation(pieces[0].onLoc)}{" "}
+            <span className="day-location-time">{pieces[0].onTime}</span>
+          </span>
+          <span className="day-location-arrow">→</span>
+          <span className="day-location-point">
+            {shortLocation(pieces[pieces.length - 1].offLoc)}{" "}
+            <span className="day-location-time">
+              {pieces[pieces.length - 1].offTime}
+            </span>
+          </span>
         </div>
       )}
 
-      {!isSpare && (!dc.fromSheet || isDayOff) && (
+      <button
+        type="button"
+        className={"manage-work-toggle" + (manageOpen ? " open" : "")}
+        onClick={() => setManageOpen((o) => !o)}
+      >
+        <span className="manage-work-caret">{manageOpen ? "▾" : "▸"}</span>
+        Manage work
+      </button>
+
+      {manageOpen && (
         <>
-          {pieces.length > 0 && (
-            <div className="day-editor-pieces">
-              {pieces.map((p, idx) => (
-                <div className="piece-row" key={idx}>
-                  <span>
-                    {p.run} &nbsp; {p.onTime}&rarr;{p.offTime} &nbsp;{" "}
-                    <span className="shift-tag">
-                      {shortLocation(p.onLoc)}&rarr;{shortLocation(p.offLoc)}
-                    </span>
-                  </span>
-                  <button
-                    className="danger"
-                    title="Remove"
-                    onClick={() =>
-                      dc.fromSheet
-                        ? onClearSheetDay(dateStr)
-                        : onRemovePiece(dateStr, idx)
-                    }
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
+        <div className="day-editor-extras">
+          {isSpare && (
+            <>
+              <div className="field">
+                <label>Non-Platform (standby, hrs)</label>
+                <input
+                  type="number"
+                  step="0.25"
+                  value={day?.nonPlatform || ""}
+                  onChange={(e) =>
+                    onUpdateDayField(
+                      dateStr,
+                      "nonPlatform",
+                      parseFloat(e.target.value) || 0
+                    )
+                  }
+                />
+              </div>
+              <div className="field">
+                <label>Callup (hrs)</label>
+                <input
+                  type="number"
+                  step="0.25"
+                  value={day?.callup || ""}
+                  onChange={(e) =>
+                    onUpdateDayField(
+                      dateStr,
+                      "callup",
+                      parseFloat(e.target.value) || 0
+                    )
+                  }
+                />
+              </div>
+            </>
           )}
-
-          {isDayOff && (
-            <div className="note" style={{ marginBottom: 6 }}>
-              Add overtime shift / manual run details worked on this day off:
-            </div>
-          )}
-
-          <input
-            type="text"
-            className="run-search"
-            placeholder="Type a run number, e.g. 68-03"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          {query.trim() !== "" && (
-            <div className="search-results">
-              {results.length === 0 ? (
-                <div className="note">No matching run number found.</div>
-              ) : (
+          {dc.fromSheet && !isDayOff && (
+            <>
+              <div className="field">
+                <label>What happened?</label>
+                <select
+                  value={bookedAction}
+                  onChange={(e) => handleBookedActionChange(e.target.value)}
+                >
+                  <option value="">Working as scheduled</option>
+                  <option value="late">Arrived late</option>
+                  <option value="dayoff">Take a day off</option>
+                </select>
+              </div>
+              {bookedAction === "late" && (
                 <>
-                  {results.map(({ si, shift }) => {
+                  <TimeField24
+                    label="AVLC"
+                    valueMin={day?.avlcMin}
+                    minAllowed={
+                      scheduledOffMin != null ? scheduledOffMin + 1 : undefined
+                    }
+                    onCommit={(val) => {
+                      onUpdateDayField(dateStr, "avlcMin", val);
+                      onUpdateDayField(
+                        dateStr,
+                        "revisedTimeMin",
+                        val ? val + AVLC_BUMP_MIN : 0
+                      );
+                    }}
+                  />
+                  <TimeField24
+                    label="Revised time (counts as platform)"
+                    valueMin={day?.revisedTimeMin}
+                    minAllowed={
+                      scheduledOffMin != null ? scheduledOffMin + 1 : undefined
+                    }
+                    onCommit={(val) =>
+                      onUpdateDayField(dateStr, "revisedTimeMin", val)
+                    }
+                  />
+                  <div className="field">
+                    <label>Reason</label>
+                    <select
+                      value={day?.lateReason || ""}
+                      onChange={(e) =>
+                        onUpdateDayField(dateStr, "lateReason", e.target.value)
+                      }
+                    >
+                      <option value="">Choose a reason</option>
+                      <option value="traffic_weather">Traffic or weather</option>
+                      <option value="extended">Extended</option>
+                    </select>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+          {isDayOff && (
+            <div className="field">
+              <label>Day off type</label>
+              <select
+                value={day?.dayOffType || ""}
+                onChange={(e) =>
+                  onUpdateDayField(dateStr, "dayOffType", e.target.value)
+                }
+              >
+                <option value="">—</option>
+                <option value="sick">Sick day</option>
+                <option value="legislative">Legislative day</option>
+              </select>
+            </div>
+          )}
+          {!isSpare && !dc.fromSheet && (
+            <div className="field">
+              <label>Booking hrs</label>
+              <input
+                type="number"
+                step="0.25"
+                value={day?.booking || ""}
+                onChange={(e) =>
+                  onUpdateDayField(
+                    dateStr,
+                    "booking",
+                    parseFloat(e.target.value) || 0
+                  )
+                }
+              />
+            </div>
+          )}
+          {!dc.fromSheet && (
+            <>
+              <div className="field">
+                <label>Stat holiday?</label>
+                <div className="toggle-row">
+                  <input
+                    type="checkbox"
+                    checked={!!day?.isStat}
+                    onChange={(e) =>
+                      onUpdateDayField(dateStr, "isStat", e.target.checked)
+                    }
+                  />
+                </div>
+              </div>
+              <div className="field">
+                <label>Day off?</label>
+                <div className="toggle-row">
+                  <input
+                    type="checkbox"
+                    checked={isDayOff}
+                    onChange={(e) =>
+                      onUpdateDayField(dateStr, "dayOff", e.target.checked)
+                    }
+                  />
+                </div>
+              </div>
+              <div className="field">
+                <label>Spare / standby?</label>
+                <div className="toggle-row">
+                  <input
+                    type="checkbox"
+                    checked={isSpare}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        onUpdateSpare(dateStr, {
+                          guaranteeHrs: 8,
+                          standbyHrsUsed: 8,
+                          runNumber: null,
+                        });
+                      } else {
+                        setSpareRunInput("");
+                        onUpdateSpare(dateStr, null);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {isSpare && day?.spare && (
+          <div className="spare-panel">
+            <div className="note">
+              Spares guarantee at least the platform hours below if never
+              dispatched. Enter a run number if put to work — pay becomes
+              standby hours used (if any) plus that run&apos;s platform time,
+              plus a flat 30-minute callup.
+            </div>
+            <div className="day-editor-extras">
+              <div className="field">
+                <label>Guarantee (hrs)</label>
+                <input
+                  type="number"
+                  step="0.25"
+                  value={day.spare.guaranteeHrs}
+                  onChange={(e) =>
+                    patchSpare({ guaranteeHrs: parseFloat(e.target.value) || 0 })
+                  }
+                />
+              </div>
+              <div className="field">
+                <label>Run number (if dispatched)</label>
+                <input
+                  type="text"
+                  value={spareRunInput}
+                  placeholder="e.g. 68-03"
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setSpareRunInput(v);
+                    if (!v.trim()) {
+                      patchSpare({ runNumber: null, shiftIndex: null });
+                    }
+                  }}
+                />
+              </div>
+              {day.spare.runNumber && (
+                <div className="field">
+                  <label>Standby hrs used before the run</label>
+                  <input
+                    type="number"
+                    step="0.25"
+                    value={day.spare.standbyHrsUsed}
+                    onChange={(e) =>
+                      patchSpare({
+                        standbyHrsUsed: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                  />
+                </div>
+              )}
+            </div>
+            {spareRunInput.trim() !== "" && (
+              <div className="search-results">
+                {spareShiftMatches.length === 0 ? (
+                  <div className="note">
+                    No run &ldquo;{spareRunInput}&rdquo; found in the loaded
+                    board — pay will use 0 platform time for it until a valid
+                    run number is picked.
+                  </div>
+                ) : (
+                  spareShiftMatches.map(({ si, shift }) => {
                     const [shiftId, totalPlat, totalPay, runs] = shift;
                     return (
                       <div className="result-card" key={si}>
                         <div className="details">
                           <span className="shift-tag">shift {shiftId}</span>
-                          &nbsp; {runs.map((r) => r[0]).join(" + ")} &nbsp;
+                          &nbsp; {runs.length} piece(s) &nbsp; total{" "}
                           <b>{fmtHM(totalPlat)}</b> plat / <b>{fmtHM(totalPay)}</b>{" "}
                           pay
+                          {runs.map((r, idx) => (
+                            <div key={idx}>
+                              &bull; {r[0]} &nbsp; {r[1]}&rarr;{r[2]} &nbsp;{" "}
+                              {shortLocation(r[3])}&rarr;{shortLocation(r[4])}
+                            </div>
+                          ))}
                         </div>
                         <button
                           className="small"
-                          onClick={() => {
-                            onAddShift(si, dateStr);
-                            setQuery("");
-                          }}
+                          onClick={() =>
+                            patchSpare({
+                              runNumber: spareRunInput.trim(),
+                              shiftIndex: si,
+                            })
+                          }
                         >
-                          {isDayOff ? "+ Add overtime shift" : "+ Add"}
+                          {selectedShiftIndex === si
+                            ? "✓ Selected"
+                            : "+ Add whole shift"}
                         </button>
                       </div>
                     );
-                  })}
-                  {truncated && (
-                    <div className="note">
-                      Showing the first 60 matches — narrow your search for
-                      more.
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
+                  })
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {!isSpare && (!dc.fromSheet || isDayOff) && (
+          <>
+            {pieces.length > 0 && (
+              <div className="day-editor-pieces">
+                {pieces.map((p, idx) => (
+                  <div className="piece-row" key={idx}>
+                    <span>
+                      {p.run} &nbsp; {p.onTime}&rarr;{p.offTime} &nbsp;{" "}
+                      <span className="shift-tag">
+                        {shortLocation(p.onLoc)}&rarr;{shortLocation(p.offLoc)}
+                      </span>
+                    </span>
+                    <button
+                      className="danger"
+                      title="Remove"
+                      onClick={() =>
+                        dc.fromSheet
+                          ? onClearSheetDay(dateStr)
+                          : onRemovePiece(dateStr, idx)
+                      }
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {isDayOff && (
+              <div className="note" style={{ marginBottom: 6 }}>
+                Add overtime shift / manual run details worked on this day off:
+              </div>
+            )}
+
+            <input
+              type="text"
+              className="run-search"
+              placeholder="Type a run number, e.g. 68-03"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            {query.trim() !== "" && (
+              <div className="search-results">
+                {results.length === 0 ? (
+                  <div className="note">No matching run number found.</div>
+                ) : (
+                  <>
+                    {results.map(({ si, shift }) => {
+                      const [shiftId, totalPlat, totalPay, runs] = shift;
+                      return (
+                        <div className="result-card" key={si}>
+                          <div className="details">
+                            <span className="shift-tag">shift {shiftId}</span>
+                            &nbsp; {runs.map((r) => r[0]).join(" + ")} &nbsp;
+                            <b>{fmtHM(totalPlat)}</b> plat / <b>{fmtHM(totalPay)}</b>{" "}
+                            pay
+                          </div>
+                          <button
+                            className="small"
+                            onClick={() => {
+                              onAddShift(si, dateStr);
+                              setQuery("");
+                            }}
+                          >
+                            {isDayOff ? "+ Add overtime shift" : "+ Add"}
+                          </button>
+                        </div>
+                      );
+                    })}
+                    {truncated && (
+                      <div className="note">
+                        Showing the first 60 matches — narrow your search for
+                        more.
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </>
+        )}
         </>
       )}
     </div>
