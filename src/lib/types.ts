@@ -70,8 +70,12 @@ export interface DayEntry {
    * as platform hours. Auto-derived from avlcMin (+5 min) but can also be
    * entered directly, in which case avlcMin is left untouched. */
   revisedTimeMin?: number;
+  /** Why the operator arrived late, when avlcMin/revisedTimeMin are set. */
+  lateReason?: "traffic_weather" | "extended";
   isStat: boolean;
   dayOff?: boolean;
+  /** Category of a day off, e.g. for payroll reporting. */
+  dayOffType?: "sick" | "legislative";
   fromSheet?: boolean;
   sheetPlat?: number;
   sheetPay?: number;
@@ -87,7 +91,11 @@ export type DayFieldName =
   | "avlcMin"
   | "revisedTimeMin"
   | "isStat"
-  | "dayOff";
+  | "dayOff"
+  | "lateReason"
+  | "dayOffType";
+
+export type DayFieldValue = number | boolean | string;
 
 export interface DayComputed {
   platMin: number;

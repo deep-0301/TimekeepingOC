@@ -16,6 +16,7 @@ import {
   DEFAULT_SETTINGS,
   newEmptyDayEntry,
   type DayFieldName,
+  type DayFieldValue,
   type EntriesMap,
   type EntryPiece,
   type PaySettings,
@@ -42,7 +43,7 @@ interface AppState {
   updateDayField: (
     dateStr: string,
     field: DayFieldName,
-    value: number | boolean
+    value: DayFieldValue
   ) => void;
   updateSpare: (dateStr: string, spare: SpareInfo | null) => void;
   updateEntries: (updater: (prev: EntriesMap) => EntriesMap) => void;
@@ -175,11 +176,13 @@ export function AppStateProvider({
   );
 
   const updateDayField = useCallback(
-    (dateStr: string, field: DayFieldName, value: number | boolean) => {
+    (dateStr: string, field: DayFieldName, value: DayFieldValue) => {
       updateEntries((prev) => {
         const day = prev[dateStr] ? { ...prev[dateStr] } : newEmptyDayEntry();
         if (field === "isStat" || field === "dayOff") {
           day[field] = value as boolean;
+        } else if (field === "lateReason" || field === "dayOffType") {
+          day[field] = (value || undefined) as unknown as never;
         } else {
           day[field] = value as number;
         }

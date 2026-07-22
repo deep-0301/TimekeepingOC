@@ -195,7 +195,8 @@ button.danger:hover {
 input[type="date"],
 input[type="time"],
 input[type="number"],
-input[type="text"] {
+input[type="text"],
+select {
   font-family: var(--font-mono);
   font-size: 13px;
   padding: 7px 8px;

@@ -6,6 +6,7 @@ import { fmtDate } from "@/lib/dateUtils";
 import { getHolidayForDate } from "@/lib/statHolidays";
 import type {
   DayFieldName,
+  DayFieldValue,
   EntriesMap,
   PaySettings,
   SpareInfo,
@@ -21,7 +22,7 @@ interface MonthCalendarProps {
   onUpdateDayField: (
     dateStr: string,
     field: DayFieldName,
-    value: number | boolean
+    value: DayFieldValue
   ) => void;
   onUpdateSpare: (dateStr: string, spare: SpareInfo | null) => void;
 }

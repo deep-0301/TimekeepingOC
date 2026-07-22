@@ -17,6 +17,42 @@ import type {
 
 const SPARE_CALLUP_HRS = 0.5;
 
+/** Groups pieces by shiftId - if the set of runs added for a shift equals
+ * that shift's full run list, use the shift's authoritative (board) total. */
+function groupPiecesPlatPay(pieces: EntryPiece[]): {
+  platMin: number;
+  payMin: number;
+  matched: boolean;
+} {
+  const byShift: Record<string, EntryPiece[]> = {};
+  pieces.forEach((p) => {
+    (byShift[p.shiftId] = byShift[p.shiftId] || []).push(p);
+  });
+
+  let platMin = 0;
+  let payMin = 0;
+  let matched = true;
+  Object.keys(byShift).forEach((sid) => {
+    const grp = byShift[sid];
+    const allRuns = grp[0].allRuns;
+    const addedRuns = grp
+      .map((p) => p.run)
+      .sort()
+      .join(",");
+    const fullRuns = [...allRuns].sort().join(",");
+    if (addedRuns === fullRuns) {
+      platMin += grp[0].shiftPlat;
+      payMin += grp[0].shiftPay;
+    } else {
+      matched = false;
+      const sumPlat = grp.reduce((a, p) => a + p.platMin, 0);
+      platMin += sumPlat;
+      payMin += sumPlat; // no board-confirmed break add-on for partial match
+    }
+  });
+  return { platMin, payMin, matched };
+}
+
 const EMPTY_DAY: Omit<DayComputed, "isSunday"> = {
   platMin: 0,
   payMin: 0,
@@ -40,18 +76,24 @@ export function computeDay(
   if (!e) return { ...EMPTY_DAY, isSunday };
 
   if (e.dayOff) {
+    // A day off can still have overtime pieces added on top (called in to
+    // work on a scheduled day off) - those count as platform hours as usual.
+    const overtimePieces = e.pieces || [];
+    const { platMin, payMin, matched } = overtimePieces.length
+      ? groupPiecesPlatPay(overtimePieces)
+      : { platMin: 0, payMin: 0, matched: true };
     return {
-      platMin: 0,
-      payMin: 0,
-      matched: true,
+      platMin,
+      payMin,
+      matched,
       fromSheet: false,
       nonPlatform: 0,
       callup: 0,
-      booking: 0,
+      booking: e.booking || 0,
       isSunday,
       isStat: !!e.isStat,
       dayOff: true,
-      pieces: [],
+      pieces: overtimePieces,
       spare: null,
     };
   }
@@ -141,34 +183,7 @@ export function computeDay(
     };
   }
 
-  // group pieces by shiftId - if the set of runs added for a shift equals
-  // that shift's full run list, use the shift's authoritative (board) total
-  const byShift: Record<string, typeof e.pieces> = {};
-  e.pieces.forEach((p) => {
-    (byShift[p.shiftId] = byShift[p.shiftId] || []).push(p);
-  });
-
-  let platMin = 0;
-  let payMin = 0;
-  let matched = true;
-  Object.keys(byShift).forEach((sid) => {
-    const grp = byShift[sid];
-    const allRuns = grp[0].allRuns;
-    const addedRuns = grp
-      .map((p) => p.run)
-      .sort()
-      .join(",");
-    const fullRuns = [...allRuns].sort().join(",");
-    if (addedRuns === fullRuns) {
-      platMin += grp[0].shiftPlat;
-      payMin += grp[0].shiftPay;
-    } else {
-      matched = false;
-      const sumPlat = grp.reduce((a, p) => a + p.platMin, 0);
-      platMin += sumPlat;
-      payMin += sumPlat; // no board-confirmed break add-on for partial match
-    }
-  });
+  const { platMin, payMin, matched } = groupPiecesPlatPay(e.pieces);
 
   return {
     platMin,

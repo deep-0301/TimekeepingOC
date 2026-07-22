@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getShiftsForRun, searchRuns, shortLocation } from "@/lib/board";
 import { computeDay } from "@/lib/pay";
 import { fmtHM, minToHHMM, parseDateStr, toMin } from "@/lib/dateUtils";
 import { getHolidayForDate } from "@/lib/statHolidays";
-import type { DayFieldName, EntriesMap, SpareInfo } from "@/lib/types";
+import type { DayFieldName, DayFieldValue, EntriesMap, SpareInfo } from "@/lib/types";
 
 /** AVLC rule: revised time = AVLC time + 5 minutes. */
 const AVLC_BUMP_MIN = 5;
@@ -19,10 +19,64 @@ interface DayEditorProps {
   onUpdateDayField: (
     dateStr: string,
     field: DayFieldName,
-    value: number | boolean
+    value: DayFieldValue
   ) => void;
   onUpdateSpare: (dateStr: string, spare: SpareInfo | null) => void;
   onClose: () => void;
+}
+
+/** Always-24-hour "HH:MM" time entry - native <input type="time"> follows
+ * the browser/OS locale (can render 12h with AM/PM), which this avoids. */
+function TimeField24({
+  label,
+  valueMin,
+  minAllowed,
+  onCommit,
+}: {
+  label: string;
+  valueMin: number | undefined;
+  minAllowed?: number;
+  onCommit: (min: number) => void;
+}) {
+  const [text, setText] = useState(valueMin ? minToHHMM(valueMin) : "");
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) setText(valueMin ? minToHHMM(valueMin) : "");
+  }, [valueMin, focused]);
+
+  return (
+    <div className="field">
+      <label>{label}</label>
+      <input
+        type="text"
+        inputMode="numeric"
+        placeholder="HH:MM"
+        value={text}
+        onFocus={() => setFocused(true)}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => {
+          setFocused(false);
+          if (!text.trim()) {
+            setText(valueMin ? minToHHMM(valueMin) : "");
+            if (valueMin) onCommit(0);
+            return;
+          }
+          const m = text.match(/^(\d{1,2}):(\d{2})$/);
+          const h = m ? parseInt(m[1], 10) : NaN;
+          const mi = m ? parseInt(m[2], 10) : NaN;
+          if (!m || h > 23 || mi > 59) {
+            setText(valueMin ? minToHHMM(valueMin) : "");
+            return;
+          }
+          let mins = h * 60 + mi;
+          if (minAllowed != null) mins = Math.max(mins, minAllowed);
+          setText(minToHHMM(mins));
+          onCommit(mins);
+        }}
+      />
+    </div>
+  );
 }
 
 export default function DayEditor({
@@ -43,13 +97,16 @@ export default function DayEditor({
   const isDayOff = !!day?.dayOff;
   const isSpare = !!day?.spare;
   const dc = computeDay(entries, dateStr);
-  const pieces = isDayOff ? [] : dc.pieces;
+  const pieces = dc.pieces;
   const holiday = getHolidayForDate(parseDateStr(dateStr));
 
+  const [bookedAction, setBookedAction] = useState(() =>
+    day?.avlcMin || day?.revisedTimeMin ? "late" : ""
+  );
+
   const { results, truncated } = useMemo(
-    () =>
-      isDayOff || isSpare ? { results: [], truncated: false } : searchRuns(query),
-    [query, isDayOff, isSpare]
+    () => (isSpare ? { results: [], truncated: false } : searchRuns(query)),
+    [query, isSpare]
   );
 
   const scheduledOffMin = dc.fromSheet
@@ -58,8 +115,6 @@ export default function DayEditor({
         return last ? toMin(last.offTime) : null;
       })()
     : null;
-  const minAllowedHHMM =
-    scheduledOffMin != null ? minToHHMM(scheduledOffMin + 1) : undefined;
 
   const spareShiftMatches = spareRunInput
     ? getShiftsForRun(spareRunInput.trim())
@@ -76,6 +131,18 @@ export default function DayEditor({
       runNumber: null,
     };
     onUpdateSpare(dateStr, { ...current, ...patch });
+  }
+
+  function handleBookedActionChange(v: string) {
+    setBookedAction(v);
+    if (v === "dayoff") {
+      onClearSheetDay(dateStr);
+      onUpdateDayField(dateStr, "dayOff", true);
+    } else if (v === "") {
+      if (day?.avlcMin) onUpdateDayField(dateStr, "avlcMin", 0);
+      if (day?.revisedTimeMin) onUpdateDayField(dateStr, "revisedTimeMin", 0);
+      if (day?.lateReason) onUpdateDayField(dateStr, "lateReason", "");
+    }
   }
 
   return (
@@ -106,21 +173,19 @@ export default function DayEditor({
         </div>
       )}
 
-      {!isDayOff && (
-        <div className="day-stats" style={{ margin: "6px 0" }}>
-          Plat <b>{fmtHM(dc.platMin)}</b> · Pay <b>{fmtHM(dc.payMin)}</b>{" "}
-          {isSpare && <span className="badge estimate">spare</span>}
-          {!isSpare &&
-            pieces.length > 0 &&
-            (dc.fromSheet ? (
-              <span className="badge match">from booking sheet</span>
-            ) : dc.matched ? (
-              <span className="badge match">board match</span>
-            ) : (
-              <span className="badge estimate">estimate</span>
-            ))}
-        </div>
-      )}
+      <div className="day-stats" style={{ margin: "6px 0" }}>
+        Plat <b>{fmtHM(dc.platMin)}</b> · Pay <b>{fmtHM(dc.payMin)}</b>{" "}
+        {isSpare && <span className="badge estimate">spare</span>}
+        {!isSpare &&
+          pieces.length > 0 &&
+          (dc.fromSheet ? (
+            <span className="badge match">from booking sheet</span>
+          ) : dc.matched ? (
+            <span className="badge match">board match</span>
+          ) : (
+            <span className="badge estimate">estimate</span>
+          ))}
+      </div>
 
       <div className="day-editor-extras">
         {isSpare && (
@@ -157,51 +222,77 @@ export default function DayEditor({
             </div>
           </>
         )}
-        {dc.fromSheet && (
+        {dc.fromSheet && !isDayOff && (
           <>
             <div className="field">
-              <label>AVLC</label>
-              <input
-                type="time"
-                min={minAllowedHHMM}
-                value={day?.avlcMin ? minToHHMM(day.avlcMin) : ""}
-                onChange={(e) => {
-                  if (!e.target.value) {
-                    onUpdateDayField(dateStr, "avlcMin", 0);
-                    onUpdateDayField(dateStr, "revisedTimeMin", 0);
-                    return;
-                  }
-                  const raw = toMin(e.target.value);
-                  const val =
-                    scheduledOffMin != null
-                      ? Math.max(raw, scheduledOffMin + 1)
-                      : raw;
-                  onUpdateDayField(dateStr, "avlcMin", val);
-                  onUpdateDayField(dateStr, "revisedTimeMin", val + AVLC_BUMP_MIN);
-                }}
-              />
+              <label>What happened?</label>
+              <select
+                value={bookedAction}
+                onChange={(e) => handleBookedActionChange(e.target.value)}
+              >
+                <option value="">Working as scheduled</option>
+                <option value="late">Arrived late</option>
+                <option value="dayoff">Take a day off</option>
+              </select>
             </div>
-            <div className="field">
-              <label>Revised time (counts as platform)</label>
-              <input
-                type="time"
-                min={minAllowedHHMM}
-                value={day?.revisedTimeMin ? minToHHMM(day.revisedTimeMin) : ""}
-                onChange={(e) => {
-                  if (!e.target.value) {
-                    onUpdateDayField(dateStr, "revisedTimeMin", 0);
-                    return;
+            {bookedAction === "late" && (
+              <>
+                <TimeField24
+                  label="AVLC"
+                  valueMin={day?.avlcMin}
+                  minAllowed={
+                    scheduledOffMin != null ? scheduledOffMin + 1 : undefined
                   }
-                  const raw = toMin(e.target.value);
-                  const val =
-                    scheduledOffMin != null
-                      ? Math.max(raw, scheduledOffMin + 1)
-                      : raw;
-                  onUpdateDayField(dateStr, "revisedTimeMin", val);
-                }}
-              />
-            </div>
+                  onCommit={(val) => {
+                    onUpdateDayField(dateStr, "avlcMin", val);
+                    onUpdateDayField(
+                      dateStr,
+                      "revisedTimeMin",
+                      val ? val + AVLC_BUMP_MIN : 0
+                    );
+                  }}
+                />
+                <TimeField24
+                  label="Revised time (counts as platform)"
+                  valueMin={day?.revisedTimeMin}
+                  minAllowed={
+                    scheduledOffMin != null ? scheduledOffMin + 1 : undefined
+                  }
+                  onCommit={(val) =>
+                    onUpdateDayField(dateStr, "revisedTimeMin", val)
+                  }
+                />
+                <div className="field">
+                  <label>Reason</label>
+                  <select
+                    value={day?.lateReason || ""}
+                    onChange={(e) =>
+                      onUpdateDayField(dateStr, "lateReason", e.target.value)
+                    }
+                  >
+                    <option value="">Choose a reason</option>
+                    <option value="traffic_weather">Traffic or weather</option>
+                    <option value="extended">Extended</option>
+                  </select>
+                </div>
+              </>
+            )}
           </>
+        )}
+        {isDayOff && (
+          <div className="field">
+            <label>Day off type</label>
+            <select
+              value={day?.dayOffType || ""}
+              onChange={(e) =>
+                onUpdateDayField(dateStr, "dayOffType", e.target.value)
+              }
+            >
+              <option value="">—</option>
+              <option value="sick">Sick day</option>
+              <option value="legislative">Legislative day</option>
+            </select>
+          </div>
         )}
         {!isSpare && !dc.fromSheet && (
           <div className="field">
@@ -369,7 +460,7 @@ export default function DayEditor({
         </div>
       )}
 
-      {!isDayOff && !isSpare && (
+      {!isSpare && (!dc.fromSheet || isDayOff) && (
         <>
           {pieces.length > 0 && (
             <div className="day-editor-pieces">
@@ -394,6 +485,12 @@ export default function DayEditor({
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+
+          {isDayOff && (
+            <div className="note" style={{ marginBottom: 6 }}>
+              Add overtime shift / manual run details worked on this day off:
             </div>
           )}
 
@@ -427,7 +524,7 @@ export default function DayEditor({
                             setQuery("");
                           }}
                         >
-                          + Add
+                          {isDayOff ? "+ Add overtime shift" : "+ Add"}
                         </button>
                       </div>
                     );
