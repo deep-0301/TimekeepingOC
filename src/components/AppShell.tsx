@@ -1,6 +1,7 @@
 "use client";
 
 import { AppStateProvider, useAppState } from "@/lib/AppStateContext";
+import AuthGate from "@/components/AuthGate";
 import Header from "@/components/Header";
 import TopNav from "@/components/TopNav";
 
@@ -22,8 +23,10 @@ function Chrome({ children }: { children: React.ReactNode }) {
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <AppStateProvider>
-      <Chrome>{children}</Chrome>
-    </AppStateProvider>
+    <AuthGate>
+      <AppStateProvider>
+        <Chrome>{children}</Chrome>
+      </AppStateProvider>
+    </AuthGate>
   );
 }

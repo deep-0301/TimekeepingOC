@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 
 const LINKS = [
   { href: "/", label: "Calendar" },
@@ -27,6 +28,14 @@ export default function TopNav() {
           </Link>
         );
       })}
+      <div className="spacer" />
+      <button
+        className="ghost small"
+        onClick={() => supabase.auth.signOut()}
+        style={{ marginBottom: 6 }}
+      >
+        Sign out
+      </button>
     </nav>
   );
 }

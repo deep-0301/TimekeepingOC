@@ -124,6 +124,7 @@ nav.week-nav {
 nav.top-nav {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 4px;
   margin-bottom: 14px;
   border-bottom: 1px solid var(--line);

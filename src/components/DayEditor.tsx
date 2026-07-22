@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { getShiftsForRun, searchRuns, shortLocation } from "@/lib/board";
 import { computeDay } from "@/lib/pay";
 import { fmtHM, minToHHMM, parseDateStr, toMin } from "@/lib/dateUtils";
@@ -40,10 +40,15 @@ function TimeField24({
 }) {
   const [text, setText] = useState(valueMin ? minToHHMM(valueMin) : "");
   const [focused, setFocused] = useState(false);
+  const [syncedValueMin, setSyncedValueMin] = useState(valueMin);
 
-  useEffect(() => {
-    if (!focused) setText(valueMin ? minToHHMM(valueMin) : "");
-  }, [valueMin, focused]);
+  // Adjust displayed text when valueMin changes from outside (e.g. the
+  // sibling AVLC field auto-filling this one) - skipped while the user is
+  // actively editing so their in-progress keystrokes aren't clobbered.
+  if (!focused && valueMin !== syncedValueMin) {
+    setSyncedValueMin(valueMin);
+    setText(valueMin ? minToHHMM(valueMin) : "");
+  }
 
   return (
     <div className="field">
