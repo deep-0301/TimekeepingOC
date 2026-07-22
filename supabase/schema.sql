@@ -32,11 +32,33 @@ create policy "update own app_data"
 -- operators log in with their operator number instead of typing their email.
 create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
-  first_name text not null,
-  last_name text not null,
   operator_number text not null unique,
   created_at timestamptz not null default now()
 );
+
+-- Sign-up now collects a single "Name" field instead of separate
+-- first/last name. Old first_name/last_name columns (if they exist from
+-- an earlier version of this schema) are kept but relaxed to nullable so
+-- they don't block new signups that only populate full_name.
+alter table profiles add column if not exists full_name text;
+
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'profiles'
+      and column_name = 'first_name'
+  ) then
+    alter table public.profiles alter column first_name drop not null;
+  end if;
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'profiles'
+      and column_name = 'last_name'
+  ) then
+    alter table public.profiles alter column last_name drop not null;
+  end if;
+end $$;
 
 alter table profiles enable row level security;
 
@@ -52,10 +74,10 @@ create policy "update own profile"
   with check (auth.uid() = id);
 
 -- Automatically create the profile row from the signup metadata the client
--- passes in (first_name/last_name/operator_number) - runs server-side as
--- part of the same transaction as the auth.users insert, so it works
--- whether or not "Confirm email" is required before the client has a
--- session (a client-side insert gated by RLS wouldn't work in that case).
+-- passes in (full_name/operator_number) - runs server-side as part of the
+-- same transaction as the auth.users insert, so it works whether or not
+-- "Confirm email" is required before the client has a session (a
+-- client-side insert gated by RLS wouldn't work in that case).
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -63,11 +85,10 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.profiles (id, first_name, last_name, operator_number)
+  insert into public.profiles (id, full_name, operator_number)
   values (
     new.id,
-    new.raw_user_meta_data->>'first_name',
-    new.raw_user_meta_data->>'last_name',
+    new.raw_user_meta_data->>'full_name',
     new.raw_user_meta_data->>'operator_number'
   )
   on conflict (id) do nothing;
@@ -104,11 +125,14 @@ grant execute on function public.get_email_for_operator(text) to anon, authentic
 -- signed up before the trigger above existed (the trigger only fires for
 -- NEW signups, it doesn't retroactively fix earlier ones). Safe to re-run -
 -- does nothing once every existing auth user already has a profile.
-insert into public.profiles (id, first_name, last_name, operator_number)
+insert into public.profiles (id, full_name, operator_number)
 select
   u.id,
-  coalesce(u.raw_user_meta_data->>'first_name', 'Unknown'),
-  coalesce(u.raw_user_meta_data->>'last_name', 'Unknown'),
+  coalesce(
+    u.raw_user_meta_data->>'full_name',
+    u.raw_user_meta_data->>'first_name',
+    'Unknown'
+  ),
   coalesce(u.raw_user_meta_data->>'operator_number', u.id::text)
 from auth.users u
 left join public.profiles p on p.id = u.id
