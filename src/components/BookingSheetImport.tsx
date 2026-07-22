@@ -42,13 +42,15 @@ interface BookingSheetSlotProps extends BookingSheetImportProps {
   title: string;
 }
 
+const SEASONS = ["Winter", "Spring", "Summer", "Fall"];
+
 function BookingSheetSlot({
   title,
   onImport,
   onSeasonAnchorDetected,
 }: BookingSheetSlotProps) {
   const [pasteText, setPasteText] = useState("");
-  const [anchorDateInput, setAnchorDateInput] = useState("");
+  const [season, setSeason] = useState("");
   const [parseStatus, setParseStatus] = useState("");
   const [blocks, setBlocks] = useState<SheetBlock[]>([]);
   const [included, setIncluded] = useState<Record<number, boolean>>({});
@@ -61,21 +63,19 @@ function BookingSheetSlot({
       setParseStatus("Paste some text first.");
       return;
     }
-    let manualAnchor: Date | null = null;
-    if (anchorDateInput) {
-      const [y, m, d] = anchorDateInput.split("-").map(Number);
-      manualAnchor = new Date(y, m - 1, d);
-    }
     const { anchorDate, seasonEndDate, blocks: parsedBlocks } =
-      parseBookingSheetText(text, manualAnchor);
+      parseBookingSheetText(text, null);
     if (anchorDate) {
-      setAnchorDateInput(fmtDate(anchorDate));
       onSeasonAnchorDetected(fmtDate(anchorDate));
     }
-    const seasonNote = seasonEndDate
-      ? ` Season runs to ${fmtDate(seasonEndDate)} — repeating patterns are applied to every matching week through then.`
-      : "";
-    setParseStatus(`${parsedBlocks.length} block(s) found.${seasonNote}`);
+    const seasonPrefix = season ? `${season} season — ` : "";
+    const dateRangeNote =
+      anchorDate && seasonEndDate
+        ? ` Runs ${fmtDate(anchorDate)} to ${fmtDate(seasonEndDate)} — repeating patterns are applied to every matching week through then.`
+        : "";
+    setParseStatus(
+      `${seasonPrefix}${parsedBlocks.length} block(s) found.${dateRangeNote}`
+    );
 
     const workBlocks = parsedBlocks.filter(
       (b) => b.isDayOff || b.rows.length > 0
@@ -104,7 +104,6 @@ function BookingSheetSlot({
         return;
       }
       setPasteText(text);
-      setAnchorDateInput("");
       setParseStatus("File read — parsing…");
       runParse(text);
     } catch (err) {
@@ -223,12 +222,15 @@ function BookingSheetSlot({
         }}
       >
         <div className="field" style={{ flex: "0 0 auto" }}>
-          <label>Season start date (auto-filled from the PDF, editable)</label>
-          <input
-            type="date"
-            value={anchorDateInput}
-            onChange={(e) => setAnchorDateInput(e.target.value)}
-          />
+          <label>Season</label>
+          <select value={season} onChange={(e) => setSeason(e.target.value)}>
+            <option value="">Choose season</option>
+            {SEASONS.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
         </div>
         <button onClick={() => runParse(pasteText)}>Parse</button>
       </div>
