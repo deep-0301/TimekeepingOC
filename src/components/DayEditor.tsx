@@ -220,6 +220,7 @@ export default function DayEditor({
 
       {manageOpen && (
         <>
+        {!isDayOff && (
         <div className="day-editor-extras">
           {isSpare && (
             <>
@@ -312,21 +313,6 @@ export default function DayEditor({
               )}
             </>
           )}
-          {isDayOff && (
-            <div className="field">
-              <label>Day off type</label>
-              <select
-                value={day?.dayOffType || ""}
-                onChange={(e) =>
-                  onUpdateDayField(dateStr, "dayOffType", e.target.value)
-                }
-              >
-                <option value="">—</option>
-                <option value="sick">Sick day</option>
-                <option value="legislative">Legislative day</option>
-              </select>
-            </div>
-          )}
           {!isSpare && !dc.fromSheet && (
             <div className="field">
               <label>Booking hrs</label>
@@ -394,6 +380,7 @@ export default function DayEditor({
             </>
           )}
         </div>
+        )}
 
         {isSpare && day?.spare && (
           <div className="spare-panel">
@@ -415,6 +402,25 @@ export default function DayEditor({
                   }
                 />
               </div>
+              <div className="field">
+                <label>Garage</label>
+                <input
+                  type="text"
+                  value={day.spare.garage || ""}
+                  placeholder="e.g. Pinecrest"
+                  onChange={(e) => patchSpare({ garage: e.target.value })}
+                />
+              </div>
+              <TimeField24
+                label="Reports"
+                valueMin={day.spare.startMin}
+                onCommit={(val) => patchSpare({ startMin: val })}
+              />
+              <TimeField24
+                label="Released"
+                valueMin={day.spare.endMin}
+                onCommit={(val) => patchSpare({ endMin: val })}
+              />
               <div className="field">
                 <label>Run number (if dispatched)</label>
                 <input
@@ -493,34 +499,36 @@ export default function DayEditor({
           </div>
         )}
 
+        {!isSpare && pieces.length > 0 && (
+          <div className="day-editor-pieces">
+            {pieces.map((p, idx) => (
+              <div className="piece-row" key={idx}>
+                <span>
+                  <b>{p.run}</b> &nbsp;
+                  <span className="shift-tag">shift {p.shiftId}</span> &nbsp;
+                  {p.onTime}&rarr;{p.offTime} &nbsp;
+                  <span className="shift-tag">
+                    {shortLocation(p.onLoc)}&rarr;{shortLocation(p.offLoc)}
+                  </span>
+                </span>
+                <button
+                  className="danger"
+                  title="Remove"
+                  onClick={() =>
+                    dc.fromSheet
+                      ? onClearSheetDay(dateStr)
+                      : onRemovePiece(dateStr, idx)
+                  }
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {!isSpare && (!dc.fromSheet || isDayOff) && (
           <>
-            {pieces.length > 0 && (
-              <div className="day-editor-pieces">
-                {pieces.map((p, idx) => (
-                  <div className="piece-row" key={idx}>
-                    <span>
-                      {p.run} &nbsp; {p.onTime}&rarr;{p.offTime} &nbsp;{" "}
-                      <span className="shift-tag">
-                        {shortLocation(p.onLoc)}&rarr;{shortLocation(p.offLoc)}
-                      </span>
-                    </span>
-                    <button
-                      className="danger"
-                      title="Remove"
-                      onClick={() =>
-                        dc.fromSheet
-                          ? onClearSheetDay(dateStr)
-                          : onRemovePiece(dateStr, idx)
-                      }
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
             {isDayOff && (
               <div className="note" style={{ marginBottom: 6 }}>
                 Add overtime shift / manual run details worked on this day off:

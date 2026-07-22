@@ -55,6 +55,11 @@ export interface SpareInfo {
   /** Board index (into BOARD_DATA) of the shift the run was dispatched to,
    * when a run number belongs to more than one shift in the loaded board. */
   shiftIndex?: number | null;
+  /** Report/relief time on standby, in minutes since midnight. */
+  startMin?: number;
+  endMin?: number;
+  /** Garage the spare reported to for standby. */
+  garage?: string;
 }
 
 export interface DayEntry {
