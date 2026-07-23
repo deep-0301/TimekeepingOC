@@ -209,6 +209,63 @@ export default function DayEditor({
         </div>
       )}
 
+      {isSpare &&
+        day?.spare &&
+        (day.spare.garage || day.spare.startMin != null) && (
+          <div className="day-location-line">
+            {day.spare.garage && (
+              <span className="day-location-point">{day.spare.garage}</span>
+            )}
+            {day.spare.startMin != null && (
+              <span className="day-location-point">
+                Reports{" "}
+                <span className="day-location-time">
+                  {minToHHMM(day.spare.startMin)}
+                </span>
+              </span>
+            )}
+            {day.spare.endMin != null && (
+              <>
+                <span className="day-location-arrow">→</span>
+                <span className="day-location-point">
+                  Released{" "}
+                  <span className="day-location-time">
+                    {minToHHMM(day.spare.endMin)}
+                  </span>
+                </span>
+              </>
+            )}
+          </div>
+        )}
+
+      {!isSpare && pieces.length > 0 && (
+        <div className="day-editor-pieces">
+          {pieces.map((p, idx) => (
+            <div className="piece-row" key={idx}>
+              <span>
+                <b>{p.run}</b> &nbsp;
+                <span className="shift-tag">shift {p.shiftId}</span> &nbsp;
+                {p.onTime}&rarr;{p.offTime} &nbsp;
+                <span className="shift-tag">
+                  {shortLocation(p.onLoc)}&rarr;{shortLocation(p.offLoc)}
+                </span>
+              </span>
+              <button
+                className="danger"
+                title="Remove"
+                onClick={() =>
+                  dc.fromSheet
+                    ? onClearSheetDay(dateStr)
+                    : onRemovePiece(dateStr, idx)
+                }
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <button
         type="button"
         className={"manage-work-toggle" + (manageOpen ? " open" : "")}
@@ -496,34 +553,6 @@ export default function DayEditor({
                 )}
               </div>
             )}
-          </div>
-        )}
-
-        {!isSpare && pieces.length > 0 && (
-          <div className="day-editor-pieces">
-            {pieces.map((p, idx) => (
-              <div className="piece-row" key={idx}>
-                <span>
-                  <b>{p.run}</b> &nbsp;
-                  <span className="shift-tag">shift {p.shiftId}</span> &nbsp;
-                  {p.onTime}&rarr;{p.offTime} &nbsp;
-                  <span className="shift-tag">
-                    {shortLocation(p.onLoc)}&rarr;{shortLocation(p.offLoc)}
-                  </span>
-                </span>
-                <button
-                  className="danger"
-                  title="Remove"
-                  onClick={() =>
-                    dc.fromSheet
-                      ? onClearSheetDay(dateStr)
-                      : onRemovePiece(dateStr, idx)
-                  }
-                >
-                  ×
-                </button>
-              </div>
-            ))}
           </div>
         )}
 

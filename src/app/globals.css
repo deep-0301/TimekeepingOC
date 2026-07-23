@@ -407,6 +407,15 @@ select.period-select {
   font-size: 11px;
 }
 
+.day-editor-extras .field select {
+  align-self: flex-start;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  padding: 5px 6px;
+  font-size: 12px;
+}
+
 .day-location-line {
   display: flex;
   align-items: baseline;

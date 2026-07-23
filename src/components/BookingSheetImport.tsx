@@ -182,10 +182,17 @@ function BookingSheetSlot({
               0
             );
             const guaranteeHrs = totalMin / 60;
+            const spareRow = b.rows.find((r) => r.isSpare) || b.rows[0];
+            const garage = spareRow?.offLoc
+              ? spareRow.offLoc.replace(/\(?\s*spare\s*\)?/gi, "").trim()
+              : "";
             day.spare = {
               guaranteeHrs,
               standbyHrsUsed: guaranteeHrs,
               runNumber: null,
+              startMin: spareRow ? hmToMin(spareRow.onTime) : undefined,
+              endMin: spareRow ? hmToMin(spareRow.offTime) : undefined,
+              garage: garage || undefined,
             };
           }
           if (b.isHoliday) day.isStat = true;
