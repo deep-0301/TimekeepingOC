@@ -188,10 +188,8 @@ function BookingSheetSlot({
               : "";
             day.spare = {
               guaranteeHrs,
-              standbyHrsUsed: guaranteeHrs,
               runNumber: null,
               startMin: spareRow ? hmToMin(spareRow.onTime) : undefined,
-              endMin: spareRow ? hmToMin(spareRow.offTime) : undefined,
               garage: garage || undefined,
             };
           }

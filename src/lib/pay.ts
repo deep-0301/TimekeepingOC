@@ -4,6 +4,7 @@ import {
   getPayPeriodDates,
   getWeekDates,
   isSundayDate,
+  minToHHMM,
   toMin,
 } from "./dateUtils";
 import type {
@@ -16,6 +17,19 @@ import type {
 } from "./types";
 
 const SPARE_CALLUP_HRS = 0.5;
+const SPARE_MAX_STANDBY_MIN = 8 * 60;
+/** Spares reporting before 9:30 are simple flat-standby-hours days; 9:30
+ * onward they must record whether they were dispatched or stood by. */
+export const SPARE_AM_CUTOFF_MIN = 9 * 60 + 30;
+/** A spare reporting at exactly one of these clock times always gets a flat
+ * 30-minute callup, whether or not they end up dispatched. */
+export const SPARE_CALLUP_TIMES_MIN = [
+  9 * 60 + 30,
+  12 * 60 + 30,
+  14 * 60 + 30,
+  16 * 60 + 30,
+  18 * 60 + 30,
+];
 
 /** Groups pieces by shiftId - if the set of runs added for a shift equals
  * that shift's full run list, use the shift's authoritative (board) total. */
@@ -100,59 +114,112 @@ export function computeDay(
 
   if (e.spare) {
     const sp = e.spare;
-    if (!sp.runNumber) {
-      const min = (sp.guaranteeHrs || 0) * 60;
+    const startMin = sp.startMin ?? null;
+    const isMorning = startMin == null || startMin < SPARE_AM_CUTOFF_MIN;
+    const callupHrs =
+      startMin != null && SPARE_CALLUP_TIMES_MIN.includes(startMin)
+        ? SPARE_CALLUP_HRS
+        : 0;
+
+    if (!isMorning && sp.afternoonMode === "work" && sp.runNumber) {
+      // Dispatched: standby time from report to the run's actual start,
+      // plus the run's own worked time - using manual overrides when the
+      // operator's actual times differed from the board (e.g. a shortened
+      // spread), otherwise the board's own authoritative totals.
+      const shift =
+        sp.shiftIndex != null ? BOARD_DATA[sp.shiftIndex] : undefined;
+      const boardOnMin = shift ? toMin(shift[3][0][1]) : null;
+      const boardOffMin = shift
+        ? toMin(shift[3][shift[3].length - 1][2])
+        : null;
+      const workOnMin = sp.workOnTimeOverride ?? boardOnMin;
+      const workOffMin = sp.workOffTimeOverride ?? boardOffMin;
+      const hasOverride =
+        sp.workOnTimeOverride != null || sp.workOffTimeOverride != null;
+
+      const standbyBeforeMin =
+        startMin != null && workOnMin != null
+          ? Math.max(0, workOnMin - startMin)
+          : 0;
+
+      const shiftPlatMin = shift ? shift[1] : 0;
+      const shiftPayMin = shift ? shift[2] : 0;
+      const workedMin =
+        hasOverride && workOnMin != null && workOffMin != null
+          ? Math.max(0, workOffMin - workOnMin)
+          : shiftPlatMin;
+      const workedPayMin = hasOverride ? workedMin : shiftPayMin;
+
+      const allRuns = shift ? shift[3].map((r) => r[0]) : [];
+      const pieces: EntryPiece[] = shift
+        ? shift[3].map((r, idx, arr): EntryPiece => {
+            const isFirst = idx === 0;
+            const isLast = idx === arr.length - 1;
+            return {
+              run: r[0],
+              shiftId: shift[0],
+              shiftPlat: shift[1],
+              shiftPay: shift[2],
+              onTime:
+                isFirst && sp.workOnTimeOverride != null
+                  ? minToHHMM(sp.workOnTimeOverride)
+                  : r[1],
+              offTime:
+                isLast && sp.workOffTimeOverride != null
+                  ? minToHHMM(sp.workOffTimeOverride)
+                  : r[2],
+              onLoc: r[3],
+              offLoc: r[4],
+              platMin: r[5],
+              allRuns,
+            };
+          })
+        : [];
+
       return {
-        platMin: min,
-        payMin: min,
-        matched: true,
+        platMin: standbyBeforeMin + workedMin,
+        payMin: standbyBeforeMin + workedPayMin,
+        matched: !!shift,
         fromSheet: false,
         nonPlatform: e.nonPlatform || 0,
-        callup: e.callup || 0,
+        callup: callupHrs,
         booking: e.booking || 0,
         isSunday,
         isStat: !!e.isStat,
         dayOff: false,
-        pieces: [],
+        pieces,
         spare: sp,
       };
     }
-    const shift =
-      sp.shiftIndex != null ? BOARD_DATA[sp.shiftIndex] : undefined;
-    const shiftPlatMin = shift ? shift[1] : 0;
-    const shiftPayMin = shift ? shift[2] : 0;
-    const standbyMin = (sp.standbyHrsUsed || 0) * 60;
-    const totalPlatMin = standbyMin + shiftPlatMin;
-    const totalPayMin = standbyMin + shiftPayMin;
-    const allRuns = shift ? shift[3].map((r) => r[0]) : [];
-    const pieces: EntryPiece[] = shift
-      ? shift[3].map(
-          (r): EntryPiece => ({
-            run: r[0],
-            shiftId: shift[0],
-            shiftPlat: shift[1],
-            shiftPay: shift[2],
-            onTime: r[1],
-            offTime: r[2],
-            onLoc: r[3],
-            offLoc: r[4],
-            platMin: r[5],
-            allRuns,
-          })
-        )
-      : [];
+
+    // Flat standby hours: morning spares (always), or a PM spare who chose
+    // "standby" (paid from report time to when standby ended, capped at 8
+    // hours), or who hasn't recorded an outcome yet.
+    let standbyMin = 0;
+    if (isMorning) {
+      standbyMin = (sp.guaranteeHrs || 0) * 60;
+    } else if (
+      sp.afternoonMode === "standby" &&
+      startMin != null &&
+      sp.standbyEndMin != null
+    ) {
+      let diff = sp.standbyEndMin - startMin;
+      if (diff < 0) diff += 24 * 60;
+      standbyMin = Math.min(diff, SPARE_MAX_STANDBY_MIN);
+    }
+
     return {
-      platMin: totalPlatMin,
-      payMin: totalPayMin,
-      matched: !!shift,
+      platMin: standbyMin,
+      payMin: standbyMin,
+      matched: true,
       fromSheet: false,
       nonPlatform: e.nonPlatform || 0,
-      callup: (e.callup || 0) + SPARE_CALLUP_HRS,
+      callup: callupHrs,
       booking: e.booking || 0,
       isSunday,
       isStat: !!e.isStat,
       dayOff: false,
-      pieces,
+      pieces: [],
       spare: sp,
     };
   }

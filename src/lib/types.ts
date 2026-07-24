@@ -41,25 +41,38 @@ export interface EntryPiece {
 }
 
 /**
- * A spare/standby assignment: guarantees `guaranteeHrs` of platform pay if
- * never dispatched. If `runNumber` is set, the spare was put on that run —
- * pay becomes `standbyHrsUsed` (time on standby before the run, if any)
- * plus the WHOLE shift that run belongs to (its full platform time, same
- * as any other driving day), plus a flat 30-minute callup, regardless of
- * garage.
+ * A spare/standby assignment. Morning spares (reporting before 9:30) are
+ * paid a flat number of standby hours (`guaranteeHrs`). Spares reporting at
+ * or after 9:30 must record what actually happened via `afternoonMode`:
+ * - "standby": never dispatched - paid for the time from `startMin` to
+ *   `standbyEndMin`, capped at 8 hours.
+ * - "work": dispatched to `runNumber` - paid for the standby time from
+ *   `startMin` to the run's actual start, plus the run's own worked time
+ *   (using `workOnTimeOverride`/`workOffTimeOverride` in place of the
+ *   board's scheduled times when the operator's actual times differed,
+ *   e.g. a shortened spread), plus a flat 30-minute callup.
+ * A 30-minute callup also applies to any spare (AM or PM, dispatched or
+ * not) whose report time is exactly one of the half-hourly callup times.
  */
 export interface SpareInfo {
   guaranteeHrs: number;
-  standbyHrsUsed: number;
   runNumber: string | null;
   /** Board index (into BOARD_DATA) of the shift the run was dispatched to,
    * when a run number belongs to more than one shift in the loaded board. */
   shiftIndex?: number | null;
-  /** Report/relief time on standby, in minutes since midnight. */
+  /** Report time on standby, in minutes since midnight. */
   startMin?: number;
-  endMin?: number;
   /** Garage the spare reported to for standby. */
   garage?: string;
+  /** Chosen outcome for a spare reporting at/after 9:30. */
+  afternoonMode?: "work" | "standby";
+  /** Clock time standby ended, for the "standby" (not dispatched) outcome. */
+  standbyEndMin?: number;
+  /** Manual override of the dispatched run's actual start/finish time, in
+   * minutes since midnight, when it differs from the board's scheduled
+   * time (e.g. the operator's work was cut short on the spread). */
+  workOnTimeOverride?: number;
+  workOffTimeOverride?: number;
 }
 
 export interface DayEntry {

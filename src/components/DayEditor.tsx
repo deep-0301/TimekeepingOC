@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { getShiftsForRun, searchRuns, shortLocation } from "@/lib/board";
-import { computeDay } from "@/lib/pay";
+import { BOARD_DATA, getShiftsForRun, searchRuns, shortLocation } from "@/lib/board";
+import { computeDay, SPARE_AM_CUTOFF_MIN } from "@/lib/pay";
 import { fmtHM, minToHHMM, parseDateStr, toMin } from "@/lib/dateUtils";
 import { getHolidayForDate } from "@/lib/statHolidays";
 import type { DayFieldName, DayFieldValue, EntriesMap, SpareInfo } from "@/lib/types";
@@ -138,10 +138,18 @@ export default function DayEditor({
       ? day.spare.shiftIndex ?? null
       : null;
 
+  const isMorningSpare =
+    day?.spare?.startMin == null || day.spare.startMin < SPARE_AM_CUTOFF_MIN;
+  const spareShift =
+    day?.spare?.shiftIndex != null ? BOARD_DATA[day.spare.shiftIndex] : undefined;
+  const spareBoardOnMin = spareShift ? toMin(spareShift[3][0][1]) : undefined;
+  const spareBoardOffMin = spareShift
+    ? toMin(spareShift[3][spareShift[3].length - 1][2])
+    : undefined;
+
   function patchSpare(patch: Partial<SpareInfo>) {
     const current: SpareInfo = day?.spare || {
       guaranteeHrs: 8,
-      standbyHrsUsed: 8,
       runNumber: null,
     };
     onUpdateSpare(dateStr, { ...current, ...patch });
@@ -232,17 +240,6 @@ export default function DayEditor({
                 </span>
               </span>
             )}
-            {day.spare.endMin != null && (
-              <>
-                <span className="day-location-arrow">→</span>
-                <span className="day-location-point">
-                  Released{" "}
-                  <span className="day-location-time">
-                    {minToHHMM(day.spare.endMin)}
-                  </span>
-                </span>
-              </>
-            )}
           </div>
         )}
 
@@ -286,38 +283,21 @@ export default function DayEditor({
         {!isDayOff && (
         <div className="day-editor-extras">
           {isSpare && (
-            <>
-              <div className="field">
-                <label>Non-Platform (standby, hrs)</label>
-                <input
-                  type="number"
-                  step="0.25"
-                  value={day?.nonPlatform || ""}
-                  onChange={(e) =>
-                    onUpdateDayField(
-                      dateStr,
-                      "nonPlatform",
-                      parseFloat(e.target.value) || 0
-                    )
-                  }
-                />
-              </div>
-              <div className="field">
-                <label>Callup (hrs)</label>
-                <input
-                  type="number"
-                  step="0.25"
-                  value={day?.callup || ""}
-                  onChange={(e) =>
-                    onUpdateDayField(
-                      dateStr,
-                      "callup",
-                      parseFloat(e.target.value) || 0
-                    )
-                  }
-                />
-              </div>
-            </>
+            <div className="field">
+              <label>Non-Platform (standby, hrs)</label>
+              <input
+                type="number"
+                step="0.25"
+                value={day?.nonPlatform || ""}
+                onChange={(e) =>
+                  onUpdateDayField(
+                    dateStr,
+                    "nonPlatform",
+                    parseFloat(e.target.value) || 0
+                  )
+                }
+              />
+            </div>
           )}
           {dc.fromSheet && !isDayOff && (
             <>
@@ -429,7 +409,6 @@ export default function DayEditor({
                       if (e.target.checked) {
                         onUpdateSpare(dateStr, {
                           guaranteeHrs: 8,
-                          standbyHrsUsed: 8,
                           runNumber: null,
                         });
                       } else {
@@ -448,23 +427,11 @@ export default function DayEditor({
         {isSpare && day?.spare && (
           <div className="spare-panel">
             <div className="note">
-              Spares guarantee at least the platform hours below if never
-              dispatched. Enter a run number if put to work — pay becomes
-              standby hours used (if any) plus that run&apos;s platform time,
-              plus a flat 30-minute callup.
+              {isMorningSpare
+                ? "Morning spares (reporting before 9:30) are paid the flat standby hours below."
+                : "Reporting at/after 9:30 — record whether this spare stood by all day or was dispatched to a run. A spare reporting at exactly 9:30, 12:30, 14:30, 16:30 or 18:30 always gets a 30-minute callup."}
             </div>
             <div className="day-editor-extras">
-              <div className="field">
-                <label>Guarantee (hrs)</label>
-                <input
-                  type="number"
-                  step="0.25"
-                  value={day.spare.guaranteeHrs}
-                  onChange={(e) =>
-                    patchSpare({ guaranteeHrs: parseFloat(e.target.value) || 0 })
-                  }
-                />
-              </div>
               <div className="field">
                 <label>Garage</label>
                 <input
@@ -479,85 +446,149 @@ export default function DayEditor({
                 valueMin={day.spare.startMin}
                 onCommit={(val) => patchSpare({ startMin: val })}
               />
-              <TimeField24
-                label="Released"
-                valueMin={day.spare.endMin}
-                onCommit={(val) => patchSpare({ endMin: val })}
-              />
-              <div className="field">
-                <label>Run number (if dispatched)</label>
-                <input
-                  type="text"
-                  value={spareRunInput}
-                  placeholder="e.g. 68-03"
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setSpareRunInput(v);
-                    if (!v.trim()) {
-                      patchSpare({ runNumber: null, shiftIndex: null });
-                    }
-                  }}
-                />
-              </div>
-              {day.spare.runNumber && (
+            </div>
+
+            {isMorningSpare && (
+              <div className="day-editor-extras">
                 <div className="field">
-                  <label>Standby hrs used before the run</label>
+                  <label>Standby hours</label>
                   <input
                     type="number"
                     step="0.25"
-                    value={day.spare.standbyHrsUsed}
+                    value={day.spare.guaranteeHrs}
                     onChange={(e) =>
                       patchSpare({
-                        standbyHrsUsed: parseFloat(e.target.value) || 0,
+                        guaranteeHrs: parseFloat(e.target.value) || 0,
                       })
                     }
                   />
                 </div>
-              )}
-            </div>
-            {spareRunInput.trim() !== "" && (
-              <div className="search-results">
-                {spareShiftMatches.length === 0 ? (
-                  <div className="note">
-                    No run &ldquo;{spareRunInput}&rdquo; found in the loaded
-                    board — pay will use 0 platform time for it until a valid
-                    run number is picked.
-                  </div>
-                ) : (
-                  spareShiftMatches.map(({ si, shift }) => {
-                    const [shiftId, totalPlat, totalPay, runs] = shift;
-                    return (
-                      <div className="result-card" key={si}>
-                        <div className="details">
-                          <span className="shift-tag">shift {shiftId}</span>
-                          &nbsp; {runs.length} piece(s) &nbsp; total{" "}
-                          <b>{fmtHM(totalPlat)}</b> plat / <b>{fmtHM(totalPay)}</b>{" "}
-                          pay
-                          {runs.map((r, idx) => (
-                            <div key={idx}>
-                              &bull; {r[0]} &nbsp; {r[1]}&rarr;{r[2]} &nbsp;{" "}
-                              {shortLocation(r[3])}&rarr;{shortLocation(r[4])}
-                            </div>
-                          ))}
-                        </div>
-                        <button
-                          className="small"
-                          onClick={() =>
-                            patchSpare({
-                              runNumber: spareRunInput.trim(),
-                              shiftIndex: si,
-                            })
-                          }
-                        >
-                          {selectedShiftIndex === si
-                            ? "✓ Selected"
-                            : "+ Add whole shift"}
-                        </button>
-                      </div>
-                    );
-                  })
-                )}
               </div>
+            )}
+
+            {!isMorningSpare && (
+              <>
+                <div className="day-editor-extras">
+                  <div className="field">
+                    <label>What happened?</label>
+                    <select
+                      value={day.spare.afternoonMode || ""}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        patchSpare({
+                          afternoonMode: v === "" ? undefined : (v as "work" | "standby"),
+                        });
+                      }}
+                    >
+                      <option value="">Choose one</option>
+                      <option value="work">Work on call</option>
+                      <option value="standby">Standby (not dispatched)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {day.spare.afternoonMode === "standby" && (
+                  <div className="day-editor-extras">
+                    <TimeField24
+                      label="Standby until"
+                      valueMin={day.spare.standbyEndMin}
+                      onCommit={(val) => patchSpare({ standbyEndMin: val })}
+                    />
+                  </div>
+                )}
+
+                {day.spare.afternoonMode === "work" && (
+                  <>
+                    <div className="day-editor-extras">
+                      <div className="field">
+                        <label>Run number</label>
+                        <input
+                          type="text"
+                          value={spareRunInput}
+                          placeholder="e.g. 68-03"
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setSpareRunInput(v);
+                            if (!v.trim()) {
+                              patchSpare({ runNumber: null, shiftIndex: null });
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+                    {spareRunInput.trim() !== "" && (
+                      <div className="search-results">
+                        {spareShiftMatches.length === 0 ? (
+                          <div className="note">
+                            No run &ldquo;{spareRunInput}&rdquo; found in the
+                            loaded board — pay will use 0 platform time for it
+                            until a valid run number is picked.
+                          </div>
+                        ) : (
+                          spareShiftMatches.map(({ si, shift }) => {
+                            const [shiftId, totalPlat, totalPay, runs] = shift;
+                            return (
+                              <div className="result-card" key={si}>
+                                <div className="details">
+                                  <span className="shift-tag">
+                                    shift {shiftId}
+                                  </span>
+                                  &nbsp; {runs.length} piece(s) &nbsp; total{" "}
+                                  <b>{fmtHM(totalPlat)}</b> plat /{" "}
+                                  <b>{fmtHM(totalPay)}</b> pay
+                                  {runs.map((r, idx) => (
+                                    <div key={idx}>
+                                      &bull; {r[0]} &nbsp; {r[1]}&rarr;{r[2]}{" "}
+                                      &nbsp;
+                                      {shortLocation(r[3])}&rarr;
+                                      {shortLocation(r[4])}
+                                    </div>
+                                  ))}
+                                </div>
+                                <button
+                                  className="small"
+                                  onClick={() =>
+                                    patchSpare({
+                                      runNumber: spareRunInput.trim(),
+                                      shiftIndex: si,
+                                    })
+                                  }
+                                >
+                                  {selectedShiftIndex === si
+                                    ? "✓ Selected"
+                                    : "+ Add whole shift"}
+                                </button>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
+                    {day.spare.runNumber && (
+                      <div className="day-editor-extras">
+                        <TimeField24
+                          label="Actual start"
+                          valueMin={
+                            day.spare.workOnTimeOverride ?? spareBoardOnMin
+                          }
+                          onCommit={(val) =>
+                            patchSpare({ workOnTimeOverride: val })
+                          }
+                        />
+                        <TimeField24
+                          label="Actual finish"
+                          valueMin={
+                            day.spare.workOffTimeOverride ?? spareBoardOffMin
+                          }
+                          onCommit={(val) =>
+                            patchSpare({ workOffTimeOverride: val })
+                          }
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
             )}
           </div>
         )}
