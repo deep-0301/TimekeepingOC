@@ -805,6 +805,21 @@ textarea.sheet-paste {
   background: var(--ink-soft);
 }
 
+.cal-dot-overtime {
+  background: var(--green);
+}
+
+.cal-dots {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 1px;
+}
+
+.cal-dots .cal-dot {
+  margin-top: 0;
+}
+
 .cal-legend {
   display: flex;
   flex-wrap: wrap;

@@ -118,17 +118,22 @@ export default function MonthCalendar({
           const isSelected = selectedDate === dateStr;
           const isWorking = !dc.dayOff && (dc.pieces.length > 0 || !!dc.spare);
           const dayOffType = entries[dateStr]?.dayOffType;
-          const dotClass = dc.dayOff
-            ? dayOffType === "sick"
-              ? "cal-dot-sick"
-              : dayOffType === "legislative"
-              ? "cal-dot-legislative"
-              : "cal-dot-dayoff"
-            : dc.spare
-            ? "cal-dot-spare"
-            : isWorking
-            ? "cal-dot-working"
-            : "";
+          const hasOvertime = dc.dayOff && dc.pieces.length > 0;
+          const dots: string[] = [];
+          if (dc.dayOff) {
+            dots.push(
+              dayOffType === "sick"
+                ? "cal-dot-sick"
+                : dayOffType === "legislative"
+                ? "cal-dot-legislative"
+                : "cal-dot-dayoff"
+            );
+            if (hasOvertime) dots.push("cal-dot-overtime");
+          } else if (dc.spare) {
+            dots.push("cal-dot-spare");
+          } else if (isWorking) {
+            dots.push("cal-dot-working");
+          }
           return (
             <button
               key={dateStr}
@@ -150,7 +155,13 @@ export default function MonthCalendar({
                 <span className="cal-cell-holiday-label">{holiday.name}</span>
               )}
               {dc.dayOff && <span className="cal-cell-off">OFF</span>}
-              {dotClass && <span className={"cal-dot " + dotClass} />}
+              {dots.length > 0 && (
+                <span className="cal-dots">
+                  {dots.map((d) => (
+                    <span key={d} className={"cal-dot " + d} />
+                  ))}
+                </span>
+              )}
             </button>
           );
         })}
@@ -171,6 +182,9 @@ export default function MonthCalendar({
         </span>
         <span className="cal-legend-item">
           <span className="cal-dot cal-dot-dayoff" /> Day off
+        </span>
+        <span className="cal-legend-item">
+          <span className="cal-dot cal-dot-overtime" /> Overtime worked
         </span>
         <span className="cal-legend-item">
           <span className="cal-legend-swatch cal-legend-holiday" /> Holiday

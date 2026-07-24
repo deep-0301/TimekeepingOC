@@ -196,7 +196,12 @@ export default function DayEditor({
       )}
 
       <div className="day-stats" style={{ margin: "6px 0" }}>
-        Plat <b>{fmtHM(dc.platMin)}</b> · Pay <b>{fmtHM(dc.payMin)}</b>{" "}
+        Platform <b>{fmtHM(dc.platMin)}</b> · Pay <b>{fmtHM(dc.payMin)}</b>{" "}
+        {dc.payMin > dc.platMin && (
+          <>
+            · CLC break paid <b>{fmtHM(dc.payMin - dc.platMin)}</b>{" "}
+          </>
+        )}
         {isSpare && <span className="badge estimate">spare</span>}
         {!isSpare &&
           pieces.length > 0 &&
@@ -243,7 +248,11 @@ export default function DayEditor({
           </div>
         )}
 
-      {!isSpare && pieces.length > 0 && (
+      {(!isSpare ||
+        (!!day?.spare?.runNumber &&
+          day?.spare?.workOnTimeOverride == null &&
+          day?.spare?.workOffTimeOverride == null)) &&
+        pieces.length > 0 && (
         <div className="day-editor-pieces">
           {pieces.map((p, idx) => (
             <div className="piece-row" key={idx}>
@@ -255,7 +264,7 @@ export default function DayEditor({
                   {shortLocation(p.onLoc)}&rarr;{shortLocation(p.offLoc)}
                 </span>
               </span>
-              {!dc.fromSheet && (
+              {!dc.fromSheet && !isSpare && (
                 <button
                   className="danger"
                   title="Remove"
@@ -475,9 +484,23 @@ export default function DayEditor({
                       value={day.spare.afternoonMode || ""}
                       onChange={(e) => {
                         const v = e.target.value;
-                        patchSpare({
-                          afternoonMode: v === "" ? undefined : (v as "work" | "standby"),
-                        });
+                        const patch: Partial<SpareInfo> = {
+                          afternoonMode:
+                            v === "" ? undefined : (v as "work" | "standby"),
+                        };
+                        // Carry any time already spent on standby straight
+                        // into the dispatch calc, so the figure shown in
+                        // "Actual start" is what actually gets paid from
+                        // the moment they switch, not just a cosmetic
+                        // default waiting on a manual edit.
+                        if (
+                          v === "work" &&
+                          day.spare?.workOnTimeOverride == null &&
+                          day.spare?.standbyEndMin != null
+                        ) {
+                          patch.workOnTimeOverride = day.spare.standbyEndMin;
+                        }
+                        patchSpare(patch);
                       }}
                     >
                       <option value="">Choose one</option>
@@ -488,13 +511,23 @@ export default function DayEditor({
                 </div>
 
                 {day.spare.afternoonMode === "standby" && (
-                  <div className="day-editor-extras">
-                    <TimeField24
-                      label="Standby until"
-                      valueMin={day.spare.standbyEndMin}
-                      onCommit={(val) => patchSpare({ standbyEndMin: val })}
-                    />
-                  </div>
+                  <>
+                    <div className="day-editor-extras">
+                      <TimeField24
+                        label="Standby until"
+                        valueMin={day.spare.standbyEndMin}
+                        onCommit={(val) => patchSpare({ standbyEndMin: val })}
+                      />
+                    </div>
+                    {day.spare.standbyEndMin != null && (
+                      <div className="note">
+                        Standby: <b>{fmtHM(dc.platMin)}</b>
+                        {dc.platMin >= 480
+                          ? " — capped at the 8-hour max. If they end up dispatched after all, switch to \"Work on call\"."
+                          : " so far. If they get dispatched, switch to \"Work on call\" and the time already on standby carries over."}
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {day.spare.afternoonMode === "work" && (
@@ -569,7 +602,9 @@ export default function DayEditor({
                         <TimeField24
                           label="Actual start"
                           valueMin={
-                            day.spare.workOnTimeOverride ?? spareBoardOnMin
+                            day.spare.workOnTimeOverride ??
+                            day.spare.standbyEndMin ??
+                            spareBoardOnMin
                           }
                           onCommit={(val) =>
                             patchSpare({ workOnTimeOverride: val })
