@@ -416,6 +416,26 @@ select.period-select {
   font-size: 12px;
 }
 
+.time24 {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.time24 select {
+  font-family: var(--font-mono);
+}
+
+.time24-icon {
+  font-size: 13px;
+  margin-right: 2px;
+}
+
+.time24-colon {
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
 .day-location-line {
   display: flex;
   align-items: baseline;

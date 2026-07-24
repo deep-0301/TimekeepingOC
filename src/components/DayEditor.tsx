@@ -25,8 +25,13 @@ interface DayEditorProps {
   onClose: () => void;
 }
 
-/** Always-24-hour "HH:MM" time entry - native <input type="time"> follows
- * the browser/OS locale (can render 12h with AM/PM), which this avoids. */
+const HOURS_24 = Array.from({ length: 24 }, (_, i) => i);
+const MINUTES_60 = Array.from({ length: 60 }, (_, i) => i);
+
+/** Always-24-hour clock-style time entry: separate hour/minute dropdowns
+ * instead of typed text or a native <input type="time"> (whose displayed
+ * format - 12h/AM-PM vs 24h - follows the visitor's own browser locale and
+ * can't be reliably forced from the page). */
 function TimeField24({
   label,
   valueMin,
@@ -38,48 +43,51 @@ function TimeField24({
   minAllowed?: number;
   onCommit: (min: number) => void;
 }) {
-  const [text, setText] = useState(valueMin ? minToHHMM(valueMin) : "");
-  const [focused, setFocused] = useState(false);
-  const [syncedValueMin, setSyncedValueMin] = useState(valueMin);
+  const hasValue = valueMin != null && valueMin > 0;
+  const h = hasValue ? Math.floor(valueMin / 60) : "";
+  const mi = hasValue ? valueMin % 60 : "";
 
-  // Adjust displayed text when valueMin changes from outside (e.g. the
-  // sibling AVLC field auto-filling this one) - skipped while the user is
-  // actively editing so their in-progress keystrokes aren't clobbered.
-  if (!focused && valueMin !== syncedValueMin) {
-    setSyncedValueMin(valueMin);
-    setText(valueMin ? minToHHMM(valueMin) : "");
+  function commit(newH: number, newMi: number) {
+    let mins = newH * 60 + newMi;
+    if (minAllowed != null) mins = Math.max(mins, minAllowed);
+    onCommit(mins);
   }
 
   return (
     <div className="field">
       <label>{label}</label>
-      <input
-        type="text"
-        inputMode="numeric"
-        placeholder="HH:MM"
-        value={text}
-        onFocus={() => setFocused(true)}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={() => {
-          setFocused(false);
-          if (!text.trim()) {
-            setText(valueMin ? minToHHMM(valueMin) : "");
-            if (valueMin) onCommit(0);
-            return;
-          }
-          const m = text.match(/^(\d{1,2}):(\d{2})$/);
-          const h = m ? parseInt(m[1], 10) : NaN;
-          const mi = m ? parseInt(m[2], 10) : NaN;
-          if (!m || h > 23 || mi > 59) {
-            setText(valueMin ? minToHHMM(valueMin) : "");
-            return;
-          }
-          let mins = h * 60 + mi;
-          if (minAllowed != null) mins = Math.max(mins, minAllowed);
-          setText(minToHHMM(mins));
-          onCommit(mins);
-        }}
-      />
+      <div className="time24">
+        <span className="time24-icon">🕐</span>
+        <select
+          aria-label={`${label} hour`}
+          value={h}
+          onChange={(e) => commit(parseInt(e.target.value, 10), mi === "" ? 0 : mi)}
+        >
+          <option value="" disabled>
+            HH
+          </option>
+          {HOURS_24.map((hh) => (
+            <option key={hh} value={hh}>
+              {String(hh).padStart(2, "0")}
+            </option>
+          ))}
+        </select>
+        <span className="time24-colon">:</span>
+        <select
+          aria-label={`${label} minute`}
+          value={mi}
+          onChange={(e) => commit(h === "" ? 0 : h, parseInt(e.target.value, 10))}
+        >
+          <option value="" disabled>
+            MM
+          </option>
+          {MINUTES_60.map((mm) => (
+            <option key={mm} value={mm}>
+              {String(mm).padStart(2, "0")}
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 }
@@ -250,17 +258,15 @@ export default function DayEditor({
                   {shortLocation(p.onLoc)}&rarr;{shortLocation(p.offLoc)}
                 </span>
               </span>
-              <button
-                className="danger"
-                title="Remove"
-                onClick={() =>
-                  dc.fromSheet
-                    ? onClearSheetDay(dateStr)
-                    : onRemovePiece(dateStr, idx)
-                }
-              >
-                ×
-              </button>
+              {!dc.fromSheet && (
+                <button
+                  className="danger"
+                  title="Remove"
+                  onClick={() => onRemovePiece(dateStr, idx)}
+                >
+                  ×
+                </button>
+              )}
             </div>
           ))}
         </div>
