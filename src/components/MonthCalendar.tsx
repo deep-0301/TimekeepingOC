@@ -25,6 +25,7 @@ interface MonthCalendarProps {
     value: DayFieldValue
   ) => void;
   onUpdateSpare: (dateStr: string, spare: SpareInfo | null) => void;
+  onDeleteDay: (dateStr: string) => void;
 }
 
 const WEEKDAY_LABELS_SUN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -38,6 +39,7 @@ export default function MonthCalendar({
   onClearSheetDay,
   onUpdateDayField,
   onUpdateSpare,
+  onDeleteDay,
 }: MonthCalendarProps) {
   const [viewMonth, setViewMonth] = useState(() => {
     const d = new Date();
@@ -204,6 +206,7 @@ export default function MonthCalendar({
           onClearSheetDay={onClearSheetDay}
           onUpdateDayField={onUpdateDayField}
           onUpdateSpare={onUpdateSpare}
+          onDeleteDay={onDeleteDay}
           onClose={() => setSelectedDate(null)}
         />
       </section>

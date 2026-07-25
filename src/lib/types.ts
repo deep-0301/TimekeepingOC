@@ -41,9 +41,9 @@ export interface EntryPiece {
 }
 
 /**
- * A spare/standby assignment. Morning spares (reporting before 9:30) are
- * paid a flat number of standby hours (`guaranteeHrs`). Spares reporting at
- * or after 9:30 must record what actually happened via `afternoonMode`:
+ * A spare/standby assignment. By default it's paid a flat number of
+ * standby hours (`guaranteeHrs`, from the booking sheet's guarantee
+ * figure). If the operator records what actually happened via `mode`:
  * - "standby": never dispatched - paid for the time from `startMin` to
  *   `standbyEndMin`, capped at 8 hours.
  * - "work": dispatched to `runNumber` - paid for the standby time from
@@ -51,8 +51,8 @@ export interface EntryPiece {
  *   (using `workOnTimeOverride`/`workOffTimeOverride` in place of the
  *   board's scheduled times when the operator's actual times differed,
  *   e.g. a shortened spread), plus a flat 30-minute callup.
- * A 30-minute callup also applies to any spare (AM or PM, dispatched or
- * not) whose report time is exactly one of the half-hourly callup times.
+ * A 30-minute callup also applies to any spare (dispatched or not) whose
+ * report time is exactly one of the half-hourly callup times.
  */
 export interface SpareInfo {
   guaranteeHrs: number;
@@ -64,7 +64,7 @@ export interface SpareInfo {
   startMin?: number;
   /** Garage the spare reported to for standby. */
   garage?: string;
-  /** Chosen outcome for a spare reporting at/after 9:30. */
+  /** Recorded outcome, once known - otherwise paid the flat guaranteeHrs. */
   afternoonMode?: "work" | "standby";
   /** Clock time standby ended, for the "standby" (not dispatched) outcome. */
   standbyEndMin?: number;

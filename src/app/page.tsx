@@ -13,6 +13,7 @@ export default function Home() {
     clearSheetDay,
     updateDayField,
     updateSpare,
+    deleteDay,
   } = useAppState();
 
   const hasNoData = Object.keys(entries).length === 0;
@@ -41,6 +42,7 @@ export default function Home() {
         onClearSheetDay={clearSheetDay}
         onUpdateDayField={updateDayField}
         onUpdateSpare={updateSpare}
+        onDeleteDay={deleteDay}
       />
     </>
   );

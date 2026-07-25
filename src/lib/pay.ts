@@ -18,9 +18,6 @@ import type {
 
 const SPARE_CALLUP_HRS = 0.5;
 const SPARE_MAX_STANDBY_MIN = 8 * 60;
-/** Spares reporting before 9:30 are simple flat-standby-hours days; 9:30
- * onward they must record whether they were dispatched or stood by. */
-export const SPARE_AM_CUTOFF_MIN = 9 * 60 + 30;
 /** A spare reporting at exactly one of these clock times always gets a flat
  * 30-minute callup, whether or not they end up dispatched. */
 export const SPARE_CALLUP_TIMES_MIN = [
@@ -115,13 +112,12 @@ export function computeDay(
   if (e.spare) {
     const sp = e.spare;
     const startMin = sp.startMin ?? null;
-    const isMorning = startMin == null || startMin < SPARE_AM_CUTOFF_MIN;
     const callupHrs =
       startMin != null && SPARE_CALLUP_TIMES_MIN.includes(startMin)
         ? SPARE_CALLUP_HRS
         : 0;
 
-    if (!isMorning && sp.afternoonMode === "work" && sp.runNumber) {
+    if (sp.afternoonMode === "work" && sp.runNumber) {
       // Dispatched: standby time from report to the run's actual start,
       // plus the run's own worked time - using manual overrides when the
       // operator's actual times differed from the board (e.g. a shortened
@@ -192,13 +188,13 @@ export function computeDay(
       };
     }
 
-    // Flat standby hours: morning spares (always), or a PM spare who chose
-    // "standby" (paid from report time to when standby ended, capped at 8
-    // hours), or who hasn't recorded an outcome yet.
-    let standbyMin = 0;
-    if (isMorning) {
-      standbyMin = (sp.guaranteeHrs || 0) * 60;
-    } else if (
+    // Not dispatched: paid the flat guaranteed standby hours (from the
+    // booking sheet's totalGuarantee, or entered directly) by default. If
+    // they've recorded standing by until a specific clock time instead,
+    // use the actual elapsed time (capped at 8 hours) - this applies the
+    // same way whether they reported in the morning or afternoon.
+    let standbyMin = (sp.guaranteeHrs || 0) * 60;
+    if (
       sp.afternoonMode === "standby" &&
       startMin != null &&
       sp.standbyEndMin != null
