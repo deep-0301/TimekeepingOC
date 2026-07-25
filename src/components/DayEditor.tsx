@@ -299,70 +299,25 @@ export default function DayEditor({
               )}
             </>
           )}
-          {!isSpare && !dc.fromSheet && (
+          {!dc.fromSheet && !isDayOff && !isSpare && (
             <div className="field">
-              <label>Booking hrs</label>
-              <input
-                type="number"
-                step="0.25"
-                value={day?.booking || ""}
-                onChange={(e) =>
-                  onUpdateDayField(
-                    dateStr,
-                    "booking",
-                    parseFloat(e.target.value) || 0
-                  )
-                }
-              />
+              <label>What happened?</label>
+              <select
+                value=""
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "dayoff") {
+                    onUpdateDayField(dateStr, "dayOff", true);
+                  } else if (v === "spare") {
+                    onUpdateSpare(dateStr, { guaranteeHrs: 8, runNumber: null });
+                  }
+                }}
+              >
+                <option value="">Working (add manually below)</option>
+                <option value="dayoff">Day off</option>
+                <option value="spare">Spare / standby</option>
+              </select>
             </div>
-          )}
-          {!dc.fromSheet && (
-            <>
-              <div className="field">
-                <label>Stat holiday?</label>
-                <div className="toggle-row">
-                  <input
-                    type="checkbox"
-                    checked={!!day?.isStat}
-                    onChange={(e) =>
-                      onUpdateDayField(dateStr, "isStat", e.target.checked)
-                    }
-                  />
-                </div>
-              </div>
-              <div className="field">
-                <label>Day off?</label>
-                <div className="toggle-row">
-                  <input
-                    type="checkbox"
-                    checked={isDayOff}
-                    onChange={(e) =>
-                      onUpdateDayField(dateStr, "dayOff", e.target.checked)
-                    }
-                  />
-                </div>
-              </div>
-              <div className="field">
-                <label>Spare / standby?</label>
-                <div className="toggle-row">
-                  <input
-                    type="checkbox"
-                    checked={isSpare}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        onUpdateSpare(dateStr, {
-                          guaranteeHrs: 8,
-                          runNumber: null,
-                        });
-                      } else {
-                        setSpareRunInput("");
-                        onUpdateSpare(dateStr, null);
-                      }
-                    }}
-                  />
-                </div>
-              </div>
-            </>
           )}
         </div>
         )}
