@@ -7,6 +7,7 @@ import { fmtHM, minToHHMM, parseDateStr, toMin } from "@/lib/dateUtils";
 import { getHolidayForDate } from "@/lib/statHolidays";
 import type { DayFieldName, DayFieldValue, EntriesMap, SpareInfo } from "@/lib/types";
 import TimeField24 from "./TimeField24";
+import GarageField from "./GarageField";
 
 /** AVLC rule: revised time = AVLC time + 5 minutes. */
 const AVLC_BUMP_MIN = 5;
@@ -330,15 +331,10 @@ export default function DayEditor({
                 : "Reporting at/after 9:30 — record whether this spare stood by all day or was dispatched to a run. A spare reporting at exactly 9:30, 12:30, 14:30, 16:30 or 18:30 always gets a 30-minute callup."}
             </div>
             <div className="day-editor-extras">
-              <div className="field">
-                <label>Garage</label>
-                <input
-                  type="text"
-                  value={day.spare.garage || ""}
-                  placeholder="e.g. Pinecrest"
-                  onChange={(e) => patchSpare({ garage: e.target.value })}
-                />
-              </div>
+              <GarageField
+                value={day.spare.garage || ""}
+                onChange={(v) => patchSpare({ garage: v })}
+              />
               <TimeField24
                 label="Reports"
                 valueMin={day.spare.startMin}

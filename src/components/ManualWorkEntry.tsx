@@ -5,6 +5,7 @@ import { getShiftsForRun } from "@/lib/board";
 import { fmtDate, fmtHM } from "@/lib/dateUtils";
 import type { SpareInfo } from "@/lib/types";
 import TimeField24 from "./TimeField24";
+import GarageField from "./GarageField";
 
 interface ManualWorkEntryProps {
   onAddShift: (si: number, dateStr: string) => void;
@@ -118,15 +119,7 @@ export default function ManualWorkEntry({
       ) : (
         <>
           <div className="day-editor-extras">
-            <div className="field">
-              <label>Garage</label>
-              <input
-                type="text"
-                value={garage}
-                placeholder="e.g. Pinecrest"
-                onChange={(e) => setGarage(e.target.value)}
-              />
-            </div>
+            <GarageField value={garage} onChange={setGarage} />
             <TimeField24
               label="Reports"
               valueMin={reportsMin}
