@@ -205,6 +205,15 @@ button.danger:hover {
   background: #f6dede;
 }
 
+button.danger-solid {
+  background: var(--red);
+  color: #fff;
+}
+
+button.danger-solid:hover {
+  background: #a3372f;
+}
+
 input[type="date"],
 input[type="time"],
 input[type="number"],

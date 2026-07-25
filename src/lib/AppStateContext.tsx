@@ -47,6 +47,7 @@ interface AppState {
   ) => void;
   updateSpare: (dateStr: string, spare: SpareInfo | null) => void;
   updateEntries: (updater: (prev: EntriesMap) => EntriesMap) => void;
+  clearAllEntries: () => void;
   saveSettings: (next: PaySettings) => Promise<void>;
   updatePayPeriodAnchor: (dateStr: string) => void;
   periodDays: Date[];
@@ -203,6 +204,11 @@ export function AppStateProvider({
     [updateEntries]
   );
 
+  const clearAllEntries = useCallback(() => {
+    updateEntries(() => ({}));
+    setStatusLine("Cleared — starting fresh");
+  }, [updateEntries]);
+
   const saveSettings = useCallback(async (next: PaySettings) => {
     setSettings(next);
     try {
@@ -267,6 +273,7 @@ export function AppStateProvider({
     updateDayField,
     updateSpare,
     updateEntries,
+    clearAllEntries,
     saveSettings,
     updatePayPeriodAnchor,
     periodDays,
