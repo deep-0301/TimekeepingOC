@@ -569,6 +569,49 @@ table.paystub-table td:last-child {
   font-weight: 600;
 }
 
+.biweekly-table-wrap {
+  overflow-x: auto;
+}
+
+table.biweekly-table {
+  min-width: 720px;
+}
+
+table.biweekly-table th:nth-child(2),
+table.biweekly-table td:nth-child(2) {
+  text-align: left;
+  font-family: var(--font-sans);
+}
+
+table.biweekly-table td:last-child {
+  font-weight: 600;
+  color: var(--steel-dark);
+}
+
+table.biweekly-table .biweekly-date {
+  font-family: var(--font-sans);
+  white-space: nowrap;
+}
+
+table.biweekly-table .biweekly-type {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+table.biweekly-table tr.row-sunday {
+  background: var(--holiday-bg);
+}
+
+table.biweekly-table tr.row-dayoff {
+  background: #f4f0fa;
+}
+
+table.biweekly-table tr.row-stat td:first-child {
+  border-left: 3px solid var(--holiday);
+}
+
 .note {
   font-size: 12px;
   color: var(--ink-soft);

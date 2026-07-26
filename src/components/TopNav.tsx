@@ -9,6 +9,7 @@ const LINKS = [
   { href: "/import", label: "Import Sheets" },
   { href: "/search", label: "Find a Run" },
   { href: "/summary", label: "Pay Summary" },
+  { href: "/biweekly", label: "Biweekly Hours" },
 ];
 
 export default function TopNav() {
