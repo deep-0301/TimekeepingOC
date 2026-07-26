@@ -438,9 +438,25 @@ export default function DayEditor({
                   <div className="note">
                     Standby: <b>{fmtHM(dc.platMin)}</b>
                     {dc.platMin >= 480
-                      ? " — capped at the 8-hour max. If they end up dispatched after all, switch to \"Work on call\"."
-                      : " so far. If they get dispatched, switch to \"Work on call\" and the time already on standby carries over."}
+                      ? " — capped at the 8-hour max. If they end up dispatched after all, add the work below."
+                      : " so far. If they get dispatched, add the work below and the time already on standby carries over."}
                   </div>
+                )}
+                {day.spare.standbyEndMin != null && dc.platMin < 480 && (
+                  <button
+                    type="button"
+                    className="small"
+                    onClick={() =>
+                      patchSpare({
+                        afternoonMode: "work",
+                        workOnTimeOverride:
+                          day.spare?.workOnTimeOverride ??
+                          day.spare?.standbyEndMin,
+                      })
+                    }
+                  >
+                    + Add work (got dispatched)
+                  </button>
                 )}
               </>
             )}

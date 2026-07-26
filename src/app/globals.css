@@ -717,6 +717,7 @@ textarea.sheet-paste {
 }
 
 .cal-cell {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -733,6 +734,25 @@ textarea.sheet-paste {
   transition:
     border-color 0.15s,
     background 0.15s;
+}
+
+.cal-cell-ot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #fff;
+  background: var(--green);
+  border-radius: 4px;
+  padding: 1px 3px;
+  line-height: 1.2;
+}
+
+.cal-legend-ot {
+  position: static;
 }
 
 .cal-cell:hover {
@@ -812,10 +832,6 @@ textarea.sheet-paste {
 
 .cal-dot-dayoff {
   background: var(--ink-soft);
-}
-
-.cal-dot-overtime {
-  background: var(--green);
 }
 
 .cal-dots {

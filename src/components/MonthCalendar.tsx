@@ -130,7 +130,6 @@ export default function MonthCalendar({
                 ? "cal-dot-legislative"
                 : "cal-dot-dayoff"
             );
-            if (hasOvertime) dots.push("cal-dot-overtime");
           } else if (dc.spare) {
             dots.push("cal-dot-spare");
           } else if (isWorking) {
@@ -153,6 +152,11 @@ export default function MonthCalendar({
               }
             >
               <span className="cal-cell-date">{d.getDate()}</span>
+              {hasOvertime && (
+                <span className="cal-cell-ot" title="Overtime worked">
+                  OT
+                </span>
+              )}
               {holiday && (
                 <span className="cal-cell-holiday-label">{holiday.name}</span>
               )}
@@ -186,7 +190,7 @@ export default function MonthCalendar({
           <span className="cal-dot cal-dot-dayoff" /> Day off
         </span>
         <span className="cal-legend-item">
-          <span className="cal-dot cal-dot-overtime" /> Overtime worked
+          <span className="cal-cell-ot cal-legend-ot">OT</span> Overtime worked
         </span>
         <span className="cal-legend-item">
           <span className="cal-legend-swatch cal-legend-holiday" /> Holiday
