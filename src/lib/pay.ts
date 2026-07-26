@@ -282,7 +282,9 @@ export function computeWeek(
     const dateStr = fmtDate(d);
     const dc = computeDay(entries, dateStr);
     const dailyOtThreshMin = settings.otThreshold * 60;
-    const dayOt = Math.max(0, dc.payMin - dailyOtThreshMin);
+    // Overtime is earned on platform/standby time only - the CLC break is
+    // always paid straight-time and never pushes a day into overtime.
+    const dayOt = Math.max(0, dc.platMin - dailyOtThreshMin);
     otMin += dayOt;
     sumPlat += dc.platMin;
     sumPay += dc.payMin;
