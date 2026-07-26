@@ -258,25 +258,8 @@ export default function DayEditor({
 
       {manageOpen && (
         <>
-        {!isDayOff && (
+        {!isDayOff && !isSpare && (
         <div className="day-editor-extras">
-          {isSpare && (
-            <div className="field">
-              <label>Non-Platform (standby, hrs)</label>
-              <input
-                type="number"
-                step="0.25"
-                value={day?.nonPlatform || ""}
-                onChange={(e) =>
-                  onUpdateDayField(
-                    dateStr,
-                    "nonPlatform",
-                    parseFloat(e.target.value) || 0
-                  )
-                }
-              />
-            </div>
-          )}
           {dc.fromSheet && !isDayOff && (
             <>
               <div className="field">
@@ -360,8 +343,8 @@ export default function DayEditor({
         {isSpare && day?.spare && (
           <div className="spare-panel">
             <div className="note">
-              Spares are paid the guaranteed standby hours below by
-              default. If you know what actually happened, record it:
+              Spares are paid their guaranteed standby hours by default.
+              If you know what actually happened, record it:
               &ldquo;Work on call&rdquo; (add the run they were dispatched
               to) or &ldquo;Standby&rdquo; (when it ended). A report time
               of exactly 9:30, 12:30, 14:30, 16:30 or 18:30 always gets a
@@ -380,19 +363,6 @@ export default function DayEditor({
             </div>
 
             <div className="day-editor-extras">
-              <div className="field">
-                <label>Standby hours (if not dispatched)</label>
-                <input
-                  type="number"
-                  step="0.25"
-                  value={day.spare.guaranteeHrs}
-                  onChange={(e) =>
-                    patchSpare({
-                      guaranteeHrs: parseFloat(e.target.value) || 0,
-                    })
-                  }
-                />
-              </div>
               <div className="field">
                 <label>What happened?</label>
                 <select
@@ -418,7 +388,7 @@ export default function DayEditor({
                     patchSpare(patch);
                   }}
                 >
-                  <option value="">Just standby (hours above)</option>
+                  <option value="">Just standby (guaranteed hours)</option>
                   <option value="work">Work on call</option>
                   <option value="standby">Standby until a set time</option>
                 </select>
