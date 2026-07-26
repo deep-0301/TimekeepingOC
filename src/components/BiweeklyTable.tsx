@@ -28,7 +28,7 @@ export default function BiweeklyTable({ week, entries }: BiweeklyTableProps) {
           <tr>
             <th>Date</th>
             <th>Type</th>
-            <th>Regular</th>
+            <th>Plat Hours</th>
             <th>O/T</th>
             <th>CLC Break</th>
             <th>Callup</th>
@@ -41,7 +41,7 @@ export default function BiweeklyTable({ week, entries }: BiweeklyTableProps) {
           {week.perDay.map((dc) => {
             const date = parseDateStr(dc.dateStr);
             const holiday = getHolidayForDate(date);
-            const regularMin = Math.max(0, dc.payMin - dc.dayOt);
+            const platHoursMin = Math.max(0, dc.platMin - dc.dayOt);
             const clcMin = Math.max(0, dc.payMin - dc.platMin);
             const rowClass =
               (dc.isSunday ? " row-sunday" : "") +
@@ -62,7 +62,7 @@ export default function BiweeklyTable({ week, entries }: BiweeklyTableProps) {
                   {dc.isStat && <span className="badge match">stat</span>}
                   {dc.isSunday && <span className="badge estimate">sun</span>}
                 </td>
-                <td>{regularMin > 0 ? fmtHM(regularMin) : "—"}</td>
+                <td>{platHoursMin > 0 ? fmtHM(platHoursMin) : "—"}</td>
                 <td>{dc.dayOt > 0 ? fmtHM(dc.dayOt) : "—"}</td>
                 <td>{clcMin > 0 ? fmtHM(clcMin) : "—"}</td>
                 <td>{dc.callup > 0 ? fmtHM(dc.callup * 60) : "—"}</td>
