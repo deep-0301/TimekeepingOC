@@ -46,8 +46,8 @@ export default function Home() {
             You haven&apos;t added any work yet.{" "}
             <Link href="/import">Import your booking sheets</Link>{" "}
             to load a whole season at once, or tap any date below to add a
-            single day&apos;s work manually — a run number, a day off, or a
-            spare/standby shift. You can also add manual work (without a
+            single day&apos;s work manually — a paddle number, a day off, or
+            a spare/standby shift. You can also add manual work (without a
             booking sheet) from the{" "}
             <Link href="/import">Import Sheets</Link> page.
           </div>

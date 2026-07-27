@@ -120,8 +120,8 @@ export default function ManualWorkEntry({
     <section className="panel">
       <h2>Add work manually</h2>
       <div className="note">
-        No booking sheet handy? Add a single day&apos;s work directly — a run
-        number, or a spare/standby shift.
+        No booking sheet handy? Add a single day&apos;s work directly — a
+        paddle number, or a spare/standby shift.
       </div>
       <div className="day-editor-extras">
         <div className="field">
@@ -138,7 +138,7 @@ export default function ManualWorkEntry({
             value={mode}
             onChange={(e) => setMode(e.target.value as "run" | "spare")}
           >
-            <option value="run">Run number</option>
+            <option value="run">Paddle number</option>
             <option value="spare">Spare / standby</option>
           </select>
         </div>
@@ -176,7 +176,7 @@ export default function ManualWorkEntry({
           <input
             type="text"
             className="run-search"
-            placeholder="Type a run number, e.g. 68-03"
+            placeholder="Type a paddle number, e.g. 68-03"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -186,7 +186,7 @@ export default function ManualWorkEntry({
                 <div className="note">
                   {dayType === "weekend" && !WEEKEND_BOARD_LOADED
                     ? "No weekend board has been loaded yet."
-                    : "No matching run number found."}
+                    : "No matching paddle number found."}
                 </div>
               ) : (
                 matches.map(({ si, shift }) => {

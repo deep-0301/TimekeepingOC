@@ -405,7 +405,7 @@ export default function DayEditor({
                   }}
                 >
                   <option value="">Just standby (whole day)</option>
-                  <option value="work">Run number (if dispatched)</option>
+                  <option value="work">Paddle number (if dispatched)</option>
                 </select>
               </div>
             </div>
@@ -414,7 +414,7 @@ export default function DayEditor({
               <>
                 <div className="day-editor-extras">
                   <div className="field">
-                    <label>Run number</label>
+                    <label>Paddle number</label>
                     <input
                       type="text"
                       value={spareRunInput}
@@ -435,7 +435,7 @@ export default function DayEditor({
                       <div className="note">
                         {dayType === "weekend" && !WEEKEND_BOARD_LOADED
                           ? "No weekend board has been loaded yet."
-                          : `No run "${spareRunInput}" found in the loaded ${dayType} board — pay will use 0 platform time for it until a valid run number is picked.`}
+                          : `No paddle "${spareRunInput}" found in the loaded ${dayType} board — pay will use 0 platform time for it until a valid paddle number is picked.`}
                       </div>
                     ) : (
                       spareShiftMatches.map(({ si, shift }) => {
@@ -591,7 +591,7 @@ export default function DayEditor({
             <input
               type="text"
               className="run-search"
-              placeholder="Type a run number, e.g. 68-03"
+              placeholder="Type a paddle number, e.g. 68-03"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -601,7 +601,7 @@ export default function DayEditor({
                   <div className="note">
                     {dayType === "weekend" && !WEEKEND_BOARD_LOADED
                       ? "No weekend board has been loaded yet."
-                      : "No matching run number found."}
+                      : "No matching paddle number found."}
                   </div>
                 ) : (
                   <>

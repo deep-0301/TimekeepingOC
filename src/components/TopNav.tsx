@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabaseClient";
 const LINKS = [
   { href: "/", label: "Calendar" },
   { href: "/import", label: "Import Sheets" },
-  { href: "/search", label: "Find a Run" },
+  { href: "/search", label: "Find a Paddle" },
   { href: "/summary", label: "Pay Summary" },
   { href: "/biweekly", label: "Biweekly Hours" },
   { href: "/profile", label: "Profile" },

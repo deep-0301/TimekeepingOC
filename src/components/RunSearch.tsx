@@ -24,23 +24,23 @@ export default function RunSearch({ periodDays, onAddShift }: RunSearchProps) {
 
   return (
     <section className="panel">
-      <h2>Find a run</h2>
+      <h2>Find a paddle</h2>
       <input
         type="text"
         className="run-search"
-        placeholder="Type a run number, e.g. 68-03"
+        placeholder="Type a paddle number, e.g. 68-03"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
       <div className="note">
         From the 2026 Summer Weekday (Daily) Boards. Results are grouped by
-        full shift — each card shows every piece paired with that run, so you
-        can pick the exact combination you actually worked. (Weekend boards
-        aren&apos;t loaded into this tool yet.)
+        full shift — each card shows every piece paired with that paddle, so
+        you can pick the exact combination you actually worked. (Weekend
+        boards aren&apos;t loaded into this tool yet.)
       </div>
       <div className="search-results">
         {query.trim() === "" ? null : results.length === 0 ? (
-          <div className="note">No matching run number found in the loaded board.</div>
+          <div className="note">No matching paddle number found in the loaded board.</div>
         ) : (
           <>
             {results.map(({ si, shift, matchedRuns }) => {
