@@ -51,7 +51,7 @@ export interface SheetBlock {
   dates: Date[];
 }
 
-function extractTimeTokens(s: string) {
+export function extractTimeTokens(s: string) {
   const matches = [...s.matchAll(/\d{1,2}[:h]\d{2}/g)];
   return matches.map((m) => ({
     text: m[0].replace("h", ":"),

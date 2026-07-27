@@ -10,6 +10,7 @@ import { BOOKING_TYPE_INFO, DEFAULT_SLOTS, type BookingType } from "@/lib/bookin
 import { fmtDate, fmtHM, parseDateStr } from "@/lib/dateUtils";
 import { extractPdfText } from "@/lib/pdfExtract";
 import { newEmptyDayEntry, type EntriesMap, type EntryPiece } from "@/lib/types";
+import HolidaySpareImport from "./HolidaySpareImport";
 
 interface BookingSheetImportProps {
   onImport: (updater: (prev: EntriesMap) => EntriesMap) => void;
@@ -23,6 +24,25 @@ export default function BookingSheetImport({
   bookingType,
 }: BookingSheetImportProps) {
   const slots = bookingType ? BOOKING_TYPE_INFO[bookingType].slots : DEFAULT_SLOTS;
+
+  if (bookingType === "holiday") {
+    const statSlot = slots[1];
+    return (
+      <section className="panel">
+        <h2>Import your booking sheets</h2>
+        <div className="sheet-import-grid">
+          <HolidaySpareImport onImport={onImport} />
+          <BookingSheetSlot
+            title={statSlot.title}
+            icon={statSlot.icon}
+            accent={statSlot.accent}
+            onImport={onImport}
+            onSeasonAnchorDetected={onSeasonAnchorDetected}
+          />
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="panel">
