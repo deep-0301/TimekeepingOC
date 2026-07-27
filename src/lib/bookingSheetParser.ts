@@ -89,6 +89,9 @@ export function parseBookingSheetText(
   let current: SheetBlock | null = null;
   let anchorDate: Date | null = manualAnchor || null;
   let seasonEndDate: Date | null = null;
+  let inDaysOffSection = false;
+  const DAYS_OFF_ENTRY_RE =
+    /(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday)\s*-\s*(\d+)/gi;
 
   function pushCurrent() {
     if (current) blocks.push(current);
@@ -114,10 +117,41 @@ export function parseBookingSheetText(
     if (/^\d{6}\s+[A-Za-z]/.test(line)) continue;
     if (/^GENERAL SPARE$/i.test(line)) continue;
     if (/^Days Off to be Taken/i.test(line)) continue;
-    if (/^DAYS OFF$/i.test(line)) continue;
+    if (/^DAYS OFF$/i.test(line)) {
+      pushCurrent();
+      inDaysOffSection = true;
+      continue;
+    }
     if (/^\d+$/.test(line)) continue;
     if (/^DAY OFF$/i.test(line)) {
       if (current) (current as SheetBlock).isDayOff = true;
+      continue;
+    }
+
+    if (inDaysOffSection) {
+      // The season-wide days-off summary (e.g. "Tuesday - 1  Sunday - 2")
+      // uses the same weekday+cycle-position convention as the Saturday/
+      // Sunday work blocks above it - each pair becomes its own recurring
+      // day-off block, so it overrides whatever a DAILY/weekday block
+      // would otherwise have marked as a working day that cycle position.
+      DAYS_OFF_ENTRY_RE.lastIndex = 0;
+      let m: RegExpExecArray | null;
+      while ((m = DAYS_OFF_ENTRY_RE.exec(line))) {
+        blocks.push({
+          label: `${m[1]} - ${m[2]} (day off)`,
+          weekday: m[1].toLowerCase(),
+          cycleN: parseInt(m[2]),
+          explicitDate: null,
+          isHoliday: false,
+          isDayOff: true,
+          isDaily: false,
+          rows: [],
+          totalPlat: null,
+          totalPay: null,
+          date: null,
+          dates: [],
+        });
+      }
       continue;
     }
 
