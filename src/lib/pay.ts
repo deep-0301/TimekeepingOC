@@ -146,6 +146,20 @@ export function computeDay(
           : shiftPlatMin;
       const workedPayMin = hasOverride ? workedMin : shiftPayMin;
 
+      // A dispatched spare is never paid less than the guaranteed hours -
+      // if the combined standby + worked time falls short, it's bumped
+      // flat up to the guarantee (matching the non-dispatched fallback,
+      // no partial CLC breakdown for a below-guarantee day). Once actual
+      // pay already clears the guarantee (worked hours, plus any CLC
+      // break), the real breakdown is kept as-is - the guarantee never
+      // reduces a legitimately higher figure.
+      const rawPlatMin = standbyBeforeMin + workedMin;
+      const rawPayMin = standbyBeforeMin + workedPayMin;
+      const guaranteeFloorMin = (sp.guaranteeHrs || 8) * 60;
+      const underGuarantee = rawPayMin < guaranteeFloorMin;
+      const platMin = underGuarantee ? guaranteeFloorMin : rawPlatMin;
+      const payMin = underGuarantee ? guaranteeFloorMin : rawPayMin;
+
       const allRuns = shift ? shift[3].map((r) => r[0]) : [];
       const pieces: EntryPiece[] = shift
         ? shift[3].map((r, idx, arr): EntryPiece => {
@@ -173,8 +187,8 @@ export function computeDay(
         : [];
 
       return {
-        platMin: standbyBeforeMin + workedMin,
-        payMin: standbyBeforeMin + workedPayMin,
+        platMin,
+        payMin,
         matched: !!shift,
         fromSheet: false,
         nonPlatform: e.nonPlatform || 0,
