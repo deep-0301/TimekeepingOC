@@ -157,8 +157,18 @@ export function computeDay(
       const rawPayMin = standbyBeforeMin + workedPayMin;
       const guaranteeFloorMin = (sp.guaranteeHrs || 8) * 60;
       const underGuarantee = rawPayMin < guaranteeFloorMin;
-      const platMin = underGuarantee ? guaranteeFloorMin : rawPlatMin;
-      const payMin = underGuarantee ? guaranteeFloorMin : rawPayMin;
+
+      // AVLC/revised time on a dispatched spare works the same as a
+      // booked run - the extra platform credit is how far the revised
+      // time falls past the run's actual finish, not the clock value
+      // itself.
+      const avlcExtraMin =
+        e.revisedTimeMin != null && workOffMin != null
+          ? Math.max(0, e.revisedTimeMin - workOffMin)
+          : 0;
+
+      const platMin = (underGuarantee ? guaranteeFloorMin : rawPlatMin) + avlcExtraMin;
+      const payMin = (underGuarantee ? guaranteeFloorMin : rawPayMin) + avlcExtraMin;
 
       const allRuns = shift ? shift[3].map((r) => r[0]) : [];
       const pieces: EntryPiece[] = shift

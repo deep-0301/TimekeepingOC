@@ -54,6 +54,9 @@ export default function DayEditor({
   const [bookedAction, setBookedAction] = useState(() =>
     day?.avlcMin || day?.revisedTimeMin ? "late" : ""
   );
+  const [spareLateAction, setSpareLateAction] = useState(() =>
+    day?.avlcMin || day?.revisedTimeMin ? "late" : ""
+  );
   const [manageOpen, setManageOpen] = useState(false);
 
   const { results, truncated } = useMemo(
@@ -82,6 +85,8 @@ export default function DayEditor({
   const spareBoardOffMin = spareShift
     ? toMin(spareShift[3][spareShift[3].length - 1][2])
     : undefined;
+  const spareScheduledOffMin =
+    day?.spare?.workOffTimeOverride ?? spareBoardOffMin ?? null;
 
   function patchSpare(patch: Partial<SpareInfo>) {
     const current: SpareInfo = day?.spare || {
@@ -95,6 +100,18 @@ export default function DayEditor({
     setBookedAction(v);
     if (v === "dayoff") {
       onClearSheetDay(dateStr);
+      onUpdateDayField(dateStr, "dayOff", true);
+    } else if (v === "") {
+      if (day?.avlcMin) onUpdateDayField(dateStr, "avlcMin", 0);
+      if (day?.revisedTimeMin) onUpdateDayField(dateStr, "revisedTimeMin", 0);
+      if (day?.lateReason) onUpdateDayField(dateStr, "lateReason", "");
+    }
+  }
+
+  function handleSpareLateActionChange(v: string) {
+    setSpareLateAction(v);
+    if (v === "dayoff") {
+      onUpdateSpare(dateStr, null);
       onUpdateDayField(dateStr, "dayOff", true);
     } else if (v === "") {
       if (day?.avlcMin) onUpdateDayField(dateStr, "avlcMin", 0);
@@ -449,28 +466,98 @@ export default function DayEditor({
                   </div>
                 )}
                 {day.spare.runNumber && (
-                  <div className="day-editor-extras">
-                    <TimeField24
-                      label="Actual start"
-                      valueMin={
-                        day.spare.workOnTimeOverride ??
-                        day.spare.standbyEndMin ??
-                        spareBoardOnMin
-                      }
-                      onCommit={(val) =>
-                        patchSpare({ workOnTimeOverride: val })
-                      }
-                    />
-                    <TimeField24
-                      label="Actual finish"
-                      valueMin={
-                        day.spare.workOffTimeOverride ?? spareBoardOffMin
-                      }
-                      onCommit={(val) =>
-                        patchSpare({ workOffTimeOverride: val })
-                      }
-                    />
-                  </div>
+                  <>
+                    <div className="day-editor-extras">
+                      <TimeField24
+                        label="Actual start"
+                        valueMin={
+                          day.spare.workOnTimeOverride ??
+                          day.spare.standbyEndMin ??
+                          spareBoardOnMin
+                        }
+                        onCommit={(val) =>
+                          patchSpare({ workOnTimeOverride: val })
+                        }
+                      />
+                      <TimeField24
+                        label="Actual finish"
+                        valueMin={
+                          day.spare.workOffTimeOverride ?? spareBoardOffMin
+                        }
+                        onCommit={(val) =>
+                          patchSpare({ workOffTimeOverride: val })
+                        }
+                      />
+                    </div>
+
+                    <div className="day-editor-extras">
+                      <div className="field">
+                        <label>What happened?</label>
+                        <select
+                          value={spareLateAction}
+                          onChange={(e) =>
+                            handleSpareLateActionChange(e.target.value)
+                          }
+                        >
+                          <option value="">Working as scheduled</option>
+                          <option value="late">Arrived late</option>
+                          <option value="dayoff">Take a day off</option>
+                        </select>
+                      </div>
+                    </div>
+                    {spareLateAction === "late" && (
+                      <>
+                        <TimeField24
+                          label="AVLC"
+                          valueMin={day?.avlcMin}
+                          minAllowed={
+                            spareScheduledOffMin != null
+                              ? spareScheduledOffMin + 1
+                              : undefined
+                          }
+                          onCommit={(val) => {
+                            onUpdateDayField(dateStr, "avlcMin", val);
+                            onUpdateDayField(
+                              dateStr,
+                              "revisedTimeMin",
+                              val ? val + AVLC_BUMP_MIN : 0
+                            );
+                          }}
+                        />
+                        <TimeField24
+                          label="Revised time (counts as platform)"
+                          valueMin={day?.revisedTimeMin}
+                          minAllowed={
+                            spareScheduledOffMin != null
+                              ? spareScheduledOffMin + 1
+                              : undefined
+                          }
+                          onCommit={(val) =>
+                            onUpdateDayField(dateStr, "revisedTimeMin", val)
+                          }
+                        />
+                        <div className="field">
+                          <label>Reason</label>
+                          <select
+                            value={day?.lateReason || ""}
+                            onChange={(e) =>
+                              onUpdateDayField(
+                                dateStr,
+                                "lateReason",
+                                e.target.value
+                              )
+                            }
+                          >
+                            <option value="">Choose a reason</option>
+                            <option value="traffic_weather">
+                              Traffic or weather
+                            </option>
+                            <option value="extended">Extended</option>
+                          </select>
+                        </div>
+                      </>
+                    )}
+                  </>
                 )}
               </>
             )}
