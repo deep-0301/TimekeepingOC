@@ -1,7 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BOARD_DATA, getShiftsForRun, searchRuns, shortLocation } from "@/lib/board";
+import {
+  BOARD_DATA,
+  dayTypeForDate,
+  getShiftsForRun,
+  searchRuns,
+  shortLocation,
+  WEEKEND_BOARD_LOADED,
+} from "@/lib/board";
 import { computeDay } from "@/lib/pay";
 import { fmtHM, minToHHMM, parseDateStr, toMin } from "@/lib/dateUtils";
 import { getHolidayForDate } from "@/lib/statHolidays";
@@ -59,9 +66,15 @@ export default function DayEditor({
   );
   const [manageOpen, setManageOpen] = useState(false);
 
+  const dayType = useMemo(
+    () => dayTypeForDate(parseDateStr(dateStr)),
+    [dateStr]
+  );
+
   const { results, truncated } = useMemo(
-    () => (isSpare ? { results: [], truncated: false } : searchRuns(query)),
-    [query, isSpare]
+    () =>
+      isSpare ? { results: [], truncated: false } : searchRuns(query, dayType),
+    [query, isSpare, dayType]
   );
 
   const scheduledOffMin = dc.fromSheet
@@ -72,7 +85,7 @@ export default function DayEditor({
     : null;
 
   const spareShiftMatches = spareRunInput
-    ? getShiftsForRun(spareRunInput.trim())
+    ? getShiftsForRun(spareRunInput.trim(), dayType)
     : [];
   const selectedShiftIndex =
     day?.spare?.runNumber === spareRunInput.trim()
@@ -420,9 +433,9 @@ export default function DayEditor({
                   <div className="search-results">
                     {spareShiftMatches.length === 0 ? (
                       <div className="note">
-                        No run &ldquo;{spareRunInput}&rdquo; found in the
-                        loaded board — pay will use 0 platform time for it
-                        until a valid run number is picked.
+                        {dayType === "weekend" && !WEEKEND_BOARD_LOADED
+                          ? "No weekend board has been loaded yet."
+                          : `No run "${spareRunInput}" found in the loaded ${dayType} board — pay will use 0 platform time for it until a valid run number is picked.`}
                       </div>
                     ) : (
                       spareShiftMatches.map(({ si, shift }) => {
@@ -571,6 +584,9 @@ export default function DayEditor({
                 Add overtime shift / manual run details worked on this day off:
               </div>
             )}
+            <div className="note" style={{ marginBottom: 6 }}>
+              Searching the <b>{dayType}</b> board.
+            </div>
 
             <input
               type="text"
@@ -582,7 +598,11 @@ export default function DayEditor({
             {query.trim() !== "" && (
               <div className="search-results">
                 {results.length === 0 ? (
-                  <div className="note">No matching run number found.</div>
+                  <div className="note">
+                    {dayType === "weekend" && !WEEKEND_BOARD_LOADED
+                      ? "No weekend board has been loaded yet."
+                      : "No matching run number found."}
+                  </div>
                 ) : (
                   <>
                     {results.map(({ si, shift }) => {

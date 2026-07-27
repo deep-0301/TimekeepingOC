@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { BOARD_DATA } from "@/lib/board";
+import { BOARD_DATA, WEEKEND_BOARD_LOADED } from "@/lib/board";
 import { fmtDate } from "@/lib/dateUtils";
 import { computeWeek, getPayPeriodDatesFor } from "@/lib/pay";
 import { store } from "@/lib/storage";
@@ -81,7 +81,10 @@ export function AppStateProvider({
       setSettings(s);
       setEntries(e);
       setStatusLine(
-        `Ready · ${BOARD_DATA.length} shifts loaded from the Summer Weekday Boards`
+        `Ready · ${BOARD_DATA.length} shifts loaded` +
+          (WEEKEND_BOARD_LOADED
+            ? " (weekday + weekend boards)"
+            : " from the weekday board — weekend board not loaded yet")
       );
     })();
   }, []);

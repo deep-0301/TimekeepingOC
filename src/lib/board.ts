@@ -1,7 +1,30 @@
-import boardDataRaw from "@/data/board-data.json";
+import weekdayDataRaw from "@/data/board-data.json";
+import weekendDataRaw from "@/data/board-data-weekend.json";
 import type { BoardShift } from "./types";
 
-export const BOARD_DATA = boardDataRaw as unknown as BoardShift[];
+const WEEKDAY_DATA = weekdayDataRaw as unknown as BoardShift[];
+const WEEKEND_DATA = weekendDataRaw as unknown as BoardShift[];
+
+/** Weekday shifts first, weekend shifts appended after. `shiftIndex`
+ * values already saved in user data are indices into the weekday board
+ * from before this split, so weekday shifts must keep their original
+ * positions. */
+export const BOARD_DATA: BoardShift[] = [...WEEKDAY_DATA, ...WEEKEND_DATA];
+const WEEKDAY_COUNT = WEEKDAY_DATA.length;
+
+export type DayType = "weekday" | "weekend";
+
+/** Saturday/Sunday run a different board than Monday-Friday. */
+export function dayTypeForDate(d: Date): DayType {
+  const dow = d.getDay();
+  return dow === 0 || dow === 6 ? "weekend" : "weekday";
+}
+
+function boardDayType(si: number): DayType {
+  return si >= WEEKDAY_COUNT ? "weekend" : "weekday";
+}
+
+export const WEEKEND_BOARD_LOADED = WEEKEND_DATA.length > 0;
 
 export interface RunIndexEntry {
   si: number;
@@ -35,12 +58,18 @@ export interface ShiftSearchResult {
 /** Every distinct shift (by board index) that contains this exact run
  * number as one of its pieces. A run number can appear in more than one
  * shift, but within a shift it names one piece of a whole multi-piece
- * shift - the whole shift is what should be added, not just that piece. */
-export function getShiftsForRun(run: string): { si: number; shift: BoardShift }[] {
+ * shift - the whole shift is what should be added, not just that piece.
+ * Pass `dayType` to restrict matches to the weekday or weekend board
+ * (e.g. so a run typed in for a Saturday only offers weekend shifts). */
+export function getShiftsForRun(
+  run: string,
+  dayType?: DayType
+): { si: number; shift: BoardShift }[] {
   const instances = runIndex[run] || [];
   const seen = new Set<number>();
   const out: { si: number; shift: BoardShift }[] = [];
   instances.forEach((inst) => {
+    if (dayType && boardDayType(inst.si) !== dayType) return;
     if (seen.has(inst.si)) return;
     seen.add(inst.si);
     out.push({ si: inst.si, shift: BOARD_DATA[inst.si] });
@@ -50,7 +79,10 @@ export function getShiftsForRun(run: string): { si: number; shift: BoardShift }[
 
 const MAX_RESULTS = 60;
 
-export function searchRuns(query: string): {
+export function searchRuns(
+  query: string,
+  dayType?: DayType
+): {
   results: ShiftSearchResult[];
   truncated: boolean;
 } {
@@ -64,6 +96,7 @@ export function searchRuns(query: string): {
   const shiftMap = new Map<number, Set<string>>();
   matchingRuns.forEach((run) => {
     runIndex[run].forEach((inst) => {
+      if (dayType && boardDayType(inst.si) !== dayType) return;
       if (!shiftMap.has(inst.si)) shiftMap.set(inst.si, new Set());
       shiftMap.get(inst.si)!.add(run);
     });

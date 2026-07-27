@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { getShiftsForRun } from "@/lib/board";
+import { useMemo, useState } from "react";
+import { dayTypeForDate, getShiftsForRun, WEEKEND_BOARD_LOADED } from "@/lib/board";
 import { fmtDate, fmtHM, parseDateStr } from "@/lib/dateUtils";
 import type { SpareInfo } from "@/lib/types";
 import TimeField24 from "./TimeField24";
@@ -33,7 +33,13 @@ export default function ManualWorkEntry({
   const [reportsMin, setReportsMin] = useState<number | undefined>(undefined);
   const [status, setStatus] = useState("");
 
-  const matches = query.trim() ? getShiftsForRun(query.trim()) : [];
+  const dayType = useMemo(
+    () => (dateStr ? dayTypeForDate(parseDateStr(dateStr)) : "weekday"),
+    [dateStr]
+  );
+  const matches = query.trim()
+    ? getShiftsForRun(query.trim(), dayType)
+    : [];
 
   function handleFrequencyChange(next: Frequency) {
     setFrequency(next);
@@ -163,6 +169,10 @@ export default function ManualWorkEntry({
 
       {mode === "run" ? (
         <>
+          <div className="note" style={{ marginBottom: 6 }}>
+            Searching the <b>{dayType === "weekend" ? "weekend" : "weekday"}</b>{" "}
+            board (based on the date above).
+          </div>
           <input
             type="text"
             className="run-search"
@@ -173,7 +183,11 @@ export default function ManualWorkEntry({
           {query.trim() !== "" && (
             <div className="search-results">
               {matches.length === 0 ? (
-                <div className="note">No matching run number found.</div>
+                <div className="note">
+                  {dayType === "weekend" && !WEEKEND_BOARD_LOADED
+                    ? "No weekend board has been loaded yet."
+                    : "No matching run number found."}
+                </div>
               ) : (
                 matches.map(({ si, shift }) => {
                   const [shiftId, totalPlat, totalPay, runs] = shift;
