@@ -675,6 +675,60 @@ textarea.sheet-paste {
   border-top: 3px solid var(--amber);
 }
 
+.field-value {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+  padding: 6px 0 2px;
+}
+
+.booking-type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.booking-type-card {
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--card);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  color: var(--ink);
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.booking-type-card:hover {
+  border-color: var(--steel);
+  background: #eef4f7;
+}
+
+.booking-type-card-selected {
+  border-color: var(--steel-dark);
+  border-width: 2px;
+  background: #e4eef2;
+}
+
+.booking-type-card-label {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.booking-type-card-desc {
+  font-size: 12px;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+
 .dropzone {
   border: 2px dashed var(--line);
   border-radius: 8px;

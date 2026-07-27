@@ -14,6 +14,18 @@ export interface PaySettings {
    * computed as 14-day blocks aligned to this date. Updated automatically
    * when a booking sheet's season start date is parsed. */
   payPeriodAnchor: string;
+  /**
+   * Which kind of booking this operator holds, chosen once on first visit
+   * (Profile lets them change it later). Drives how many booking-sheet
+   * import slots are shown and what they're labelled:
+   * - "daily": one sheet, the operator's own daily assignment.
+   * - "general": covers a daily operator's days off - two sheets (a
+   *   Mon-Fri sheet, and a Sat/Sun + stat holiday sheet).
+   * - "holiday": holiday spare - two sheets (regular holiday work each
+   *   week, and holiday stat work).
+   * null until the operator picks one.
+   */
+  bookingType: "daily" | "general" | "holiday" | null;
 }
 
 export const DEFAULT_SETTINGS: PaySettings = {
@@ -25,6 +37,7 @@ export const DEFAULT_SETTINGS: PaySettings = {
   statHolidayPay: 257.79,
   weekStart: "sunday",
   payPeriodAnchor: "2026-06-28",
+  bookingType: null,
 };
 
 /** A single board schedule row: [run, onTime, offTime, onLoc, offLoc, platMin] */

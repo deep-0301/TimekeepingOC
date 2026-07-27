@@ -7,6 +7,7 @@ import ClearAllData from "@/components/ClearAllData";
 
 export default function ImportPage() {
   const {
+    settings,
     updateEntries,
     updatePayPeriodAnchor,
     addShiftToDate,
@@ -20,6 +21,7 @@ export default function ImportPage() {
       <BookingSheetImport
         onImport={updateEntries}
         onSeasonAnchorDetected={updatePayPeriodAnchor}
+        bookingType={settings.bookingType}
       />
       <ClearAllData onClearAll={clearAllEntries} />
     </>

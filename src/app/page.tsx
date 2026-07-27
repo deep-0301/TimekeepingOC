@@ -3,11 +3,14 @@
 import Link from "next/link";
 import { useAppState } from "@/lib/AppStateContext";
 import MonthCalendar from "@/components/MonthCalendar";
+import BookingTypePicker from "@/components/BookingTypePicker";
+import type { BookingType } from "@/lib/bookingType";
 
 export default function Home() {
   const {
     entries,
     settings,
+    saveSettings,
     addShiftToDate,
     removePiece,
     clearSheetDay,
@@ -20,6 +23,22 @@ export default function Home() {
 
   return (
     <>
+      {settings.bookingType == null && (
+        <section className="panel">
+          <h2>Which booking do you have?</h2>
+          <div className="note" style={{ marginBottom: 10 }}>
+            Pick the one that matches your current bid — this sets up how
+            many booking sheets Import Sheets asks for. You can change this
+            anytime from Profile.
+          </div>
+          <BookingTypePicker
+            value={settings.bookingType}
+            onChange={(bt: BookingType) =>
+              saveSettings({ ...settings, bookingType: bt })
+            }
+          />
+        </section>
+      )}
       {hasNoData && (
         <section className="panel">
           <h2>Get started</h2>

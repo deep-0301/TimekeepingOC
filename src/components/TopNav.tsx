@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/search", label: "Find a Run" },
   { href: "/summary", label: "Pay Summary" },
   { href: "/biweekly", label: "Biweekly Hours" },
+  { href: "/profile", label: "Profile" },
 ];
 
 export default function TopNav() {

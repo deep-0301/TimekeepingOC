@@ -6,6 +6,7 @@ import {
   parseBookingSheetText,
   type SheetBlock,
 } from "@/lib/bookingSheetParser";
+import { BOOKING_TYPE_INFO, DEFAULT_SLOTS, type BookingType } from "@/lib/bookingType";
 import { fmtDate, fmtHM, parseDateStr } from "@/lib/dateUtils";
 import { extractPdfText } from "@/lib/pdfExtract";
 import { newEmptyDayEntry, type EntriesMap, type EntryPiece } from "@/lib/types";
@@ -13,30 +14,30 @@ import { newEmptyDayEntry, type EntriesMap, type EntryPiece } from "@/lib/types"
 interface BookingSheetImportProps {
   onImport: (updater: (prev: EntriesMap) => EntriesMap) => void;
   onSeasonAnchorDetected: (dateStr: string) => void;
+  bookingType?: BookingType | null;
 }
 
 export default function BookingSheetImport({
   onImport,
   onSeasonAnchorDetected,
+  bookingType,
 }: BookingSheetImportProps) {
+  const slots = bookingType ? BOOKING_TYPE_INFO[bookingType].slots : DEFAULT_SLOTS;
+
   return (
     <section className="panel">
       <h2>Import your booking sheets</h2>
       <div className="sheet-import-grid">
-        <BookingSheetSlot
-          title="Weekday (Mon–Fri) sheet"
-          icon="🗓️"
-          accent="steel"
-          onImport={onImport}
-          onSeasonAnchorDetected={onSeasonAnchorDetected}
-        />
-        <BookingSheetSlot
-          title="Weekend / holiday sheet"
-          icon="🎉"
-          accent="amber"
-          onImport={onImport}
-          onSeasonAnchorDetected={onSeasonAnchorDetected}
-        />
+        {slots.map((slot) => (
+          <BookingSheetSlot
+            key={slot.key}
+            title={slot.title}
+            icon={slot.icon}
+            accent={slot.accent}
+            onImport={onImport}
+            onSeasonAnchorDetected={onSeasonAnchorDetected}
+          />
+        ))}
       </div>
     </section>
   );
