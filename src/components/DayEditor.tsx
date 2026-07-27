@@ -344,11 +344,11 @@ export default function DayEditor({
           <div className="spare-panel">
             <div className="note">
               Spares are paid their guaranteed standby hours by default.
-              If you know what actually happened, record it:
-              &ldquo;Work on call&rdquo; (add the run they were dispatched
-              to) or &ldquo;Standby&rdquo; (when it ended). A report time
-              of exactly 9:30, 12:30, 14:30, 16:30 or 18:30 always gets a
-              30-minute callup.
+              If they get dispatched, add the run below - standby time from
+              Reports to the run&apos;s actual start is calculated
+              automatically, no need to log when standby ended. A report
+              time of exactly 9:30, 12:30, 14:30, 16:30 or 18:30 always
+              gets a 30-minute callup.
             </div>
             <div className="day-editor-extras">
               <GarageField
@@ -369,62 +369,22 @@ export default function DayEditor({
                   value={day.spare.afternoonMode || ""}
                   onChange={(e) => {
                     const v = e.target.value;
-                    const patch: Partial<SpareInfo> = {
-                      afternoonMode:
-                        v === "" ? undefined : (v as "work" | "standby"),
-                    };
-                    // Carry any time already spent on standby straight
-                    // into the dispatch calc, so the figure shown in
-                    // "Actual start" is what actually gets paid from
-                    // the moment they switch, not just a cosmetic
-                    // default waiting on a manual edit.
-                    if (
-                      v === "work" &&
-                      day.spare?.workOnTimeOverride == null &&
-                      day.spare?.standbyEndMin != null
-                    ) {
-                      patch.workOnTimeOverride = day.spare.standbyEndMin;
-                    }
-                    patchSpare(patch);
+                    patchSpare({
+                      afternoonMode: v === "" ? undefined : "work",
+                    });
                   }}
                 >
                   <option value="">Just standby (guaranteed hours)</option>
                   <option value="work">Work on call</option>
-                  <option value="standby">Standby until a set time</option>
                 </select>
               </div>
             </div>
 
-            {day.spare.afternoonMode === "standby" && (
-              <div className="day-editor-extras">
-                <TimeField24
-                  label="Standby until"
-                  valueMin={day.spare.standbyEndMin}
-                  onCommit={(val) => patchSpare({ standbyEndMin: val })}
-                />
-              </div>
-            )}
-
-            {(day.spare.afternoonMode === "standby" ||
-              day.spare.afternoonMode === "work") && (
+            {day.spare.afternoonMode === "work" && (
               <>
-                {day.spare.afternoonMode === "standby" &&
-                  day.spare.standbyEndMin != null && (
-                    <div className="note">
-                      Standby: <b>{fmtHM(dc.platMin)}</b>
-                      {dc.platMin >= 480
-                        ? " — capped at the 8-hour max. If they were then dispatched after all, add the run below."
-                        : " so far. Add a run number below if they were then dispatched - the standby time already logged carries straight over."}
-                    </div>
-                  )}
                 <div className="day-editor-extras">
                   <div className="field">
-                    <label>
-                      Run number
-                      {day.spare.afternoonMode === "standby"
-                        ? " (if dispatched)"
-                        : ""}
-                    </label>
+                    <label>Run number</label>
                     <input
                       type="text"
                       value={spareRunInput}
@@ -474,15 +434,7 @@ export default function DayEditor({
                                 patchSpare({
                                   runNumber: spareRunInput.trim(),
                                   shiftIndex: si,
-                                  // Picking a run always means they were
-                                  // dispatched - carry any standby time
-                                  // already logged straight into the
-                                  // dispatch calc as platform hours,
-                                  // alongside the run's own hours.
                                   afternoonMode: "work",
-                                  workOnTimeOverride:
-                                    day.spare?.workOnTimeOverride ??
-                                    day.spare?.standbyEndMin,
                                 })
                               }
                             >
