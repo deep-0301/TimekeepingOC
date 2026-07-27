@@ -27,7 +27,7 @@ export default function ManualWorkEntry({
   const [dateStr, setDateStr] = useState(() => fmtDate(new Date()));
   const [mode, setMode] = useState<"run" | "spare">("run");
   const [frequency, setFrequency] = useState<Frequency>("once");
-  const [untilDateStr, setUntilDateStr] = useState(() => fmtDate(new Date()));
+  const [untilDateStr, setUntilDateStr] = useState("");
   const [query, setQuery] = useState("");
   const [garage, setGarage] = useState("");
   const [reportsMin, setReportsMin] = useState<number | undefined>(undefined);
@@ -35,11 +35,28 @@ export default function ManualWorkEntry({
 
   const matches = query.trim() ? getShiftsForRun(query.trim()) : [];
 
+  function handleFrequencyChange(next: Frequency) {
+    setFrequency(next);
+    // Repeating needs an end date - hand the user a sane starting range
+    // (matching the start date) instead of leaving "Until" blank/stale.
+    if (next !== "once" && (!untilDateStr || untilDateStr < dateStr)) {
+      setUntilDateStr(dateStr);
+    }
+  }
+
+  function handleDateChange(next: string) {
+    setDateStr(next);
+    if (frequency !== "once" && (!untilDateStr || untilDateStr < next)) {
+      setUntilDateStr(next);
+    }
+  }
+
   function computeDates(): string[] {
     if (frequency === "once" || !dateStr) return dateStr ? [dateStr] : [];
+    if (!untilDateStr || untilDateStr < dateStr) return [];
     const step = FREQUENCY_STEP_DAYS[frequency];
     const start = parseDateStr(dateStr);
-    const end = untilDateStr ? parseDateStr(untilDateStr) : start;
+    const end = parseDateStr(untilDateStr);
     const dates: string[] = [];
     const d = new Date(start);
     while (d <= end) {
@@ -54,11 +71,11 @@ export default function ManualWorkEntry({
       setStatus("Pick a date first.");
       return;
     }
-    const dates = computeDates();
-    if (dates.length === 0) {
-      setStatus("Pick a valid date range first.");
+    if (frequency !== "once" && (!untilDateStr || untilDateStr < dateStr)) {
+      setStatus("Pick an end date on or after the start date.");
       return;
     }
+    const dates = computeDates();
     dates.forEach((d) => onAddShift(si, d));
     setStatus(
       dates.length === 1
@@ -73,11 +90,11 @@ export default function ManualWorkEntry({
       setStatus("Pick a date first.");
       return;
     }
-    const dates = computeDates();
-    if (dates.length === 0) {
-      setStatus("Pick a valid date range first.");
+    if (frequency !== "once" && (!untilDateStr || untilDateStr < dateStr)) {
+      setStatus("Pick an end date on or after the start date.");
       return;
     }
+    const dates = computeDates();
     dates.forEach((d) =>
       onUpdateSpare(d, {
         guaranteeHrs: 8,
@@ -102,11 +119,11 @@ export default function ManualWorkEntry({
       </div>
       <div className="day-editor-extras">
         <div className="field">
-          <label>Date</label>
+          <label>{frequency === "once" ? "Date" : "From"}</label>
           <input
             type="date"
             value={dateStr}
-            onChange={(e) => setDateStr(e.target.value)}
+            onChange={(e) => handleDateChange(e.target.value)}
           />
         </div>
         <div className="field">
@@ -123,7 +140,7 @@ export default function ManualWorkEntry({
           <label>Repeats</label>
           <select
             value={frequency}
-            onChange={(e) => setFrequency(e.target.value as Frequency)}
+            onChange={(e) => handleFrequencyChange(e.target.value as Frequency)}
           >
             <option value="once">Once</option>
             <option value="daily">Daily</option>
@@ -133,9 +150,10 @@ export default function ManualWorkEntry({
         </div>
         {frequency !== "once" && (
           <div className="field">
-            <label>Until</label>
+            <label>To</label>
             <input
               type="date"
+              min={dateStr}
               value={untilDateStr}
               onChange={(e) => setUntilDateStr(e.target.value)}
             />
