@@ -11,6 +11,14 @@ import { fmtDate, fmtHM, parseDateStr } from "@/lib/dateUtils";
 import { extractPdfText } from "@/lib/pdfExtract";
 import { newEmptyDayEntry, type EntriesMap, type EntryPiece } from "@/lib/types";
 import HolidaySpareImport from "./HolidaySpareImport";
+import type { SheetRow } from "@/lib/bookingSheetParser";
+
+/** When a block's totals line wasn't captured (e.g. an OCR line-break
+ * merged it into a row, dropping it), fall back to summing each row's own
+ * duration instead of leaving the whole block/day unimported. */
+function fallbackTotalMin(rows: SheetRow[]): number {
+  return rows.reduce((a, r) => a + hmToMin(r.segPlat || r.totalGuarantee), 0);
+}
 
 interface BookingSheetImportProps {
   onImport: (updater: (prev: EntriesMap) => EntriesMap) => void;
@@ -169,6 +177,9 @@ function BookingSheetSlot({
         const dateStrs = rowDatesList[i] || [];
         const hasTotals = !!(b.totalPlat && b.totalPay);
         const anySpare = b.rows.some((r) => r.isSpare);
+        const hasRowDurations =
+          b.rows.length > 0 && b.rows.every((r) => r.segPlat || r.totalGuarantee);
+        const useDriving = hasTotals || (!anySpare && hasRowDurations);
         dateStrs.forEach((dateStr) => {
           if (!dateStr) return;
           const day = next[dateStr] ? { ...next[dateStr] } : newEmptyDayEntry();
@@ -179,7 +190,8 @@ function BookingSheetSlot({
             count++;
             return;
           }
-          if (hasTotals) {
+          if (useDriving) {
+            const sumMin = hasTotals ? null : fallbackTotalMin(b.rows);
             day.pieces = b.rows.map(
               (r): EntryPiece => ({
                 run: r.run,
@@ -195,8 +207,8 @@ function BookingSheetSlot({
               })
             );
             day.fromSheet = true;
-            day.sheetPlat = hmToMin(b.totalPlat);
-            day.sheetPay = hmToMin(b.totalPay);
+            day.sheetPlat = hasTotals ? hmToMin(b.totalPlat) : (sumMin as number);
+            day.sheetPay = hasTotals ? hmToMin(b.totalPay) : (sumMin as number);
           } else if (anySpare) {
             const totalMin = b.rows.reduce(
               (a, r) => a + hmToMin(r.totalGuarantee),
@@ -313,9 +325,13 @@ function BookingSheetSlot({
               {blocks.map((b, i) => {
                 const hasTotals = !!(b.totalPlat && b.totalPay);
                 const anySpare = b.rows.some((r) => r.isSpare);
+                const hasRowDurations =
+                  b.rows.length > 0 &&
+                  b.rows.every((r) => r.segPlat || r.totalGuarantee);
+                const useDriving = hasTotals || (!anySpare && hasRowDurations);
                 const kind = b.isDayOff
                   ? "Day off"
-                  : hasTotals
+                  : useDriving
                   ? "Driving day"
                   : anySpare
                   ? "Spare / standby"
@@ -323,7 +339,10 @@ function BookingSheetSlot({
                 const runsDesc = b.rows.map((r) => r.run).join(" + ");
                 let hoursDesc = "";
                 if (b.isDayOff) hoursDesc = "";
-                else if (hasTotals) hoursDesc = `Plat ${b.totalPlat} / Pay ${b.totalPay}`;
+                else if (useDriving)
+                  hoursDesc = hasTotals
+                    ? `Plat ${b.totalPlat} / Pay ${b.totalPay}`
+                    : `Plat/Pay ${fmtHM(fallbackTotalMin(b.rows))} (estimated - no totals line found)`;
                 else if (anySpare) {
                   const totalMin = b.rows.reduce(
                     (a, r) => a + hmToMin(r.totalGuarantee),
