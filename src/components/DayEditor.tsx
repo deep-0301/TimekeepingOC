@@ -374,8 +374,8 @@ export default function DayEditor({
                     });
                   }}
                 >
-                  <option value="">Just standby (guaranteed hours)</option>
-                  <option value="work">Work on call</option>
+                  <option value="">Just standby (whole day)</option>
+                  <option value="work">Run number (if dispatched)</option>
                 </select>
               </div>
             </div>
