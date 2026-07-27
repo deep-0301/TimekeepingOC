@@ -43,6 +43,9 @@ export interface SheetBlock {
   explicitDate: Date | null;
   isHoliday: boolean;
   isDayOff: boolean;
+  /** A "DAILY" block: the same work every Monday-Friday, all season, with
+   * no alternating cycle (unlike a weekday+cycleN block). */
+  isDaily: boolean;
   rows: SheetRow[];
   totalPlat: string | null;
   totalPay: string | null;
@@ -120,11 +123,28 @@ export function parseBookingSheetText(
 
     const times = extractTimeTokens(line);
     if (times.length === 0) {
+      const dailyMatch = /^DAILY$/i.test(line);
       const wdMatch = line.match(
         /^(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday)\s+(\d+)(\s+SPARE)?$/i
       );
       const dateMatch = line.match(/^(.+?)\s+(\d{1,2}-[A-Za-z]{3,9}-\d{4})$/);
-      if (wdMatch) {
+      if (dailyMatch) {
+        pushCurrent();
+        current = {
+          label: line,
+          weekday: null,
+          cycleN: null,
+          explicitDate: null,
+          isHoliday: false,
+          isDayOff: false,
+          isDaily: true,
+          rows: [],
+          totalPlat: null,
+          totalPay: null,
+          date: null,
+          dates: [],
+        };
+      } else if (wdMatch) {
         pushCurrent();
         current = {
           label: line,
@@ -133,6 +153,7 @@ export function parseBookingSheetText(
           explicitDate: null,
           isHoliday: false,
           isDayOff: false,
+          isDaily: false,
           rows: [],
           totalPlat: null,
           totalPay: null,
@@ -149,6 +170,7 @@ export function parseBookingSheetText(
           explicitDate: d,
           isHoliday: true,
           isDayOff: false,
+          isDaily: false,
           rows: [],
           totalPlat: null,
           totalPay: null,
@@ -230,7 +252,19 @@ export function parseBookingSheetText(
     0
   );
   blocks.forEach((b) => {
-    if (!b.date) {
+    if (b.isDaily) {
+      const dates: Date[] = [];
+      if (anchorDate) {
+        const end = seasonEndDate ?? anchorDate;
+        const d = new Date(anchorDate);
+        while (d <= end) {
+          const dow = d.getDay();
+          if (dow >= 1 && dow <= 5) dates.push(new Date(d));
+          d.setDate(d.getDate() + 1);
+        }
+      }
+      b.dates = dates;
+    } else if (!b.date) {
       b.dates = [];
     } else if (b.explicitDate || !b.weekday || cycleLength <= 1) {
       b.dates = [b.date];
