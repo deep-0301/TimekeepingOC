@@ -1,7 +1,12 @@
 export interface PaySettings {
   baseRate: number;
   otMultiplier: number;
+  /** Daily platform/standby-hours OT threshold - applies to spare/standby
+   * days only, each day judged on its own. */
   otThreshold: number;
+  /** Biweekly platform-hours OT threshold for regular booked work - applies
+   * to the pay period's cumulative total, not any single day. */
+  periodOtThreshold: number;
   sundayMultiplier: number;
   statHolidayPay: number;
   weekStart: "sunday" | "monday";
@@ -15,6 +20,7 @@ export const DEFAULT_SETTINGS: PaySettings = {
   baseRate: 32.224,
   otMultiplier: 1.5,
   otThreshold: 8,
+  periodOtThreshold: 80,
   sundayMultiplier: 1.25,
   statHolidayPay: 257.79,
   weekStart: "sunday",

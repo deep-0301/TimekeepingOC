@@ -41,7 +41,7 @@ export default function SettingsPanel({ settings, onSave }: SettingsPanelProps) 
           />
         </div>
         <div className="field">
-          <label>Daily OT threshold on Pay hrs</label>
+          <label>Daily OT threshold on standby/dispatch hrs (spares)</label>
           <input
             type="number"
             step="0.25"
@@ -50,6 +50,20 @@ export default function SettingsPanel({ settings, onSave }: SettingsPanelProps) 
               setForm({
                 ...form,
                 otThreshold: parseFloat(e.target.value) || 8,
+              })
+            }
+          />
+        </div>
+        <div className="field">
+          <label>Biweekly OT threshold on Plat hrs (regular work)</label>
+          <input
+            type="number"
+            step="1"
+            value={form.periodOtThreshold}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                periodOtThreshold: parseFloat(e.target.value) || 80,
               })
             }
           />
@@ -109,6 +123,14 @@ export default function SettingsPanel({ settings, onSave }: SettingsPanelProps) 
         </div>
       </div>
       <div className="note">
+        Overtime is only earned on platform/standby time - a paid CLC break
+        never counts toward either threshold. Spares earn it day-by-day, once
+        that single day&apos;s standby/dispatch hours pass the daily
+        threshold. Regular booked work only earns it once the pay period&apos;s
+        running total of platform hours passes the biweekly threshold, so
+        it&apos;s whichever day&apos;s hours push the period past that line -
+        not any single day&apos;s own total.
+        <br />
         Sunday premium is applied as the extra portion on top of Regular Pay —
         e.g. 1.25× means Sunday hours are already paid at 1.0× under Regular
         Pay, and this line adds the remaining 0.25×. Overtime is paid in full

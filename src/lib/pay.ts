@@ -277,14 +277,34 @@ export function computeWeek(
   let statDays = 0;
   let sundayHrs = 0;
   let otMin = 0;
+  let cumRegularPlatMin = 0;
+
+  const dailyOtThreshMin = settings.otThreshold * 60;
+  const periodOtThreshMin = settings.periodOtThreshold * 60;
 
   const perDay: DayComputedWithOt[] = days.map((d) => {
     const dateStr = fmtDate(d);
     const dc = computeDay(entries, dateStr);
-    const dailyOtThreshMin = settings.otThreshold * 60;
-    // Overtime is earned on platform/standby time only - the CLC break is
-    // always paid straight-time and never pushes a day into overtime.
-    const dayOt = Math.max(0, dc.platMin - dailyOtThreshMin);
+
+    // Overtime is always earned on platform/standby time, never the CLC
+    // break - but the two work types use different thresholds. Spares earn
+    // it day-by-day, once that single day's standby/dispatch time alone
+    // passes the daily threshold. Regular booked work only earns it once
+    // the pay period's *cumulative* platform hours pass the period
+    // threshold - so it's the portion of this day's hours that falls past
+    // that running total, not the day's own total.
+    let dayOt: number;
+    if (dc.spare) {
+      dayOt = Math.max(0, dc.platMin - dailyOtThreshMin);
+    } else {
+      const before = cumRegularPlatMin;
+      const after = before + dc.platMin;
+      dayOt =
+        Math.max(0, after - periodOtThreshMin) -
+        Math.max(0, before - periodOtThreshMin);
+      cumRegularPlatMin = after;
+    }
+
     otMin += dayOt;
     sumPlat += dc.platMin;
     sumPay += dc.payMin;
