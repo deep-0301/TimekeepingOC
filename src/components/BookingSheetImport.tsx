@@ -20,6 +20,10 @@ function fallbackTotalMin(rows: SheetRow[]): number {
   return rows.reduce((a, r) => a + hmToMin(r.segPlat || r.totalGuarantee), 0);
 }
 
+function isValidHM(s: string): boolean {
+  return /^\d{1,2}:\d{2}$/.test(s.trim());
+}
+
 interface BookingSheetImportProps {
   onImport: (updater: (prev: EntriesMap) => EntriesMap) => void;
   onSeasonAnchorDetected: (dateStr: string) => void;
@@ -93,6 +97,9 @@ function BookingSheetSlot({
   const [rowDatesList, setRowDatesList] = useState<Record<number, string[]>>(
     {}
   );
+  const [totalOverrides, setTotalOverrides] = useState<
+    Record<number, { plat: string; pay: string }>
+  >({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function runParse(text: string) {
@@ -123,6 +130,7 @@ function BookingSheetSlot({
     });
     setIncluded(inc);
     setRowDatesList(dates);
+    setTotalOverrides({});
   }
 
   async function handleFile(file: File) {
@@ -191,7 +199,18 @@ function BookingSheetSlot({
             return;
           }
           if (useDriving) {
-            const sumMin = hasTotals ? null : fallbackTotalMin(b.rows);
+            const override = totalOverrides[i];
+            const sumMin = fallbackTotalMin(b.rows);
+            const platMin = hasTotals
+              ? hmToMin(b.totalPlat)
+              : override && isValidHM(override.plat)
+              ? hmToMin(override.plat)
+              : sumMin;
+            const payMin = hasTotals
+              ? hmToMin(b.totalPay)
+              : override && isValidHM(override.pay)
+              ? hmToMin(override.pay)
+              : sumMin;
             day.pieces = b.rows.map(
               (r): EntryPiece => ({
                 run: r.run,
@@ -207,8 +226,8 @@ function BookingSheetSlot({
               })
             );
             day.fromSheet = true;
-            day.sheetPlat = hasTotals ? hmToMin(b.totalPlat) : (sumMin as number);
-            day.sheetPay = hasTotals ? hmToMin(b.totalPay) : (sumMin as number);
+            day.sheetPlat = platMin;
+            day.sheetPay = payMin;
           } else if (anySpare) {
             const totalMin = b.rows.reduce(
               (a, r) => a + hmToMin(r.totalGuarantee),
@@ -384,6 +403,60 @@ function BookingSheetSlot({
                       >
                         {runsDesc} &nbsp; {hoursDesc}
                       </span>
+                      {useDriving && !hasTotals && (
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 8,
+                            alignItems: "center",
+                            marginTop: 4,
+                          }}
+                        >
+                          <span className="note" style={{ margin: 0 }}>
+                            Check against your sheet:
+                          </span>
+                          <input
+                            type="text"
+                            placeholder="Plat H:MM"
+                            style={{ width: 80 }}
+                            value={
+                              totalOverrides[i]?.plat ??
+                              fmtHM(fallbackTotalMin(b.rows))
+                            }
+                            onChange={(e) =>
+                              setTotalOverrides({
+                                ...totalOverrides,
+                                [i]: {
+                                  plat: e.target.value,
+                                  pay:
+                                    totalOverrides[i]?.pay ??
+                                    fmtHM(fallbackTotalMin(b.rows)),
+                                },
+                              })
+                            }
+                          />
+                          <input
+                            type="text"
+                            placeholder="Pay H:MM"
+                            style={{ width: 80 }}
+                            value={
+                              totalOverrides[i]?.pay ??
+                              fmtHM(fallbackTotalMin(b.rows))
+                            }
+                            onChange={(e) =>
+                              setTotalOverrides({
+                                ...totalOverrides,
+                                [i]: {
+                                  plat:
+                                    totalOverrides[i]?.plat ??
+                                    fmtHM(fallbackTotalMin(b.rows)),
+                                  pay: e.target.value,
+                                },
+                              })
+                            }
+                          />
+                        </div>
+                      )}
                       {dates.length > 1 && (
                         <div className="note" style={{ margin: "2px 0 0" }}>
                           Repeats {dates.length}×: {dates.join(", ")}
