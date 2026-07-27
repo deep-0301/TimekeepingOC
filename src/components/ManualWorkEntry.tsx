@@ -2,10 +2,18 @@
 
 import { useState } from "react";
 import { getShiftsForRun } from "@/lib/board";
-import { fmtDate, fmtHM } from "@/lib/dateUtils";
+import { fmtDate, fmtHM, parseDateStr } from "@/lib/dateUtils";
 import type { SpareInfo } from "@/lib/types";
 import TimeField24 from "./TimeField24";
 import GarageField from "./GarageField";
+
+type Frequency = "once" | "daily" | "weekly" | "biweekly";
+
+const FREQUENCY_STEP_DAYS: Record<Exclude<Frequency, "once">, number> = {
+  daily: 1,
+  weekly: 7,
+  biweekly: 14,
+};
 
 interface ManualWorkEntryProps {
   onAddShift: (si: number, dateStr: string) => void;
@@ -18,6 +26,8 @@ export default function ManualWorkEntry({
 }: ManualWorkEntryProps) {
   const [dateStr, setDateStr] = useState(() => fmtDate(new Date()));
   const [mode, setMode] = useState<"run" | "spare">("run");
+  const [frequency, setFrequency] = useState<Frequency>("once");
+  const [untilDateStr, setUntilDateStr] = useState(() => fmtDate(new Date()));
   const [query, setQuery] = useState("");
   const [garage, setGarage] = useState("");
   const [reportsMin, setReportsMin] = useState<number | undefined>(undefined);
@@ -25,13 +35,36 @@ export default function ManualWorkEntry({
 
   const matches = query.trim() ? getShiftsForRun(query.trim()) : [];
 
+  function computeDates(): string[] {
+    if (frequency === "once" || !dateStr) return dateStr ? [dateStr] : [];
+    const step = FREQUENCY_STEP_DAYS[frequency];
+    const start = parseDateStr(dateStr);
+    const end = untilDateStr ? parseDateStr(untilDateStr) : start;
+    const dates: string[] = [];
+    const d = new Date(start);
+    while (d <= end) {
+      dates.push(fmtDate(d));
+      d.setDate(d.getDate() + step);
+    }
+    return dates;
+  }
+
   function handleAddRun(si: number, shiftId: string) {
     if (!dateStr) {
       setStatus("Pick a date first.");
       return;
     }
-    onAddShift(si, dateStr);
-    setStatus(`Added shift ${shiftId} to ${dateStr}.`);
+    const dates = computeDates();
+    if (dates.length === 0) {
+      setStatus("Pick a valid date range first.");
+      return;
+    }
+    dates.forEach((d) => onAddShift(si, d));
+    setStatus(
+      dates.length === 1
+        ? `Added shift ${shiftId} to ${dates[0]}.`
+        : `Added shift ${shiftId} to ${dates.length} days (${dates[0]} through ${dates[dates.length - 1]}).`
+    );
     setQuery("");
   }
 
@@ -40,14 +73,23 @@ export default function ManualWorkEntry({
       setStatus("Pick a date first.");
       return;
     }
-    onUpdateSpare(dateStr, {
-      guaranteeHrs: 8,
-      runNumber: null,
-      startMin: reportsMin,
-      garage: garage || undefined,
-    });
+    const dates = computeDates();
+    if (dates.length === 0) {
+      setStatus("Pick a valid date range first.");
+      return;
+    }
+    dates.forEach((d) =>
+      onUpdateSpare(d, {
+        guaranteeHrs: 8,
+        runNumber: null,
+        startMin: reportsMin,
+        garage: garage || undefined,
+      })
+    );
     setStatus(
-      `Spare day set up for ${dateStr} — tap that date on the Calendar to finish the details (work on call or standby).`
+      dates.length === 1
+        ? `Spare day set up for ${dates[0]} — tap that date on the Calendar to finish the details (work on call or standby).`
+        : `Spare day set up for ${dates.length} days (${dates[0]} through ${dates[dates.length - 1]}) — tap each date on the Calendar to finish the details (work on call or standby).`
     );
   }
 
@@ -77,6 +119,28 @@ export default function ManualWorkEntry({
             <option value="spare">Spare / standby</option>
           </select>
         </div>
+        <div className="field">
+          <label>Repeats</label>
+          <select
+            value={frequency}
+            onChange={(e) => setFrequency(e.target.value as Frequency)}
+          >
+            <option value="once">Once</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Every week</option>
+            <option value="biweekly">Every 2 weeks</option>
+          </select>
+        </div>
+        {frequency !== "once" && (
+          <div className="field">
+            <label>Until</label>
+            <input
+              type="date"
+              value={untilDateStr}
+              onChange={(e) => setUntilDateStr(e.target.value)}
+            />
+          </div>
+        )}
       </div>
 
       {mode === "run" ? (

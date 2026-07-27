@@ -44,12 +44,12 @@ export default function ImportPage() {
         />
       </section>
 
-      <ManualWorkEntry onAddShift={addShiftToDate} onUpdateSpare={updateSpare} />
       <BookingSheetImport
         onImport={updateEntries}
         onSeasonAnchorDetected={updatePayPeriodAnchor}
         bookingType={settings.bookingType}
       />
+      <ManualWorkEntry onAddShift={addShiftToDate} onUpdateSpare={updateSpare} />
       <ClearAllData onClearAll={clearAllEntries} />
     </>
   );
