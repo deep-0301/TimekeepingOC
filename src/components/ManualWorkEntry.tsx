@@ -269,12 +269,8 @@ export default function ManualWorkEntry({
           >
             <option value="once">Once</option>
             {mode !== "dayoff" && <option value="daily">Daily</option>}
-            <option value="weekly">
-              {mode === "dayoff" ? "Every week (7 days)" : "Every week"}
-            </option>
-            <option value="biweekly">
-              {mode === "dayoff" ? "Every 2 weeks (14 days)" : "Every 2 weeks"}
-            </option>
+            <option value="weekly">Every week</option>
+            <option value="biweekly">Every 2 weeks</option>
           </select>
         </div>
         {frequency !== "once" && (
@@ -351,32 +347,18 @@ export default function ManualWorkEntry({
         <>
           <div className="note" style={{ marginBottom: 6 }}>
             Tick every day off in your{" "}
-            {cycleWeeks === 2 ? "2-week cycle" : "week"} — there can be as many
-            as your booking has (3, 4, 5, 6…).
+            {cycleWeeks === 2 ? "2-week (14 day) cycle" : "week (7 days)"} —
+            there can be as many as your booking has (3, 4, 5, 6…).
             {cycleWeeks === 2 &&
               " Week 1 starts on the From date; week 2 is the week after."}
           </div>
           {Array.from({ length: cycleWeeks }, (_, week) => (
-            <div
-              key={week}
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 10,
-                alignItems: "center",
-                marginBottom: 6,
-              }}
-            >
-              {cycleWeeks === 2 && (
-                <span style={{ minWidth: 58, fontWeight: 600 }}>
-                  Week {week + 1}
-                </span>
-              )}
+            <div key={week} className="dayoff-week">
+              <span className="dayoff-week-label">
+                {cycleWeeks === 2 ? `Week ${week + 1}` : ""}
+              </span>
               {WEEKDAY_NAMES.map((name, weekday) => (
-                <label
-                  key={weekday}
-                  style={{ display: "flex", alignItems: "center", gap: 4 }}
-                >
+                <label key={weekday} className="dayoff-day">
                   <input
                     type="checkbox"
                     checked={dayOffSlots.has(slotKey(week, weekday))}

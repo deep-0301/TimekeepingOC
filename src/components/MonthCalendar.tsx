@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { computeDay } from "@/lib/pay";
 import { fmtDate } from "@/lib/dateUtils";
 import { getHolidayForDate } from "@/lib/statHolidays";
@@ -46,6 +46,14 @@ export default function MonthCalendar({
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const editorRef = useRef<HTMLElement | null>(null);
+
+  // On a phone the editor opens below the whole calendar, off-screen - bring
+  // it into view so tapping a date visibly does something.
+  useEffect(() => {
+    if (!selectedDate) return;
+    editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [selectedDate]);
 
   const weekStartsMonday = settings.weekStart === "monday";
   const weekdayLabels = weekStartsMonday
@@ -199,7 +207,7 @@ export default function MonthCalendar({
     </section>
 
     {selectedDate && (
-      <section className="panel">
+      <section className="panel" ref={editorRef}>
         <h2>Day Details</h2>
         <DayEditor
           key={selectedDate}

@@ -1197,3 +1197,251 @@ textarea.sheet-paste {
 .auth-status.auth-status-error {
   color: var(--red);
 }
+
+/* ==========================================================================
+   Mobile / touch
+   Most operators use this on a phone, so small screens are a first-class
+   layout rather than a shrunken desktop one.
+   ========================================================================== */
+
+html {
+  /* Stop iOS from inflating text in landscape. */
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Touch devices: fingers need bigger targets than a mouse pointer, and iOS
+   Safari zooms the whole page in whenever a focused field is under 16px. */
+@media (hover: none) and (pointer: coarse) {
+  input[type="date"],
+  input[type="time"],
+  input[type="number"],
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  select,
+  textarea {
+    font-size: 16px;
+    min-height: 44px;
+  }
+
+  select.period-select {
+    font-size: 16px;
+    min-height: 44px;
+  }
+
+  /* These carry their own smaller font, so they need the same specificity
+     to avoid iOS zooming in when they get focus. */
+  .day-editor-extras .field select,
+  .day-editor-extras .field input,
+  .time24 select {
+    font-size: 16px;
+    min-height: 44px;
+    padding: 7px 8px;
+  }
+
+  .day-editor-extras .field select {
+    width: 100%;
+  }
+
+  button {
+    min-height: 44px;
+    padding: 11px 16px;
+  }
+
+  button.small {
+    min-height: 40px;
+  }
+
+  .top-nav-link {
+    padding: 12px 14px;
+  }
+
+  input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+  }
+
+  .cal-cell {
+    min-height: 52px;
+  }
+}
+
+@media (max-width: 640px) {
+  #app {
+    padding: 14px 12px 44px;
+  }
+
+  header.hero {
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  h1 {
+    font-size: 21px;
+  }
+
+  .eyebrow {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+  }
+
+  .destination-sign {
+    padding: 11px 14px;
+  }
+
+  .sign-amount {
+    font-size: 26px;
+  }
+
+  /* One swipeable row instead of three stacked ones - the wrapped nav was
+     eating half the screen before any content. */
+  nav.top-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    gap: 0;
+  }
+
+  nav.top-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .top-nav-link {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  nav.top-nav .spacer {
+    flex: 0 0 auto;
+    width: 8px;
+  }
+
+  nav.top-nav button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .panel {
+    padding: 13px 13px;
+    margin-bottom: 12px;
+  }
+
+  .panel h2 {
+    font-size: 14px;
+  }
+
+  .settings-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px 12px;
+  }
+
+  .day-editor-extras {
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    gap: 10px;
+  }
+
+  /* Full-width action on its own line beats a cramped side-by-side row. */
+  .result-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .result-card button {
+    width: 100%;
+  }
+
+  .search-results {
+    max-height: 60vh;
+  }
+
+  /* Reclaim width for the day cells - 7 columns is tight on a phone. */
+  .cal-grid {
+    gap: 4px;
+  }
+
+  .cal-cell {
+    padding: 5px 2px;
+    border-radius: 6px;
+  }
+
+  .cal-cell-date {
+    font-size: 14px;
+  }
+
+  .cal-weekday {
+    font-size: 10px;
+    letter-spacing: 0;
+  }
+
+  .cal-cell-holiday-label {
+    font-size: 8.5px;
+  }
+
+  .cal-month-label {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .cal-nav {
+    gap: 8px;
+  }
+
+  .sheet-import-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .booking-type-grid {
+    grid-template-columns: 1fr;
+  }
+
+  footer.status {
+    font-size: 11px;
+  }
+}
+
+/* Wide tables stay readable by scrolling inside their own box rather than
+   pushing the whole page sideways. */
+.biweekly-table-wrap {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Day-off tick grid: a real grid keeps the weekday columns lined up instead
+   of wrapping raggedly, and stacks the box above its label on narrow screens. */
+.dayoff-week {
+  display: grid;
+  grid-template-columns: auto repeat(7, minmax(0, 1fr));
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.dayoff-week-label {
+  font-weight: 600;
+  font-size: 12px;
+  padding-right: 6px;
+  white-space: nowrap;
+}
+
+.dayoff-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+  padding: 4px 0;
+  border-radius: 6px;
+  user-select: none;
+}
+
+.dayoff-day:hover {
+  background: #eef4f7;
+}
+
+.dayoff-day input {
+  margin: 0;
+}
