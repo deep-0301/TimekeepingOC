@@ -24,7 +24,7 @@ export default function RunSearch({ periodDays, onAddShift }: RunSearchProps) {
 
   return (
     <section className="panel">
-      <h2>Find a paddle</h2>
+      <h2>Add a shift to a date</h2>
       <input
         type="text"
         className="run-search"
@@ -33,10 +33,10 @@ export default function RunSearch({ periodDays, onAddShift }: RunSearchProps) {
         onChange={(e) => setQuery(e.target.value)}
       />
       <div className="note">
-        From the 2026 Summer Weekday (Daily) Boards. Results are grouped by
-        full shift — each card shows every piece paired with that paddle, so
-        you can pick the exact combination you actually worked. (Weekend
-        boards aren&apos;t loaded into this tool yet.)
+        From the 2026 Summer Weekday (Daily) pay board — this is the one that
+        adds work to your calendar. Results are grouped by full shift, so you
+        can pick the exact combination you actually worked. (Weekend boards
+        aren&apos;t loaded into this tool yet.)
       </div>
       <div className="search-results">
         {query.trim() === "" ? null : results.length === 0 ? (

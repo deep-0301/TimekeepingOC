@@ -1445,3 +1445,105 @@ html {
 .dayoff-day input {
   margin: 0;
 }
+
+/* ==========================================================================
+   Paddle lookup
+   ========================================================================== */
+
+.paddle-card {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.paddle-card-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.paddle-number {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--steel-dark);
+}
+
+.paddle-routes {
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.paddle-signline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.paddle-signpoint {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.paddle-siglabel {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.paddle-sigtime {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.paddle-sigloc {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.paddle-stops {
+  margin-top: 6px;
+  border-top: 1px solid var(--line);
+  max-height: 320px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.paddle-stop {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 5px 2px;
+  border-bottom: 1px dashed var(--line);
+}
+
+.paddle-stop:last-child {
+  border-bottom: none;
+}
+
+.paddle-stop-time {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 46px;
+  text-align: right;
+}
+
+.paddle-stop-loc {
+  font-size: 13px;
+  flex: 1;
+}
+
+.paddle-stop.is-relief {
+  background: var(--holiday-bg);
+  border-radius: 4px;
+}
