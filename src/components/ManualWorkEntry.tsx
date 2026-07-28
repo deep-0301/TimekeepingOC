@@ -3,11 +3,12 @@
 import { useMemo, useState } from "react";
 import { dayTypeForDate, getShiftsForRun, WEEKEND_BOARD_LOADED } from "@/lib/board";
 import { fmtDate, fmtHM, parseDateStr } from "@/lib/dateUtils";
-import type { SpareInfo } from "@/lib/types";
+import type { DayFieldName, DayFieldValue, SpareInfo } from "@/lib/types";
 import TimeField24 from "./TimeField24";
 import GarageField from "./GarageField";
 
 type Frequency = "once" | "daily" | "weekly" | "biweekly";
+type Mode = "run" | "spare" | "dayoff";
 
 const FREQUENCY_STEP_DAYS: Record<Exclude<Frequency, "once">, number> = {
   daily: 1,
@@ -15,19 +16,36 @@ const FREQUENCY_STEP_DAYS: Record<Exclude<Frequency, "once">, number> = {
   biweekly: 14,
 };
 
+const WEEKDAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
 interface ManualWorkEntryProps {
   onAddShift: (si: number, dateStr: string) => void;
   onUpdateSpare: (dateStr: string, spare: SpareInfo | null) => void;
+  onUpdateDayField: (
+    dateStr: string,
+    field: DayFieldName,
+    value: DayFieldValue
+  ) => void;
 }
 
 export default function ManualWorkEntry({
   onAddShift,
   onUpdateSpare,
+  onUpdateDayField,
 }: ManualWorkEntryProps) {
   const [dateStr, setDateStr] = useState(() => fmtDate(new Date()));
-  const [mode, setMode] = useState<"run" | "spare">("run");
+  const [mode, setMode] = useState<Mode>("run");
   const [frequency, setFrequency] = useState<Frequency>("once");
   const [untilDateStr, setUntilDateStr] = useState("");
+  const [dayOffWeekday, setDayOffWeekday] = useState(() => new Date().getDay());
   const [query, setQuery] = useState("");
   const [garage, setGarage] = useState("");
   const [reportsMin, setReportsMin] = useState<number | undefined>(undefined);
@@ -47,6 +65,15 @@ export default function ManualWorkEntry({
     // (matching the start date) instead of leaving "Until" blank/stale.
     if (next !== "once" && (!untilDateStr || untilDateStr < dateStr)) {
       setUntilDateStr(dateStr);
+    }
+  }
+
+  function handleModeChange(next: Mode) {
+    setMode(next);
+    // A day off is anchored to a weekday, so a daily repeat is meaningless
+    // there - fall back to the weekly cycle.
+    if (next === "dayoff" && frequency === "daily") {
+      handleFrequencyChange("weekly");
     }
   }
 
@@ -70,6 +97,51 @@ export default function ManualWorkEntry({
       d.setDate(d.getDate() + step);
     }
     return dates;
+  }
+
+  /** Every `dayOffWeekday` falling in the range, stepping one or two weeks
+   * at a time so the day off always lands on the weekday that was picked. */
+  function computeDayOffDates(): string[] {
+    if (!dateStr) return [];
+    const first = parseDateStr(dateStr);
+    first.setDate(
+      first.getDate() + ((dayOffWeekday - first.getDay() + 7) % 7)
+    );
+    if (frequency === "once") return [fmtDate(first)];
+    if (!untilDateStr || untilDateStr < dateStr) return [];
+    const step = FREQUENCY_STEP_DAYS[frequency];
+    const end = parseDateStr(untilDateStr);
+    const dates: string[] = [];
+    const d = new Date(first);
+    while (d <= end) {
+      dates.push(fmtDate(d));
+      d.setDate(d.getDate() + step);
+    }
+    return dates;
+  }
+
+  function handleSaveDayOff() {
+    if (!dateStr) {
+      setStatus("Pick a date first.");
+      return;
+    }
+    if (frequency !== "once" && (!untilDateStr || untilDateStr < dateStr)) {
+      setStatus("Pick an end date on or after the start date.");
+      return;
+    }
+    const dates = computeDayOffDates();
+    if (dates.length === 0) {
+      setStatus(
+        `No ${WEEKDAY_NAMES[dayOffWeekday]} falls in that date range.`
+      );
+      return;
+    }
+    dates.forEach((d) => onUpdateDayField(d, "dayOff", true));
+    setStatus(
+      dates.length === 1
+        ? `Marked ${dates[0]} (${WEEKDAY_NAMES[dayOffWeekday]}) as a day off.`
+        : `Marked ${dates.length} ${WEEKDAY_NAMES[dayOffWeekday]}s as days off (${dates[0]} through ${dates[dates.length - 1]}).`
+    );
   }
 
   function handleAddRun(si: number, shiftId: string) {
@@ -121,7 +193,7 @@ export default function ManualWorkEntry({
       <h2>Add work manually</h2>
       <div className="note">
         No booking sheet handy? Add a single day&apos;s work directly — a
-        paddle number, or a spare/standby shift.
+        paddle number, a spare/standby shift, or a recurring day off.
       </div>
       <div className="day-editor-extras">
         <div className="field">
@@ -136,12 +208,28 @@ export default function ManualWorkEntry({
           <label>Type</label>
           <select
             value={mode}
-            onChange={(e) => setMode(e.target.value as "run" | "spare")}
+            onChange={(e) => handleModeChange(e.target.value as Mode)}
           >
             <option value="run">Paddle number</option>
             <option value="spare">Spare / standby</option>
+            <option value="dayoff">Day off</option>
           </select>
         </div>
+        {mode === "dayoff" && (
+          <div className="field">
+            <label>Which day off?</label>
+            <select
+              value={dayOffWeekday}
+              onChange={(e) => setDayOffWeekday(Number(e.target.value))}
+            >
+              {WEEKDAY_NAMES.map((name, idx) => (
+                <option key={name} value={idx}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="field">
           <label>Repeats</label>
           <select
@@ -149,9 +237,13 @@ export default function ManualWorkEntry({
             onChange={(e) => handleFrequencyChange(e.target.value as Frequency)}
           >
             <option value="once">Once</option>
-            <option value="daily">Daily</option>
-            <option value="weekly">Every week</option>
-            <option value="biweekly">Every 2 weeks</option>
+            {mode !== "dayoff" && <option value="daily">Daily</option>}
+            <option value="weekly">
+              {mode === "dayoff" ? "Every week (7 days)" : "Every week"}
+            </option>
+            <option value="biweekly">
+              {mode === "dayoff" ? "Every 2 weeks (14 days)" : "Every 2 weeks"}
+            </option>
           </select>
         </div>
         {frequency !== "once" && (
@@ -212,7 +304,7 @@ export default function ManualWorkEntry({
             </div>
           )}
         </>
-      ) : (
+      ) : mode === "spare" ? (
         <>
           <div className="day-editor-extras">
             <GarageField value={garage} onChange={setGarage} />
@@ -223,6 +315,19 @@ export default function ManualWorkEntry({
             />
           </div>
           <button onClick={handleSaveSpare}>+ Set up spare day</button>
+        </>
+      ) : (
+        <>
+          <div className="note" style={{ marginBottom: 6 }}>
+            {frequency === "once"
+              ? `Marks the first ${WEEKDAY_NAMES[dayOffWeekday]} on or after the date above as a day off.`
+              : `Marks every ${WEEKDAY_NAMES[dayOffWeekday]} in the range above as a day off, ${
+                  frequency === "weekly"
+                    ? "one week apart"
+                    : "two weeks apart (alternating weeks)"
+                }.`}
+          </div>
+          <button onClick={handleSaveDayOff}>+ Mark day off</button>
         </>
       )}
 

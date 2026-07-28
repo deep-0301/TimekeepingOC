@@ -15,6 +15,7 @@ export default function ImportPage() {
     updatePayPeriodAnchor,
     addShiftToDate,
     updateSpare,
+    updateDayField,
     clearAllEntries,
   } = useAppState();
 
@@ -49,7 +50,11 @@ export default function ImportPage() {
         onSeasonAnchorDetected={updatePayPeriodAnchor}
         bookingType={settings.bookingType}
       />
-      <ManualWorkEntry onAddShift={addShiftToDate} onUpdateSpare={updateSpare} />
+      <ManualWorkEntry
+        onAddShift={addShiftToDate}
+        onUpdateSpare={updateSpare}
+        onUpdateDayField={updateDayField}
+      />
       <ClearAllData onClearAll={clearAllEntries} />
     </>
   );
