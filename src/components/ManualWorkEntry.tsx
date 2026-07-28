@@ -45,7 +45,9 @@ export default function ManualWorkEntry({
   const [mode, setMode] = useState<Mode>("run");
   const [frequency, setFrequency] = useState<Frequency>("once");
   const [untilDateStr, setUntilDateStr] = useState("");
-  const [dayOffWeekday, setDayOffWeekday] = useState(() => new Date().getDay());
+  // Days off in one cycle, keyed "<weekOfCycle>-<weekday>". A biweekly
+  // booking commonly has several (e.g. Tuesday wk1 + Sun/Wed/Thu wk2).
+  const [dayOffSlots, setDayOffSlots] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
   const [garage, setGarage] = useState("");
   const [reportsMin, setReportsMin] = useState<number | undefined>(undefined);
@@ -59,12 +61,34 @@ export default function ManualWorkEntry({
     ? getShiftsForRun(query.trim(), dayType)
     : [];
 
+  const cycleWeeks = frequency === "biweekly" ? 2 : 1;
+
+  function slotKey(week: number, weekday: number) {
+    return `${week}-${weekday}`;
+  }
+
+  function toggleSlot(week: number, weekday: number) {
+    setDayOffSlots((prev) => {
+      const next = new Set(prev);
+      const key = slotKey(week, weekday);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
   function handleFrequencyChange(next: Frequency) {
     setFrequency(next);
     // Repeating needs an end date - hand the user a sane starting range
     // (matching the start date) instead of leaving "Until" blank/stale.
     if (next !== "once" && (!untilDateStr || untilDateStr < dateStr)) {
       setUntilDateStr(dateStr);
+    }
+    // Dropping to a one-week cycle leaves any week-2 picks unreachable.
+    if (next !== "biweekly") {
+      setDayOffSlots(
+        (prev) => new Set([...prev].filter((k) => k.startsWith("0-")))
+      );
     }
   }
 
@@ -99,30 +123,54 @@ export default function ManualWorkEntry({
     return dates;
   }
 
-  /** Every `dayOffWeekday` falling in the range, stepping one or two weeks
-   * at a time so the day off always lands on the weekday that was picked. */
+  /** Offset in days, from the start date, of each ticked day off within one
+   * cycle. Week 1 of a slot is the first such weekday on or after the start
+   * date; week 2 is seven days later. */
+  function slotOffsets(startDow: number): number[] {
+    return [...dayOffSlots]
+      .map((key) => {
+        const [week, weekday] = key.split("-").map(Number);
+        return ((weekday - startDow + 7) % 7) + week * 7;
+      })
+      .sort((a, b) => a - b);
+  }
+
+  /** Every ticked day off falling in the range, repeating the whole cycle
+   * (one or two weeks) until the end date. */
   function computeDayOffDates(): string[] {
-    if (!dateStr) return [];
-    const first = parseDateStr(dateStr);
-    first.setDate(
-      first.getDate() + ((dayOffWeekday - first.getDay() + 7) % 7)
-    );
-    if (frequency === "once") return [fmtDate(first)];
+    if (!dateStr || dayOffSlots.size === 0) return [];
+    const start = parseDateStr(dateStr);
+    const offsets = slotOffsets(start.getDay());
+
+    const dateAt = (days: number) => {
+      const d = new Date(start);
+      d.setDate(d.getDate() + days);
+      return d;
+    };
+
+    if (frequency === "once") {
+      return offsets.map((o) => fmtDate(dateAt(o)));
+    }
     if (!untilDateStr || untilDateStr < dateStr) return [];
     const step = FREQUENCY_STEP_DAYS[frequency];
     const end = parseDateStr(untilDateStr);
-    const dates: string[] = [];
-    const d = new Date(first);
-    while (d <= end) {
-      dates.push(fmtDate(d));
-      d.setDate(d.getDate() + step);
+    const out: string[] = [];
+    for (let base = 0; dateAt(base + offsets[0]) <= end; base += step) {
+      offsets.forEach((o) => {
+        const d = dateAt(base + o);
+        if (d <= end) out.push(fmtDate(d));
+      });
     }
-    return dates;
+    return [...new Set(out)].sort();
   }
 
   function handleSaveDayOff() {
     if (!dateStr) {
       setStatus("Pick a date first.");
+      return;
+    }
+    if (dayOffSlots.size === 0) {
+      setStatus("Tick at least one day off first.");
       return;
     }
     if (frequency !== "once" && (!untilDateStr || untilDateStr < dateStr)) {
@@ -131,16 +179,14 @@ export default function ManualWorkEntry({
     }
     const dates = computeDayOffDates();
     if (dates.length === 0) {
-      setStatus(
-        `No ${WEEKDAY_NAMES[dayOffWeekday]} falls in that date range.`
-      );
+      setStatus("None of those days fall in that date range.");
       return;
     }
     dates.forEach((d) => onUpdateDayField(d, "dayOff", true));
     setStatus(
       dates.length === 1
-        ? `Marked ${dates[0]} (${WEEKDAY_NAMES[dayOffWeekday]}) as a day off.`
-        : `Marked ${dates.length} ${WEEKDAY_NAMES[dayOffWeekday]}s as days off (${dates[0]} through ${dates[dates.length - 1]}).`
+        ? `Marked ${dates[0]} as a day off.`
+        : `Marked ${dates.length} days off (${dates[0]} through ${dates[dates.length - 1]}).`
     );
   }
 
@@ -215,21 +261,6 @@ export default function ManualWorkEntry({
             <option value="dayoff">Day off</option>
           </select>
         </div>
-        {mode === "dayoff" && (
-          <div className="field">
-            <label>Which day off?</label>
-            <select
-              value={dayOffWeekday}
-              onChange={(e) => setDayOffWeekday(Number(e.target.value))}
-            >
-              {WEEKDAY_NAMES.map((name, idx) => (
-                <option key={name} value={idx}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
         <div className="field">
           <label>Repeats</label>
           <select
@@ -319,15 +350,55 @@ export default function ManualWorkEntry({
       ) : (
         <>
           <div className="note" style={{ marginBottom: 6 }}>
-            {frequency === "once"
-              ? `Marks the first ${WEEKDAY_NAMES[dayOffWeekday]} on or after the date above as a day off.`
-              : `Marks every ${WEEKDAY_NAMES[dayOffWeekday]} in the range above as a day off, ${
-                  frequency === "weekly"
-                    ? "one week apart"
-                    : "two weeks apart (alternating weeks)"
-                }.`}
+            Tick every day off in your{" "}
+            {cycleWeeks === 2 ? "2-week cycle" : "week"} — there can be as many
+            as your booking has (3, 4, 5, 6…).
+            {cycleWeeks === 2 &&
+              " Week 1 starts on the From date; week 2 is the week after."}
           </div>
-          <button onClick={handleSaveDayOff}>+ Mark day off</button>
+          {Array.from({ length: cycleWeeks }, (_, week) => (
+            <div
+              key={week}
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 10,
+                alignItems: "center",
+                marginBottom: 6,
+              }}
+            >
+              {cycleWeeks === 2 && (
+                <span style={{ minWidth: 58, fontWeight: 600 }}>
+                  Week {week + 1}
+                </span>
+              )}
+              {WEEKDAY_NAMES.map((name, weekday) => (
+                <label
+                  key={weekday}
+                  style={{ display: "flex", alignItems: "center", gap: 4 }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={dayOffSlots.has(slotKey(week, weekday))}
+                    onChange={() => toggleSlot(week, weekday)}
+                  />
+                  {name.slice(0, 3)}
+                </label>
+              ))}
+            </div>
+          ))}
+          <div className="note" style={{ marginBottom: 6 }}>
+            {dayOffSlots.size === 0
+              ? "No days off ticked yet."
+              : `${dayOffSlots.size} day(s) off per ${
+                  cycleWeeks === 2 ? "2-week cycle" : "week"
+                }${
+                  frequency === "once"
+                    ? ", marked once."
+                    : ", repeating until the To date."
+                }`}
+          </div>
+          <button onClick={handleSaveDayOff}>+ Mark days off</button>
         </>
       )}
 
