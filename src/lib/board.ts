@@ -1,30 +1,129 @@
-import weekdayDataRaw from "@/data/board-data.json";
-import weekendDataRaw from "@/data/board-data-weekend.json";
+import summerWeekdayRaw from "@/data/board-data.json";
+import summerWeekendRaw from "@/data/board-data-weekend.json";
+import fallWeekdayRaw from "@/data/board-data-fall-weekday.json";
+import fallSaturdayRaw from "@/data/board-data-fall-saturday.json";
+import fallSundayRaw from "@/data/board-data-fall-sunday.json";
+import { parseDateStr } from "./dateUtils";
 import type { BoardShift } from "./types";
 
-const WEEKDAY_DATA = weekdayDataRaw as unknown as BoardShift[];
-const WEEKEND_DATA = weekendDataRaw as unknown as BoardShift[];
+export type DayType = "weekday" | "saturday" | "sunday";
+export type SeasonId = "summer" | "fall";
 
-/** Weekday shifts first, weekend shifts appended after. `shiftIndex`
- * values already saved in user data are indices into the weekday board
- * from before this split, so weekday shifts must keep their original
- * positions. */
-export const BOARD_DATA: BoardShift[] = [...WEEKDAY_DATA, ...WEEKEND_DATA];
-const WEEKDAY_COUNT = WEEKDAY_DATA.length;
+interface SeasonDef {
+  id: SeasonId;
+  label: string;
+  /** Inclusive booking range, as yyyy-mm-dd. */
+  from: string;
+  to: string;
+}
 
-export type DayType = "weekday" | "weekend";
+/** Booking seasons, each with its own set of boards. */
+export const SEASONS: SeasonDef[] = [
+  { id: "summer", label: "Summer 2026", from: "2026-06-29", to: "2026-08-29" },
+  { id: "fall", label: "Fall 2026", from: "2026-08-30", to: "2026-12-19" },
+];
 
-/** Saturday/Sunday run a different board than Monday-Friday. */
+/** A contiguous stretch of BOARD_DATA holding one season's board. */
+export interface BoardSegment {
+  season: SeasonId;
+  dayType: DayType;
+  start: number;
+  end: number;
+  count: number;
+}
+
+const SOURCES: { season: SeasonId; dayType: DayType; rows: BoardShift[] }[] = [
+  // Order matters and must never change: a shiftIndex saved in a user's data
+  // is an index into BOARD_DATA, so new boards are only ever appended.
+  {
+    season: "summer",
+    dayType: "weekday",
+    rows: summerWeekdayRaw as unknown as BoardShift[],
+  },
+  {
+    season: "summer",
+    dayType: "saturday",
+    rows: summerWeekendRaw as unknown as BoardShift[],
+  },
+  {
+    season: "fall",
+    dayType: "weekday",
+    rows: fallWeekdayRaw as unknown as BoardShift[],
+  },
+  {
+    season: "fall",
+    dayType: "saturday",
+    rows: fallSaturdayRaw as unknown as BoardShift[],
+  },
+  {
+    season: "fall",
+    dayType: "sunday",
+    rows: fallSundayRaw as unknown as BoardShift[],
+  },
+];
+
+export const BOARD_DATA: BoardShift[] = [];
+export const BOARD_SEGMENTS: BoardSegment[] = [];
+
+for (const src of SOURCES) {
+  const start = BOARD_DATA.length;
+  BOARD_DATA.push(...src.rows);
+  BOARD_SEGMENTS.push({
+    season: src.season,
+    dayType: src.dayType,
+    start,
+    end: BOARD_DATA.length,
+    count: src.rows.length,
+  });
+}
+
 export function dayTypeForDate(d: Date): DayType {
   const dow = d.getDay();
-  return dow === 0 || dow === 6 ? "weekend" : "weekday";
+  if (dow === 6) return "saturday";
+  if (dow === 0) return "sunday";
+  return "weekday";
 }
 
-function boardDayType(si: number): DayType {
-  return si >= WEEKDAY_COUNT ? "weekend" : "weekday";
+export function seasonForDate(d: Date): SeasonDef | null {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const iso = `${y}-${m}-${dd}`;
+  return SEASONS.find((s) => iso >= s.from && iso <= s.to) ?? null;
 }
 
-export const WEEKEND_BOARD_LOADED = WEEKEND_DATA.length > 0;
+export interface BoardContext {
+  season: SeasonDef | null;
+  dayType: DayType;
+  segment: BoardSegment | null;
+  /** True when the matching board has no shifts loaded. */
+  empty: boolean;
+}
+
+/** Which board applies on a given date. */
+export function boardForDate(dateStr: string): BoardContext {
+  const d = parseDateStr(dateStr);
+  const dayType = dayTypeForDate(d);
+  const season = seasonForDate(d);
+  const segment =
+    season == null
+      ? null
+      : BOARD_SEGMENTS.find(
+          (s) => s.season === season.id && s.dayType === dayType
+        ) ?? null;
+  return {
+    season,
+    dayType,
+    segment,
+    empty: !segment || segment.count === 0,
+  };
+}
+
+export function segmentOf(si: number): BoardSegment | null {
+  return (
+    BOARD_SEGMENTS.find((s) => si >= s.start && si < s.end) ?? null
+  );
+}
 
 export interface RunIndexEntry {
   si: number;
@@ -55,21 +154,25 @@ export interface ShiftSearchResult {
   matchedRuns: Set<string>;
 }
 
-/** Every distinct shift (by board index) that contains this exact run
- * number as one of its pieces. A run number can appear in more than one
+function inSegment(si: number, seg: BoardSegment | null): boolean {
+  return seg ? si >= seg.start && si < seg.end : true;
+}
+
+/** Every distinct shift (by board index) that contains this exact paddle
+ * number as one of its pieces. A paddle number can appear in more than one
  * shift, but within a shift it names one piece of a whole multi-piece
  * shift - the whole shift is what should be added, not just that piece.
- * Pass `dayType` to restrict matches to the weekday or weekend board
- * (e.g. so a run typed in for a Saturday only offers weekend shifts). */
+ * Pass `dateStr` to restrict matches to the board that date actually runs. */
 export function getShiftsForRun(
   run: string,
-  dayType?: DayType
+  dateStr?: string
 ): { si: number; shift: BoardShift }[] {
+  const seg = dateStr ? boardForDate(dateStr).segment : null;
   const instances = runIndex[run] || [];
   const seen = new Set<number>();
   const out: { si: number; shift: BoardShift }[] = [];
   instances.forEach((inst) => {
-    if (dayType && boardDayType(inst.si) !== dayType) return;
+    if (dateStr && !inSegment(inst.si, seg)) return;
     if (seen.has(inst.si)) return;
     seen.add(inst.si);
     out.push({ si: inst.si, shift: BOARD_DATA[inst.si] });
@@ -81,13 +184,14 @@ const MAX_RESULTS = 60;
 
 export function searchRuns(
   query: string,
-  dayType?: DayType
+  dateStr?: string
 ): {
   results: ShiftSearchResult[];
   truncated: boolean;
 } {
   const q = query.trim().toLowerCase();
   if (!q) return { results: [], truncated: false };
+  const seg = dateStr ? boardForDate(dateStr).segment : null;
 
   const matchingRuns = Object.keys(runIndex).filter((r) =>
     r.toLowerCase().includes(q)
@@ -96,7 +200,7 @@ export function searchRuns(
   const shiftMap = new Map<number, Set<string>>();
   matchingRuns.forEach((run) => {
     runIndex[run].forEach((inst) => {
-      if (dayType && boardDayType(inst.si) !== dayType) return;
+      if (dateStr && !inSegment(inst.si, seg)) return;
       if (!shiftMap.has(inst.si)) shiftMap.set(inst.si, new Set());
       shiftMap.get(inst.si)!.add(run);
     });

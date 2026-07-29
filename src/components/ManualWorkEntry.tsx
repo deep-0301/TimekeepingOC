@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { dayTypeForDate, getShiftsForRun, WEEKEND_BOARD_LOADED } from "@/lib/board";
+import { boardForDate, getShiftsForRun } from "@/lib/board";
 import { fmtDate, fmtHM, parseDateStr } from "@/lib/dateUtils";
 import type { DayFieldName, DayFieldValue, SpareInfo } from "@/lib/types";
 import TimeField24 from "./TimeField24";
@@ -53,12 +53,9 @@ export default function ManualWorkEntry({
   const [reportsMin, setReportsMin] = useState<number | undefined>(undefined);
   const [status, setStatus] = useState("");
 
-  const dayType = useMemo(
-    () => (dateStr ? dayTypeForDate(parseDateStr(dateStr)) : "weekday"),
-    [dateStr]
-  );
+  const board = useMemo(() => boardForDate(dateStr), [dateStr]);
   const matches = query.trim()
-    ? getShiftsForRun(query.trim(), dayType)
+    ? getShiftsForRun(query.trim(), dateStr)
     : [];
 
   const cycleWeeks = frequency === "biweekly" ? 2 : 1;
@@ -289,8 +286,11 @@ export default function ManualWorkEntry({
       {mode === "run" ? (
         <>
           <div className="note" style={{ marginBottom: 6 }}>
-            Searching the <b>{dayType === "weekend" ? "weekend" : "weekday"}</b>{" "}
-            board (based on the date above).
+            Searching the{" "}
+            <b>
+              {board.season ? board.season.label : "—"} {board.dayType}
+            </b>{" "}
+            board (from the date above).
           </div>
           <input
             type="text"
@@ -303,9 +303,11 @@ export default function ManualWorkEntry({
             <div className="search-results">
               {matches.length === 0 ? (
                 <div className="note">
-                  {dayType === "weekend" && !WEEKEND_BOARD_LOADED
-                    ? "No weekend board has been loaded yet."
-                    : "No matching paddle number found."}
+                  {!board.season
+                    ? "That date is outside the booking seasons loaded."
+                    : board.empty
+                      ? `No ${board.season.label} ${board.dayType} board has been loaded yet.`
+                      : "No matching paddle number found."}
                 </div>
               ) : (
                 matches.map(({ si, shift }) => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { searchRuns } from "@/lib/board";
+import { boardForDate, searchRuns } from "@/lib/board";
 import { fmtDate, fmtHM, dayLabel } from "@/lib/dateUtils";
 
 interface RunSearchProps {
@@ -15,12 +15,22 @@ export default function RunSearch({ periodDays, onAddShift }: RunSearchProps) {
     {}
   );
 
-  const { results, truncated } = useMemo(() => searchRuns(query), [query]);
+  const dateOptions = useMemo(
+    () => periodDays.map((d) => ({ value: fmtDate(d), label: dayLabel(d) })),
+    [periodDays]
+  );
 
-  const dateOptions = periodDays.map((d) => ({
-    value: fmtDate(d),
-    label: dayLabel(d),
-  }));
+  // Results are scoped to the board the shown period runs on, since the
+  // same shift number exists on more than one season's board.
+  const contextDate = useMemo(
+    () => (periodDays.length ? fmtDate(periodDays[0]) : ""),
+    [periodDays]
+  );
+  const board = useMemo(() => boardForDate(contextDate), [contextDate]);
+  const { results, truncated } = useMemo(
+    () => searchRuns(query, contextDate),
+    [query, contextDate]
+  );
 
   return (
     <section className="panel">
@@ -33,14 +43,21 @@ export default function RunSearch({ periodDays, onAddShift }: RunSearchProps) {
         onChange={(e) => setQuery(e.target.value)}
       />
       <div className="note">
-        From the 2026 Summer Weekday (Daily) pay board — this is the one that
-        adds work to your calendar. Results are grouped by full shift, so you
-        can pick the exact combination you actually worked. (Weekend boards
-        aren&apos;t loaded into this tool yet.)
+        From the{" "}
+        <b>
+          {board.season ? board.season.label : "—"} {board.dayType}
+        </b>{" "}
+        pay board — the one that adds work to your calendar. Results are
+        grouped by full shift, so you can pick the exact combination you
+        actually worked.
       </div>
       <div className="search-results">
         {query.trim() === "" ? null : results.length === 0 ? (
-          <div className="note">No matching paddle number found in the loaded board.</div>
+          <div className="note">
+            {board.empty
+              ? "No board is loaded for that date yet."
+              : "No matching paddle number found in that board."}
+          </div>
         ) : (
           <>
             {results.map(({ si, shift, matchedRuns }) => {

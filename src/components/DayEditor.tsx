@@ -3,11 +3,10 @@
 import { useMemo, useState } from "react";
 import {
   BOARD_DATA,
-  dayTypeForDate,
+  boardForDate,
   getShiftsForRun,
   searchRuns,
   shortLocation,
-  WEEKEND_BOARD_LOADED,
 } from "@/lib/board";
 import { computeDay } from "@/lib/pay";
 import { fmtHM, minToHHMM, parseDateStr, toMin } from "@/lib/dateUtils";
@@ -66,15 +65,12 @@ export default function DayEditor({
   );
   const [manageOpen, setManageOpen] = useState(false);
 
-  const dayType = useMemo(
-    () => dayTypeForDate(parseDateStr(dateStr)),
-    [dateStr]
-  );
+  const board = useMemo(() => boardForDate(dateStr), [dateStr]);
 
   const { results, truncated } = useMemo(
     () =>
-      isSpare ? { results: [], truncated: false } : searchRuns(query, dayType),
-    [query, isSpare, dayType]
+      isSpare ? { results: [], truncated: false } : searchRuns(query, dateStr),
+    [query, isSpare, dateStr]
   );
 
   const scheduledOffMin = dc.fromSheet
@@ -85,7 +81,7 @@ export default function DayEditor({
     : null;
 
   const spareShiftMatches = spareRunInput
-    ? getShiftsForRun(spareRunInput.trim(), dayType)
+    ? getShiftsForRun(spareRunInput.trim(), dateStr)
     : [];
   const selectedShiftIndex =
     day?.spare?.runNumber === spareRunInput.trim()
@@ -433,9 +429,9 @@ export default function DayEditor({
                   <div className="search-results">
                     {spareShiftMatches.length === 0 ? (
                       <div className="note">
-                        {dayType === "weekend" && !WEEKEND_BOARD_LOADED
-                          ? "No weekend board has been loaded yet."
-                          : `No paddle "${spareRunInput}" found in the loaded ${dayType} board — pay will use 0 platform time for it until a valid paddle number is picked.`}
+                        {board.empty
+                          ? `No ${board.season ? board.season.label : ""} ${board.dayType} board has been loaded yet.`
+                          : `No paddle "${spareRunInput}" found in the ${board.dayType} board — pay will use 0 platform time for it until a valid paddle number is picked.`}
                       </div>
                     ) : (
                       spareShiftMatches.map(({ si, shift }) => {
@@ -585,7 +581,11 @@ export default function DayEditor({
               </div>
             )}
             <div className="note" style={{ marginBottom: 6 }}>
-              Searching the <b>{dayType}</b> board.
+              Searching the{" "}
+              <b>
+                {board.season ? board.season.label : "—"} {board.dayType}
+              </b>{" "}
+              board.
             </div>
 
             <input
@@ -599,9 +599,11 @@ export default function DayEditor({
               <div className="search-results">
                 {results.length === 0 ? (
                   <div className="note">
-                    {dayType === "weekend" && !WEEKEND_BOARD_LOADED
-                      ? "No weekend board has been loaded yet."
-                      : "No matching paddle number found."}
+                    {!board.season
+                      ? "That date is outside the booking seasons loaded."
+                      : board.empty
+                        ? `No ${board.season.label} ${board.dayType} board has been loaded yet.`
+                        : "No matching paddle number found."}
                   </div>
                 ) : (
                   <>
