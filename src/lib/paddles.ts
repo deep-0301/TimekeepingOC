@@ -33,6 +33,10 @@ export interface Paddle {
   t: PaddleTrip[];
   /** Vehicle type when the book specifies one, e.g. "60IN", "VAN". */
   bus?: string;
+  /** Set when the paddle signs off after midnight, the next calendar day. */
+  next?: number;
+  /** Pages the paddle occupies in the book, when it runs over the leaf. */
+  pg?: number;
 }
 
 export interface PaddleBook {

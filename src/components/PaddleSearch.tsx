@@ -37,41 +37,77 @@ function StopRow({
   );
 }
 
-function PaddleTimeline({ paddle }: { paddle: Paddle }) {
-  return (
-    <div className="pt">
-      <div className="pt-section">
-        <div className="pt-section-head">
-          <span className="pt-badge pt-badge-garage">Sign on</span>
-          <span className="pt-section-dest">Pull out of the garage</span>
-        </div>
-        {paddle.pre.map((s, i) => (
-          <StopRow key={i} stop={s} kind={i === 0 ? "on" : "plain"} />
-        ))}
-      </div>
+function hm(t: string): number {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
 
-      {paddle.t.map(([route, dest, num, stops], ti) => (
-        <div className="pt-section" key={ti}>
-          <div className="pt-section-head">
-            <span className="pt-badge">{route}</span>
-            <span className="pt-section-dest">{dest}</span>
-            {num != null && <span className="pt-trip-n">trip {num}</span>}
+function PaddleTimeline({ paddle }: { paddle: Paddle }) {
+  // A paddle that runs past midnight restarts its clock at 0:00, so the
+  // rollover is called out rather than letting the times look like they
+  // jump backwards.
+  const sections: React.ReactNode[] = [];
+  let prev = -1;
+  let rolled = false;
+
+  const push = (
+    key: string,
+    head: React.ReactNode,
+    stops: PaddleStop[],
+    lastIsSignOff: boolean
+  ) => {
+    const rows: React.ReactNode[] = [];
+    stops.forEach((s, i) => {
+      const v = hm(s[0]);
+      if (!rolled && prev >= 0 && v < prev - 180) {
+        rolled = true;
+        rows.push(
+          <div className="pt-midnight" key={`mid-${i}`}>
+            next day
           </div>
-          {stops.map((s, i) => (
-            <StopRow
-              key={i}
-              stop={s}
-              kind={
-                ti === paddle.t.length - 1 && i === stops.length - 1
-                  ? "off"
-                  : "plain"
-              }
-            />
-          ))}
-        </div>
-      ))}
-    </div>
+        );
+      }
+      prev = v;
+      rows.push(
+        <StopRow
+          key={i}
+          stop={s}
+          kind={lastIsSignOff && i === stops.length - 1 ? "off" : "plain"}
+        />
+      );
+    });
+    sections.push(
+      <div className="pt-section" key={key}>
+        {head}
+        {rows}
+      </div>
+    );
+  };
+
+  push(
+    "pre",
+    <div className="pt-section-head">
+      <span className="pt-badge pt-badge-garage">Sign on</span>
+      <span className="pt-section-dest">Pull out of the garage</span>
+    </div>,
+    paddle.pre,
+    false
   );
+
+  paddle.t.forEach(([route, dest, num, stops], ti) => {
+    push(
+      `t${ti}`,
+      <div className="pt-section-head">
+        <span className="pt-badge">{route}</span>
+        <span className="pt-section-dest">{dest}</span>
+        {num != null && <span className="pt-trip-n">trip {num}</span>}
+      </div>,
+      stops,
+      ti === paddle.t.length - 1
+    );
+  });
+
+  return <div className="pt">{sections}</div>;
 }
 
 function PaddleCard({ paddle }: { paddle: Paddle }) {
@@ -102,7 +138,9 @@ function PaddleCard({ paddle }: { paddle: Paddle }) {
         </span>
         <span className="day-location-arrow">→</span>
         <span className="paddle-signpoint">
-          <span className="paddle-siglabel">Sign off</span>
+          <span className="paddle-siglabel">
+            Sign off{paddle.next ? " (next day)" : ""}
+          </span>
           <span className="paddle-sigtime">{paddle.off}</span>
           <span className="paddle-sigloc">{paddle.offL}</span>
         </span>

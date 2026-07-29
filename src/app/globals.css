@@ -1650,3 +1650,23 @@ html {
   background: var(--holiday-bg);
   color: var(--holiday);
 }
+
+.pt-midnight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 4px 46px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--holiday);
+}
+
+.pt-midnight::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--holiday);
+  opacity: 0.4;
+}
