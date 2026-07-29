@@ -7,6 +7,9 @@
 /** [time, location] with an optional trailing 1 marking a relief point. */
 export type PaddleStop = [string, string] | [string, string, number];
 
+/** [route, destination, trip number, stops] */
+export type PaddleTrip = [string, string, number | null, PaddleStop[]];
+
 export interface Paddle {
   /** Paddle number, e.g. "005001". */
   p: string;
@@ -24,8 +27,10 @@ export interface Paddle {
   offL: string;
   /** Sign-on to sign-off, in minutes. */
   span: number;
-  /** Every timed stop, in order. */
-  s: PaddleStop[];
+  /** Sign-on and pull-out, before the first trip. */
+  pre: PaddleStop[];
+  /** Each trip in service, in order. */
+  t: PaddleTrip[];
   /** Vehicle type when the book specifies one, e.g. "60IN", "VAN". */
   bus?: string;
 }

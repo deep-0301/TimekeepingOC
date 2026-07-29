@@ -7,18 +7,90 @@ import {
   searchPaddles,
   type Paddle,
   type PaddleBook,
+  type PaddleStop,
 } from "@/lib/paddles";
-import { fmtHM, toMin } from "@/lib/dateUtils";
+import { fmtHM } from "@/lib/dateUtils";
+
+function StopRow({
+  stop,
+  kind,
+}: {
+  stop: PaddleStop;
+  kind?: "on" | "off" | "plain";
+}) {
+  const relief = isReliefStop(stop);
+  return (
+    <div
+      className={
+        "pt-stop" +
+        (relief ? " is-relief" : "") +
+        (kind === "on" || kind === "off" ? " is-terminal" : "")
+      }
+    >
+      <span className="pt-time">{stop[0]}</span>
+      <span className="pt-marker" aria-hidden="true" />
+      <span className="pt-loc">
+        {stop[1]}
+        {relief && <span className="pt-tag pt-tag-relief">relief</span>}
+      </span>
+    </div>
+  );
+}
+
+function PaddleTimeline({ paddle }: { paddle: Paddle }) {
+  return (
+    <div className="pt">
+      <div className="pt-section">
+        <div className="pt-section-head">
+          <span className="pt-badge pt-badge-garage">Sign on</span>
+          <span className="pt-section-dest">Pull out of the garage</span>
+        </div>
+        {paddle.pre.map((s, i) => (
+          <StopRow key={i} stop={s} kind={i === 0 ? "on" : "plain"} />
+        ))}
+      </div>
+
+      {paddle.t.map(([route, dest, num, stops], ti) => (
+        <div className="pt-section" key={ti}>
+          <div className="pt-section-head">
+            <span className="pt-badge">{route}</span>
+            <span className="pt-section-dest">{dest}</span>
+            {num != null && <span className="pt-trip-n">trip {num}</span>}
+          </div>
+          {stops.map((s, i) => (
+            <StopRow
+              key={i}
+              stop={s}
+              kind={
+                ti === paddle.t.length - 1 && i === stops.length - 1
+                  ? "off"
+                  : "plain"
+              }
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function PaddleCard({ paddle }: { paddle: Paddle }) {
   const [open, setOpen] = useState(false);
+  const stopCount =
+    paddle.pre.length + paddle.t.reduce((n, t) => n + t[3].length, 0);
+  const hasRelief =
+    paddle.pre.some(isReliefStop) ||
+    paddle.t.some((t) => t[3].some(isReliefStop));
+
   return (
     <div className="result-card paddle-card">
       <div className="paddle-card-head">
         <span className="paddle-number">{paddle.p}</span>
-        <span className="paddle-routes">
-          {paddle.r.length ? `Route ${paddle.r.join(", ")}` : "—"}
-        </span>
+        {paddle.r.map((r) => (
+          <span className="pt-badge" key={r}>
+            {r}
+          </span>
+        ))}
         {paddle.bus && <span className="badge estimate">{paddle.bus}</span>}
       </div>
 
@@ -37,8 +109,9 @@ function PaddleCard({ paddle }: { paddle: Paddle }) {
       </div>
 
       <div className="day-stats" style={{ margin: "4px 0 0" }}>
-        Spread <b>{fmtHM(paddle.span)}</b> · {paddle.s.length} stops
-        {paddle.s.some(isReliefStop) && (
+        Spread <b>{fmtHM(paddle.span)}</b> · {paddle.t.length} trips ·{" "}
+        {stopCount} stops
+        {hasRelief && (
           <>
             {" "}
             · <span className="badge estimate">has relief</span>
@@ -52,25 +125,10 @@ function PaddleCard({ paddle }: { paddle: Paddle }) {
         onClick={() => setOpen((o) => !o)}
       >
         <span className="manage-work-caret">{open ? "▾" : "▸"}</span>
-        {open ? "Hide trips" : "Show all trips"}
+        {open ? "Hide the run" : "Show the whole run"}
       </button>
 
-      {open && (
-        <div className="paddle-stops">
-          {paddle.s.map((s, i) => (
-            <div
-              key={i}
-              className={"paddle-stop" + (isReliefStop(s) ? " is-relief" : "")}
-            >
-              <span className="paddle-stop-time">{s[0]}</span>
-              <span className="paddle-stop-loc">{s[1]}</span>
-              {isReliefStop(s) && (
-                <span className="badge estimate">relief</span>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      {open && <PaddleTimeline paddle={paddle} />}
     </div>
   );
 }
@@ -149,11 +207,4 @@ export default function PaddleSearch() {
       </div>
     </section>
   );
-}
-
-/** Sign-on to sign-off in minutes, for callers that want to price a paddle. */
-export function paddleSpanMin(p: Paddle): number {
-  const a = toMin(p.on);
-  const b = toMin(p.off);
-  return b >= a ? b - a : b + 24 * 60 - a;
 }
