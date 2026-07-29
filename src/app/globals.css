@@ -1520,16 +1520,77 @@ html {
   -webkit-overflow-scrolling: touch;
 }
 
-.pt-section {
-  margin-bottom: 4px;
+.pt-trip {
+  border-bottom: 1px solid var(--line);
 }
 
-.pt-section-head {
+.pt-trip:last-child {
+  border-bottom: none;
+}
+
+/* The whole heading is the toggle, so it needs to reset button styling. */
+.pt-trip-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  width: 100%;
+  padding: 9px 2px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pt-trip-head:hover {
+  background: #f2f6f8;
+}
+
+.pt-trip.is-open .pt-trip-head {
+  background: #eef4f7;
+}
+
+.pt-trip-title {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 7px;
-  margin: 10px 0 4px;
+  min-width: 0;
+}
+
+.pt-trip-meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+}
+
+.pt-trip-range {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.pt-trip-arrow {
+  color: var(--line);
+}
+
+.pt-trip-caret {
+  font-size: 11px;
+  color: var(--ink-soft);
+  width: 12px;
+  text-align: center;
+}
+
+.pt-trip-body {
+  padding: 2px 0 10px;
 }
 
 .pt-badge {
@@ -1562,6 +1623,11 @@ html {
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--ink-soft);
+}
+
+.pt-tag-next {
+  background: var(--dayoff-bg);
+  color: var(--dayoff-ink);
 }
 
 .pt-stop {
@@ -1651,22 +1717,4 @@ html {
   color: var(--holiday);
 }
 
-.pt-midnight {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 8px 0 4px 46px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: var(--holiday);
-}
 
-.pt-midnight::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--holiday);
-  opacity: 0.4;
-}
