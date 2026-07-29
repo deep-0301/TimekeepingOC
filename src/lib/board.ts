@@ -1,5 +1,6 @@
 import summerWeekdayRaw from "@/data/board-data.json";
-import summerWeekendRaw from "@/data/board-data-weekend.json";
+import summerSaturdayRaw from "@/data/board-data-summer-saturday.json";
+import summerSundayRaw from "@/data/board-data-summer-sunday.json";
 import fallWeekdayRaw from "@/data/board-data-fall-weekday.json";
 import fallSaturdayRaw from "@/data/board-data-fall-saturday.json";
 import fallSundayRaw from "@/data/board-data-fall-sunday.json";
@@ -19,7 +20,7 @@ interface SeasonDef {
 
 /** Booking seasons, each with its own set of boards. */
 export const SEASONS: SeasonDef[] = [
-  { id: "summer", label: "Summer 2026", from: "2026-06-29", to: "2026-08-29" },
+  { id: "summer", label: "Summer 2026", from: "2026-06-28", to: "2026-08-29" },
   { id: "fall", label: "Fall 2026", from: "2026-08-30", to: "2026-12-19" },
 ];
 
@@ -41,11 +42,6 @@ const SOURCES: { season: SeasonId; dayType: DayType; rows: BoardShift[] }[] = [
     rows: summerWeekdayRaw as unknown as BoardShift[],
   },
   {
-    season: "summer",
-    dayType: "saturday",
-    rows: summerWeekendRaw as unknown as BoardShift[],
-  },
-  {
     season: "fall",
     dayType: "weekday",
     rows: fallWeekdayRaw as unknown as BoardShift[],
@@ -59,6 +55,16 @@ const SOURCES: { season: SeasonId; dayType: DayType; rows: BoardShift[] }[] = [
     season: "fall",
     dayType: "sunday",
     rows: fallSundayRaw as unknown as BoardShift[],
+  },
+  {
+    season: "summer",
+    dayType: "saturday",
+    rows: summerSaturdayRaw as unknown as BoardShift[],
+  },
+  {
+    season: "summer",
+    dayType: "sunday",
+    rows: summerSundayRaw as unknown as BoardShift[],
   },
 ];
 

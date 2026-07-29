@@ -581,11 +581,17 @@ export default function DayEditor({
               </div>
             )}
             <div className="note" style={{ marginBottom: 6 }}>
-              Searching the{" "}
-              <b>
-                {board.season ? board.season.label : "—"} {board.dayType}
-              </b>{" "}
-              board.
+              {board.season ? (
+                <>
+                  Searching the{" "}
+                  <b>
+                    {board.season.label} {board.dayType}
+                  </b>{" "}
+                  board.
+                </>
+              ) : (
+                "That date is outside the booking seasons loaded."
+              )}
             </div>
 
             <input

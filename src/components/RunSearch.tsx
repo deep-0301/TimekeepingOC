@@ -43,13 +43,19 @@ export default function RunSearch({ periodDays, onAddShift }: RunSearchProps) {
         onChange={(e) => setQuery(e.target.value)}
       />
       <div className="note">
-        From the{" "}
-        <b>
-          {board.season ? board.season.label : "—"} {board.dayType}
-        </b>{" "}
-        pay board — the one that adds work to your calendar. Results are
-        grouped by full shift, so you can pick the exact combination you
-        actually worked.
+        {board.season ? (
+          <>
+            From the{" "}
+            <b>
+              {board.season.label} {board.dayType}
+            </b>{" "}
+            pay board — the one that adds work to your calendar.
+          </>
+        ) : (
+          "This period is outside the booking seasons loaded."
+        )}{" "}
+        Results are grouped by full shift, so you can pick the exact
+        combination you actually worked.
       </div>
       <div className="search-results">
         {query.trim() === "" ? null : results.length === 0 ? (
