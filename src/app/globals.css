@@ -1718,3 +1718,134 @@ html {
 }
 
 
+
+/* ==========================================================================
+   Hours of service
+   ========================================================================== */
+
+.hos-gauges {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.hos-gauge {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.hos-gauge-label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.hos-gauge-value {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 600;
+  margin: 2px 0 6px;
+}
+
+.hos-gauge-limit {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+.hos-gauge-sub {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  margin-top: 5px;
+}
+
+.hos-bar {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: #e2e7dc;
+  overflow: hidden;
+}
+
+.hos-bar-lg {
+  height: 8px;
+}
+
+.hos-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--steel);
+}
+
+.hos-bar-fill.is-close {
+  background: var(--amber);
+}
+
+.hos-bar-fill.is-over {
+  background: var(--red);
+}
+
+.hos-summary-line {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  margin-bottom: 10px;
+}
+
+.hos-summary-line b {
+  color: var(--ink);
+}
+
+.hos-cycle-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 66px;
+}
+
+.hos-over {
+  color: var(--red);
+  font-weight: 700;
+}
+
+.badge-breach {
+  background: #f6dede;
+  color: var(--red);
+  margin-right: 3px;
+}
+
+table.hos-table tr.row-hos-breach td {
+  background: #fdf4f3;
+}
+
+.hos-rules {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 10px 16px;
+  margin-bottom: 10px;
+}
+
+.hos-rule {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.hos-rule-n {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--steel-dark);
+  min-width: 44px;
+}
+
+.hos-rule-t {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}

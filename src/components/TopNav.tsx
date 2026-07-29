@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/search", label: "Find a Paddle" },
   { href: "/summary", label: "Pay Summary" },
   { href: "/biweekly", label: "Biweekly Hours" },
+  { href: "/hos", label: "Hours of Service" },
   { href: "/profile", label: "Profile" },
 ];
 
