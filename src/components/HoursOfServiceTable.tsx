@@ -17,7 +17,7 @@ export default function HoursOfServiceTable({ rows, cycle }: Props) {
 
   return (
     <div className="biweekly-table-wrap">
-      <table className="summary-table paystub-table biweekly-table hos-table">
+      <table className="summary-table paystub-table biweekly-table hos-table stack-table">
         <thead>
           <tr>
             <th>Date</th>
@@ -44,21 +44,41 @@ export default function HoursOfServiceTable({ rows, cycle }: Props) {
                   (r.dayOff ? " row-dayoff" : "")
                 }
               >
-                <td className="biweekly-date">{dayLabel(parseDateStr(r.dateStr))}</td>
-                <td className="biweekly-type">
+                <td className="biweekly-date stack-head" data-label="Date">
+                  {dayLabel(parseDateStr(r.dateStr))}
+                </td>
+                <td className="biweekly-type" data-label="Type">
                   {r.label}
                   {r.estimated && (
                     <span className="badge estimate">estimated</span>
                   )}
                 </td>
-                <td className={r.drivingMin > HOS_LIMITS.dailyDriving ? "hos-over" : undefined}>
+                <td
+                  data-label="Driving"
+                  className={
+                    (r.drivingMin > HOS_LIMITS.dailyDriving ? "hos-over " : "") +
+                    (r.drivingMin > 0 ? "" : "is-empty")
+                  }
+                >
                   {r.drivingMin > 0 ? fmtHM(r.drivingMin) : "—"}
                 </td>
-                <td>{r.otherOnDutyMin > 0 ? fmtHM(r.otherOnDutyMin) : "—"}</td>
-                <td className={r.onDutyMin > HOS_LIMITS.dailyOnDuty ? "hos-over" : undefined}>
+                <td
+                  data-label="Other on duty"
+                  className={r.otherOnDutyMin > 0 ? undefined : "is-empty"}
+                >
+                  {r.otherOnDutyMin > 0 ? fmtHM(r.otherOnDutyMin) : "—"}
+                </td>
+                <td
+                  data-label="On duty"
+                  className={
+                    (r.onDutyMin > HOS_LIMITS.dailyOnDuty ? "hos-over " : "") +
+                    (r.onDutyMin > 0 ? "" : "is-empty")
+                  }
+                >
                   {r.onDutyMin > 0 ? <b>{fmtHM(r.onDutyMin)}</b> : "—"}
                 </td>
                 <td
+                  data-label="Off duty"
                   className={
                     r.onDutyMin > 0 && r.offDutyMin < HOS_LIMITS.dailyOffDuty
                       ? "hos-over"
@@ -67,7 +87,13 @@ export default function HoursOfServiceTable({ rows, cycle }: Props) {
                 >
                   {fmtHM(r.offDutyMin)}
                 </td>
-                <td className={r.elapsedMin > HOS_LIMITS.elapsedWindow ? "hos-over" : undefined}>
+                <td
+                  data-label="Elapsed"
+                  className={
+                    (r.elapsedMin > HOS_LIMITS.elapsedWindow ? "hos-over " : "") +
+                    (r.firstOnMin != null ? "" : "is-empty")
+                  }
+                >
                   {r.firstOnMin != null && r.lastOffMin != null ? (
                     <span title={`${minToHHMM(r.firstOnMin % 1440)} → ${minToHHMM(r.lastOffMin % 1440)}`}>
                       {fmtHM(r.elapsedMin)}
@@ -76,7 +102,7 @@ export default function HoursOfServiceTable({ rows, cycle }: Props) {
                     "—"
                   )}
                 </td>
-                <td>
+                <td data-label={cycle === "cycle1" ? "7-day total" : "14-day total"}>
                   <span className="hos-cycle-cell">
                     <span className={rolling > cycleLimit ? "hos-over" : undefined}>
                       {fmtHM(rolling)}
@@ -96,7 +122,10 @@ export default function HoursOfServiceTable({ rows, cycle }: Props) {
                     </span>
                   </span>
                 </td>
-                <td>
+                <td
+                  data-label="Status"
+                  className={over || r.onDutyMin > 0 ? undefined : "is-empty"}
+                >
                   {over ? (
                     r.breaches.map((b) => (
                       <span className="badge badge-breach" key={b}>

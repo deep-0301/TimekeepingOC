@@ -1849,3 +1849,106 @@ table.hos-table tr.row-hos-breach td {
   line-height: 1.45;
   color: var(--ink-soft);
 }
+
+/* ==========================================================================
+   Wide tables as cards on a phone
+   The hours tables carry nine columns, which on a phone meant scrolling
+   sideways to read a single day. Below the breakpoint each row becomes its
+   own card with the column heading beside each figure, so a day reads top
+   to bottom and the page never scrolls sideways.
+   ========================================================================== */
+
+@media (max-width: 720px) {
+  .biweekly-table-wrap {
+    overflow-x: visible;
+  }
+
+  table.stack-table {
+    display: block;
+    min-width: 0;
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  table.stack-table thead {
+    display: none;
+  }
+
+  table.stack-table tbody {
+    display: block;
+  }
+
+  table.stack-table tr {
+    display: block;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 11px;
+    margin-bottom: 8px;
+    background: var(--card);
+  }
+
+  table.stack-table td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    border: none;
+    padding: 3px 0;
+    text-align: right;
+    font-size: 13px;
+  }
+
+  table.stack-table td::before {
+    content: attr(data-label);
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    text-align: left;
+    flex: 0 0 auto;
+  }
+
+  /* The date heads the card rather than sitting in a labelled row. */
+  table.stack-table td.stack-head {
+    display: block;
+    text-align: left;
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 600;
+    padding: 0 0 6px;
+    margin-bottom: 5px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  table.stack-table td.stack-head::before {
+    content: none;
+  }
+
+  /* A day off has little to show, so blank figures are left out entirely. */
+  table.stack-table td.is-empty {
+    display: none;
+  }
+
+  table.stack-table tr.total {
+    border-color: var(--steel-dark);
+    border-width: 2px;
+  }
+
+  table.stack-table tr.total td {
+    font-weight: 600;
+  }
+
+  .hos-cycle-cell {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .hos-cycle-cell .hos-bar {
+    width: 70px;
+    flex: 0 0 auto;
+  }
+}
