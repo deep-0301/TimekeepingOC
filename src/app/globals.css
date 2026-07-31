@@ -2105,3 +2105,35 @@ table.hos-table tr.row-hos-breach td {
     opacity: 1;
   }
 }
+
+/* Sign out sits top-right in the header on a wide screen, where it is clear
+   of the nav links; on a phone it is the last row of the nav drawer. */
+.header-signout {
+  align-self: flex-start;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+nav.top-nav .spacer,
+.nav-signout {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .header-signout {
+    display: none;
+  }
+
+  nav.top-nav .spacer {
+    display: block;
+    flex: 1 0 12px;
+  }
+
+  .nav-signout {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin-top: 10px;
+  }
+}

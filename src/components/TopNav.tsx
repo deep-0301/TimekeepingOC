@@ -102,6 +102,8 @@ export default function TopNav() {
             </Link>
           ))}
 
+          {/* Only the drawer shows this; on a wide screen Sign out sits in
+              the header, clear of the links. */}
           <div className="spacer" />
           <button
             className="ghost small nav-signout"
