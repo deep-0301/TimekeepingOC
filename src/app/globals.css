@@ -1995,21 +1995,141 @@ table.hos-table tr.row-hos-breach td {
   font-size: 14px;
 }
 
-/* Only the drawer shows these. */
-.nav-drawer-head,
-.nav-link-icon {
-  display: none;
+/* Wide screens: the links sit in the bar itself. */
+.nav-bar-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  flex: 1 1 auto;
 }
 
-/* The wrapper exists only to stack the scrim under the drawer on a phone;
-   on a wide screen it gets out of the way so the links stay flex children
-   of the nav row. */
+/* --------------------------------------------------------------------------
+   The phone drawer.
+
+   It is the last element on the page, so it paints over everything by
+   document order alone - see NavDrawer for why that matters. The wrapper used
+   to be `display: contents`, which Safari skips when working out stacking:
+   the z-index below was ignored there and the calendar painted straight
+   through the open menu. Hide it with `display: none`, never `contents`, and
+   keep every ancestor a plain block.
+   -------------------------------------------------------------------------- */
+
 .nav-overlay {
-  display: contents;
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  visibility: hidden;
+  /* Its own compositing layer, so the page behind cannot repaint over it. */
+  transform: translateZ(0);
 }
 
+.nav-overlay.is-open {
+  visibility: visible;
+}
+
+/* Scrim first, drawer second: the drawer paints above it by document order.
+   Relying on z-index across two containers worked in Chrome but not in iOS
+   Safari, where the scrim ended up over the drawer and ate every tap. */
 .nav-scrim {
-  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgba(23, 41, 58, 0.45);
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+
+.nav-overlay.is-open .nav-scrim {
+  opacity: 1;
+}
+
+.nav-links {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: min(82vw, 300px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 12px calc(14px + env(safe-area-inset-bottom));
+  background: var(--card);
+  border-right: 1px solid var(--line);
+  box-shadow: 2px 0 18px rgba(0, 0, 0, 0.18);
+  overflow-y: auto;
+  /* Keeps a flick at the end of the list from scrolling the page behind. */
+  overscroll-behavior: contain;
+  transform: translateX(-102%);
+  transition: transform 0.22s ease;
+}
+
+.nav-overlay.is-open .nav-links {
+  transform: translateX(0);
+}
+
+.nav-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+
+.nav-drawer-title {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.nav-links .nav-link-icon {
+  display: inline-block;
+  width: 22px;
+  text-align: center;
+  margin-right: 8px;
+}
+
+/* Full-width rows rather than a tab strip, with a tappable height. */
+.nav-links .top-nav-link {
+  display: flex;
+  align-items: center;
+  padding: 13px 10px;
+  border-radius: 7px;
+  border-bottom: none;
+  margin-bottom: 0;
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.nav-links .top-nav-link-active {
+  background: #e4eef2;
+  color: var(--steel-dark);
+  border-bottom: none;
+}
+
+.nav-links .spacer {
+  flex: 1 0 12px;
+}
+
+.nav-signout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: 10px;
+}
+
+/* Sign out sits top-right in the header on a wide screen, where it is clear
+   of the nav links; on a phone it is the last row of the nav drawer. */
+.header-signout {
+  align-self: flex-start;
+  margin-left: auto;
+  flex: 0 0 auto;
 }
 
 @media (max-width: 720px) {
@@ -2024,135 +2144,11 @@ table.hos-table tr.row-hos-breach td {
 
   .nav-overlay {
     display: block;
-    position: fixed;
-    inset: 0;
-    z-index: 60;
-    visibility: hidden;
   }
 
-  .nav-overlay.is-open {
-    visibility: visible;
-  }
-
-  .nav-scrim {
-    display: block;
-    position: absolute;
-    inset: 0;
-    background: rgba(23, 41, 58, 0.45);
-    opacity: 0;
-    transition: opacity 0.22s ease;
-  }
-
-  .nav-overlay.is-open .nav-scrim {
-    opacity: 1;
-  }
-
-  .nav-links {
-    position: absolute;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    width: min(82vw, 300px);
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 14px 12px calc(14px + env(safe-area-inset-bottom));
-    background: var(--card);
-    border-right: 1px solid var(--line);
-    box-shadow: 2px 0 18px rgba(0, 0, 0, 0.18);
-    overflow-y: auto;
-    transform: translateX(-102%);
-    transition: transform 0.22s ease;
-  }
-
-  .nav-overlay.is-open .nav-links {
-    transform: translateX(0);
-  }
-
-  .nav-drawer-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    padding-bottom: 10px;
-    margin-bottom: 6px;
-    border-bottom: 1px solid var(--line);
-  }
-
-  .nav-drawer-title {
-    font-family: var(--font-display);
-    font-size: 15px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    color: var(--ink-soft);
-  }
-
-  .nav-link-icon {
-    display: inline-block;
-    width: 22px;
-    text-align: center;
-    margin-right: 8px;
-  }
-
-  /* Full-width rows rather than a tab strip, with a tappable height. */
-  .top-nav-link {
-    display: flex;
-    align-items: center;
-    padding: 13px 10px;
-    border-radius: 7px;
-    border-bottom: none;
-    margin-bottom: 0;
-    font-size: 15px;
-    color: var(--ink);
-  }
-
-  .top-nav-link-active {
-    background: #e4eef2;
-    color: var(--steel-dark);
-    border-bottom: none;
-  }
-
-  nav.top-nav .spacer {
-    flex: 1 0 12px;
-  }
-
-  .nav-signout {
-    width: 100%;
-    margin-top: 10px;
-  }
-
-}
-
-/* Sign out sits top-right in the header on a wide screen, where it is clear
-   of the nav links; on a phone it is the last row of the nav drawer. */
-.header-signout {
-  align-self: flex-start;
-  margin-left: auto;
-  flex: 0 0 auto;
-}
-
-nav.top-nav .spacer,
-.nav-signout {
-  display: none;
-}
-
-@media (max-width: 720px) {
+  .nav-bar-links,
   .header-signout {
     display: none;
-  }
-
-  nav.top-nav .spacer {
-    display: block;
-    flex: 1 0 12px;
-  }
-
-  .nav-signout {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    margin-top: 10px;
   }
 }
 
