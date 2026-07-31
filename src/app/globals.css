@@ -1952,3 +1952,156 @@ table.hos-table tr.row-hos-breach td {
     flex: 0 0 auto;
   }
 }
+
+/* ==========================================================================
+   Navigation
+   Inline across the top on a wide screen; a drawer behind a menu button on
+   a phone, where seven links plus Sign out do not fit on one line.
+   ========================================================================== */
+
+.nav-toggle {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 9px 13px;
+  font-weight: 600;
+}
+
+.nav-toggle:hover {
+  background: #e4e8de;
+}
+
+.nav-toggle-bars {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 16px;
+  height: 12px;
+  flex: 0 0 auto;
+}
+
+.nav-toggle-bars span {
+  display: block;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--steel-dark);
+}
+
+.nav-toggle-current {
+  font-size: 14px;
+}
+
+/* Only the drawer shows these. */
+.nav-drawer-head,
+.nav-link-icon {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  nav.top-nav {
+    border-bottom: none;
+    margin-bottom: 12px;
+  }
+
+  .nav-toggle {
+    display: inline-flex;
+  }
+
+  .nav-links {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 60;
+    width: min(82vw, 300px);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 14px 12px calc(14px + env(safe-area-inset-bottom));
+    background: var(--card);
+    border-right: 1px solid var(--line);
+    box-shadow: 2px 0 18px rgba(0, 0, 0, 0.18);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    transform: translateX(-102%);
+    transition: transform 0.22s ease;
+  }
+
+  .nav-links.is-open {
+    transform: translateX(0);
+  }
+
+  .nav-drawer-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding-bottom: 10px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .nav-drawer-title {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .nav-link-icon {
+    display: inline-block;
+    width: 22px;
+    text-align: center;
+    margin-right: 8px;
+  }
+
+  /* Full-width rows rather than a tab strip, with a tappable height. */
+  .top-nav-link {
+    display: flex;
+    align-items: center;
+    padding: 13px 10px;
+    border-radius: 7px;
+    border-bottom: none;
+    margin-bottom: 0;
+    font-size: 15px;
+    color: var(--ink);
+  }
+
+  .top-nav-link-active {
+    background: #e4eef2;
+    color: var(--steel-dark);
+    border-bottom: none;
+  }
+
+  nav.top-nav .spacer {
+    flex: 1 0 12px;
+  }
+
+  .nav-signout {
+    width: 100%;
+    margin-top: 10px;
+  }
+
+  .nav-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgba(23, 41, 58, 0.45);
+    animation: nav-scrim-in 0.18s ease;
+  }
+}
+
+@keyframes nav-scrim-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
