@@ -2001,6 +2001,17 @@ table.hos-table tr.row-hos-breach td {
   display: none;
 }
 
+/* The wrapper exists only to stack the scrim under the drawer on a phone;
+   on a wide screen it gets out of the way so the links stay flex children
+   of the nav row. */
+.nav-overlay {
+  display: contents;
+}
+
+.nav-scrim {
+  display: none;
+}
+
 @media (max-width: 720px) {
   nav.top-nav {
     border-bottom: none;
@@ -2011,12 +2022,36 @@ table.hos-table tr.row-hos-breach td {
     display: inline-flex;
   }
 
-  .nav-links {
+  .nav-overlay {
+    display: block;
     position: fixed;
+    inset: 0;
+    z-index: 60;
+    visibility: hidden;
+  }
+
+  .nav-overlay.is-open {
+    visibility: visible;
+  }
+
+  .nav-scrim {
+    display: block;
+    position: absolute;
+    inset: 0;
+    background: rgba(23, 41, 58, 0.45);
+    opacity: 0;
+    transition: opacity 0.22s ease;
+  }
+
+  .nav-overlay.is-open .nav-scrim {
+    opacity: 1;
+  }
+
+  .nav-links {
+    position: absolute;
     top: 0;
     left: 0;
     bottom: 0;
-    z-index: 60;
     width: min(82vw, 300px);
     display: flex;
     flex-direction: column;
@@ -2026,12 +2061,11 @@ table.hos-table tr.row-hos-breach td {
     border-right: 1px solid var(--line);
     box-shadow: 2px 0 18px rgba(0, 0, 0, 0.18);
     overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
     transform: translateX(-102%);
     transition: transform 0.22s ease;
   }
 
-  .nav-links.is-open {
+  .nav-overlay.is-open .nav-links {
     transform: translateX(0);
   }
 
@@ -2088,22 +2122,6 @@ table.hos-table tr.row-hos-breach td {
     margin-top: 10px;
   }
 
-  .nav-scrim {
-    position: fixed;
-    inset: 0;
-    z-index: 55;
-    background: rgba(23, 41, 58, 0.45);
-    animation: nav-scrim-in 0.18s ease;
-  }
-}
-
-@keyframes nav-scrim-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
 }
 
 /* Sign out sits top-right in the header on a wide screen, where it is clear

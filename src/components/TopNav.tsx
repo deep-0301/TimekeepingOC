@@ -69,11 +69,17 @@ export default function TopNav() {
           </span>
         </button>
 
-        <div
-          id="main-nav"
-          className={"nav-links" + (open ? " is-open" : "")}
-          role="navigation"
-        >
+        {/* Scrim and drawer share one container, scrim first, so the drawer
+            always paints above it. Relying on z-index across two separate
+            containers works in Chrome but not in iOS Safari, where the scrim
+            ended up over the drawer and swallowed every tap. */}
+        <div className={"nav-overlay" + (open ? " is-open" : "")}>
+          <div
+            className="nav-scrim"
+            onClick={() => setOpen(false)}
+            aria-hidden="true"
+          />
+          <div id="main-nav" className="nav-links" role="navigation">
           <div className="nav-drawer-head">
             <span className="nav-drawer-title">Menu</span>
             <button
@@ -111,16 +117,9 @@ export default function TopNav() {
           >
             Sign out
           </button>
+          </div>
         </div>
       </nav>
-
-      {open && (
-        <div
-          className="nav-scrim"
-          onClick={() => setOpen(false)}
-          aria-hidden="true"
-        />
-      )}
     </>
   );
 }
