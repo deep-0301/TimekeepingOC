@@ -9,6 +9,7 @@ const LINKS = [
   { href: "/", label: "Calendar", icon: "📅" },
   { href: "/import", label: "Import Sheets", icon: "📥" },
   { href: "/search", label: "Find a Paddle", icon: "🔎" },
+  { href: "/bus", label: "Find a Bus", icon: "🚌" },
   { href: "/summary", label: "Pay Summary", icon: "💵" },
   { href: "/biweekly", label: "Biweekly Hours", icon: "🗓️" },
   { href: "/hos", label: "Hours of Service", icon: "⏱️" },

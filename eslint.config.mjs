@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Vendored static assets, not source we author:
     "public/**",
+    // Deno, not Next - different globals and import syntax entirely:
+    "supabase/functions/**",
   ]),
 ]);
 

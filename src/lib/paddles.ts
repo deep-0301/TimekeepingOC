@@ -111,3 +111,77 @@ export function searchPaddles(book: PaddleBook, query: string): PaddleSearch {
 export function isReliefStop(s: PaddleStop): boolean {
   return s.length > 2 && s[2] === 1;
 }
+
+function toMin(hhmm: string): number {
+  const [h, m] = hhmm.split(":");
+  return Number(h) * 60 + Number(m);
+}
+
+export interface PaddleGuess {
+  paddle: Paddle;
+  trip: PaddleTrip;
+  tripIndex: number;
+  /** Minutes from midnight of the sign-on day; may run past 1440. */
+  startMin: number;
+  endMin: number;
+}
+
+/**
+ * Which paddles are working a given route at a given time of day.
+ *
+ * The realtime feed names the route and the GTFS trip, but the paddle book
+ * knows nothing about GTFS trip ids, so the two can only be tied together by
+ * route and clock. That makes this a shortlist rather than an answer - on a
+ * frequent route several paddles are on the road at once.
+ *
+ * Paddle times are printed on a 24-hour clock and simply wrap past midnight,
+ * so each paddle is walked in printed order with 24 h added every time the
+ * clock goes backwards.
+ */
+export function paddlesOnRouteAt(
+  book: PaddleBook,
+  route: string,
+  minOfDay: number,
+): PaddleGuess[] {
+  const want = route.trim().toLowerCase();
+  if (!want) return [];
+
+  const out: PaddleGuess[] = [];
+  for (const paddle of book.paddles) {
+    if (!paddle.r.some((r) => r.toLowerCase() === want)) continue;
+
+    let prev = toMin(paddle.on);
+    let offset = 0;
+
+    paddle.t.forEach((trip, tripIndex) => {
+      const stops = trip[3];
+      if (stops.length === 0) return;
+
+      // Unwrapped for every trip, not just matching ones, so the running
+      // clock stays monotonic across the whole paddle.
+      const abs = stops.map((s) => {
+        let m = toMin(s[0]) + offset;
+        if (m < prev) {
+          offset += 1440;
+          m += 1440;
+        }
+        prev = m;
+        return m;
+      });
+
+      if (trip[0].toLowerCase() !== want) return;
+
+      const startMin = abs[0];
+      const endMin = abs[abs.length - 1];
+      // Tested against tomorrow as well, so a paddle that signed on before
+      // midnight still matches in the small hours.
+      const inWindow =
+        (minOfDay >= startMin && minOfDay <= endMin) ||
+        (minOfDay + 1440 >= startMin && minOfDay + 1440 <= endMin);
+      if (inWindow) out.push({ paddle, trip, tripIndex, startMin, endMin });
+    });
+  }
+
+  out.sort((a, b) => a.startMin - b.startMin || a.paddle.p.localeCompare(b.paddle.p));
+  return out;
+}
