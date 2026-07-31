@@ -20,6 +20,10 @@ pay-calculation logic.
   Sunday premium, stat holiday pay, and week start day.
 - **Weekly summary** — gross pay breakdown (regular, overtime, non-platform,
   callup, booking, Sunday premium, stat holiday).
+- **Live bus lookup** — search the four-digit number on a bus (or a route
+  number) for its current position, speed, and how far off schedule it is,
+  from OC Transpo's GTFS-Realtime feeds. Needs the `bus` edge function
+  deployed — see [`supabase/functions/README.md`](supabase/functions/README.md).
 
 ## Getting started
 

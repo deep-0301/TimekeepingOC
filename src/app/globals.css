@@ -2155,3 +2155,271 @@ nav.top-nav .spacer,
     margin-top: 10px;
   }
 }
+
+/* ==========================================================================
+   Live bus lookup
+   ========================================================================== */
+
+.bus-form {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.bus-input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 17px;
+  letter-spacing: 1px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+}
+
+.bus-input:focus {
+  outline: 2px solid var(--steel);
+  outline-offset: -1px;
+}
+
+.bus-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.bus-auto {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+  user-select: none;
+}
+
+.bus-auto input {
+  margin: 0;
+}
+
+.bus-total {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-left: auto;
+}
+
+.bus-error {
+  color: var(--red);
+  font-weight: 500;
+}
+
+.bus-results {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.bus-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #fff;
+}
+
+.bus-card-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* The number painted on the bus is the thing being looked up, so it is the
+   thing the eye should land on first. */
+.bus-fleet {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  line-height: 1;
+}
+
+.bus-card-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-left: auto;
+}
+
+.bus-route-badge {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  background: var(--steel);
+  color: #fff;
+}
+
+.bus-route-badge.is-idle {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
+.bus-delay {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.bus-delay.is-ok {
+  background: #e2efe8;
+  color: var(--green);
+}
+
+.bus-delay.is-warn {
+  background: var(--holiday-bg);
+  color: var(--holiday);
+}
+
+.bus-delay.is-bad {
+  background: #f7e3e1;
+  color: var(--red);
+}
+
+.bus-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(115px, 1fr));
+  gap: 8px 14px;
+  margin: 12px 0 0;
+}
+
+.bus-facts div {
+  min-width: 0;
+}
+
+.bus-facts dt {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.bus-facts dd {
+  margin: 2px 0 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.bus-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.bus-map-link {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--steel-dark);
+  text-decoration: none;
+}
+
+.bus-map-link:hover {
+  background: #e4e8de;
+}
+
+.bus-coords {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-soft);
+  margin-left: auto;
+}
+
+.bus-guesses {
+  margin-top: 10px;
+  padding: 2px 12px 10px;
+  border-radius: 6px;
+  background: #eef4f7;
+}
+
+.bus-guess-error {
+  color: var(--red);
+}
+
+.bus-guess-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bus-guess-list li {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.bus-guess-num {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+
+.bus-guess-meta {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 620px) {
+  .bus-form {
+    flex-wrap: wrap;
+  }
+
+  .bus-input {
+    flex-basis: 100%;
+  }
+
+  .bus-form button {
+    width: 100%;
+  }
+
+  /* Stacked, the fleet number reads better on its own line than squeezed
+     against the route badge. */
+  .bus-card-tags {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .bus-coords {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .bus-total {
+    margin-left: 0;
+  }
+}
