@@ -42,29 +42,63 @@ export interface BusFeed {
   vehicles: BusVehicle[];
 }
 
+const UNREACHABLE =
+  "Could not reach the bus feed. Check that the 'bus' edge function is deployed.";
+
+/**
+ * Turns a failed invoke into something worth reading.
+ *
+ * `error.context` is only a Response when the function answered with a non-2xx
+ * - which is the case worth digging into, since the body carries the
+ * function's own message. When the call never landed at all, the client puts
+ * the underlying network error there instead, and it has none of the Response
+ * methods. Everything below is therefore probed before it is called.
+ */
+async function describeInvokeError(error: unknown): Promise<string> {
+  const context = (error as { context?: unknown }).context;
+  const res = context as Response | undefined;
+
+  if (res && typeof res.text === "function") {
+    try {
+      // Cloning leaves the body readable for anyone else holding the response;
+      // older clients hand over a plain object without it.
+      const source = typeof res.clone === "function" ? res.clone() : res;
+      const text = await source.text();
+      try {
+        const body = JSON.parse(text);
+        if (body && typeof body.error === "string") return body.error;
+      } catch {
+        // A gateway erroring out sends back an HTML page, which is no use to
+        // anyone reading it in a status line - fall through to the status.
+        const trimmed = text.trim();
+        if (trimmed && !trimmed.startsWith("<")) return trimmed.slice(0, 300);
+      }
+    } catch {
+      // Body already consumed, or not readable. The status still says plenty.
+    }
+    if (typeof res.status === "number" && res.status > 0) {
+      return res.status === 404
+        ? UNREACHABLE
+        : `The bus feed returned HTTP ${res.status}.`;
+    }
+  }
+
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  // A blocked or missing function shows up as a bare fetch failure, whose
+  // default wording ("Failed to fetch") explains nothing to an operator.
+  if (!message || /failed to (fetch|send)|networkerror|load failed/i.test(message)) {
+    return UNREACHABLE;
+  }
+  return message;
+}
+
 export async function fetchBuses(query: string): Promise<BusFeed> {
   const { data, error } = await supabase.functions.invoke<BusFeed | { error: string }>(
     "bus",
     { body: { q: query } },
   );
 
-  if (error) {
-    // The client wraps a non-2xx in FunctionsHttpError and hides the body on
-    // the error itself, but the original response is still attached - and it
-    // carries the message worth showing, like a rejected subscription key.
-    const res = (error as { context?: Response }).context;
-    if (res) {
-      const body = await res
-        .clone()
-        .json()
-        .catch(() => null);
-      if (body && typeof body.error === "string") throw new Error(body.error);
-    }
-    throw new Error(
-      error.message ||
-        "Could not reach the bus feed. Check that the 'bus' function is deployed.",
-    );
-  }
+  if (error) throw new Error(await describeInvokeError(error));
 
   if (!data) throw new Error("The bus feed returned nothing.");
   if ("error" in data && typeof data.error === "string") throw new Error(data.error);
