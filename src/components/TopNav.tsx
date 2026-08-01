@@ -1,126 +1,57 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { NAV_LINKS, isActiveHref } from "@/lib/nav";
 
-const LINKS = [
-  { href: "/", label: "Calendar", icon: "📅" },
-  { href: "/import", label: "Import Sheets", icon: "📥" },
-  { href: "/search", label: "Find a Paddle", icon: "🔎" },
-  { href: "/bus", label: "Find a Bus", icon: "🚌" },
-  { href: "/summary", label: "Pay Summary", icon: "💵" },
-  { href: "/biweekly", label: "Biweekly Hours", icon: "🗓️" },
-  { href: "/hos", label: "Hours of Service", icon: "⏱️" },
-  { href: "/profile", label: "Profile", icon: "👤" },
-];
+interface Props {
+  open: boolean;
+  onOpen: () => void;
+}
 
-export default function TopNav() {
+/**
+ * The nav bar: a row of links on a wide screen, or the button that opens the
+ * drawer on a phone. The drawer itself is NavDrawer, rendered at the very
+ * bottom of the page so that it paints over everything.
+ */
+export default function TopNav({ open, onOpen }: Props) {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
-
-  const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href);
-
-  const current = LINKS.find((l) => isActive(l.href));
-
-  // Tapping a link closes the drawer itself; this covers the back button,
-  // which would otherwise change the page behind an open drawer.
-  useEffect(() => {
-    const onPop = () => setOpen(false);
-    window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
-  }, []);
-
-  // While the drawer is over the page, the page itself must not scroll, and
-  // Escape should get you out of it.
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  const current = NAV_LINKS.find((l) => isActiveHref(l.href, pathname));
 
   return (
-    <>
-      <nav className="top-nav">
-        <button
-          type="button"
-          className="nav-toggle"
-          aria-label="Open menu"
-          aria-expanded={open}
-          aria-controls="main-nav"
-          onClick={() => setOpen(true)}
-        >
-          <span className="nav-toggle-bars" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </span>
-          <span className="nav-toggle-current">
-            {current ? current.label : "Menu"}
-          </span>
-        </button>
+    <nav className="top-nav">
+      <button
+        type="button"
+        className="nav-toggle"
+        aria-label="Open menu"
+        aria-expanded={open}
+        aria-controls="main-nav"
+        onClick={onOpen}
+      >
+        <span className="nav-toggle-bars" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </span>
+        <span className="nav-toggle-current">
+          {current ? current.label : "Menu"}
+        </span>
+      </button>
 
-        {/* Scrim and drawer share one container, scrim first, so the drawer
-            always paints above it. Relying on z-index across two separate
-            containers works in Chrome but not in iOS Safari, where the scrim
-            ended up over the drawer and swallowed every tap. */}
-        <div className={"nav-overlay" + (open ? " is-open" : "")}>
-          <div
-            className="nav-scrim"
-            onClick={() => setOpen(false)}
-            aria-hidden="true"
-          />
-          <div id="main-nav" className="nav-links" role="navigation">
-          <div className="nav-drawer-head">
-            <span className="nav-drawer-title">Menu</span>
-            <button
-              type="button"
-              className="ghost small"
-              onClick={() => setOpen(false)}
-              aria-label="Close menu"
-            >
-              Close
-            </button>
-          </div>
-
-          {LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={
-                "top-nav-link" + (isActive(link.href) ? " top-nav-link-active" : "")
-              }
-              onClick={() => setOpen(false)}
-            >
-              <span className="nav-link-icon" aria-hidden="true">
-                {link.icon}
-              </span>
-              {link.label}
-            </Link>
-          ))}
-
-          {/* Only the drawer shows this; on a wide screen Sign out sits in
-              the header, clear of the links. */}
-          <div className="spacer" />
-          <button
-            className="ghost small nav-signout"
-            onClick={() => supabase.auth.signOut()}
+      <div className="nav-bar-links">
+        {NAV_LINKS.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className={
+              "top-nav-link" +
+              (isActiveHref(link.href, pathname) ? " top-nav-link-active" : "")
+            }
           >
-            Sign out
-          </button>
-          </div>
-        </div>
-      </nav>
-    </>
+            {link.label}
+          </Link>
+        ))}
+      </div>
+    </nav>
   );
 }
