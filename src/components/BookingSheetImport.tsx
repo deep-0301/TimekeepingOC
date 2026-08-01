@@ -6,6 +6,7 @@ import {
   parseBookingSheetText,
   type SheetBlock,
 } from "@/lib/bookingSheetParser";
+import { matchBoardShift } from "@/lib/board";
 import { BOOKING_TYPE_INFO, DEFAULT_SLOTS, type BookingType } from "@/lib/bookingType";
 import { fmtDate, fmtHM, parseDateStr } from "@/lib/dateUtils";
 import { extractPdfText } from "@/lib/pdfExtract";
@@ -201,33 +202,59 @@ function BookingSheetSlot({
           if (useDriving) {
             const override = totalOverrides[i];
             const sumMin = fallbackTotalMin(b.rows);
-            const platMin = hasTotals
+            // The board is the schedule the sheet's figures describe, so when
+            // the runs identify a whole shift on the board that date runs, its
+            // plat and pay are used in place of whatever the sheet printed.
+            // The sheet's own totals stay the fallback for work the board does
+            // not cover - a relief part-way through a shift, a sheet from a
+            // board that has not been loaded, an unreadable scan.
+            const match = matchBoardShift(
+              b.rows.map((r) => ({
+                run: r.run,
+                onTime: r.onTime,
+                offTime: r.offTime,
+              })),
+              b.rows[0]?.shiftCode ?? null,
+              dateStr
+            );
+            const boardShift = match && match.complete ? match.shift : null;
+
+            const platMin = boardShift
+              ? boardShift[1]
+              : hasTotals
               ? hmToMin(b.totalPlat)
               : override && isValidHM(override.plat)
               ? hmToMin(override.plat)
               : sumMin;
-            const payMin = hasTotals
+            const payMin = boardShift
+              ? boardShift[2]
+              : hasTotals
               ? hmToMin(b.totalPay)
               : override && isValidHM(override.pay)
               ? hmToMin(override.pay)
               : sumMin;
+            const boardRuns = boardShift
+              ? boardShift[3].map((r) => r[0])
+              : null;
             day.pieces = b.rows.map(
               (r): EntryPiece => ({
                 run: r.run,
-                shiftId: r.shiftCode,
+                shiftId: boardShift ? boardShift[0] : r.shiftCode,
                 onTime: r.onTime,
                 offTime: r.offTime,
                 onLoc: r.onLoc,
                 offLoc: r.offLoc,
                 platMin: hmToMin(r.segPlat || r.totalGuarantee),
-                shiftPlat: 0,
-                shiftPay: 0,
-                allRuns: b.rows.map((rr) => rr.run),
+                shiftPlat: boardShift ? boardShift[1] : 0,
+                shiftPay: boardShift ? boardShift[2] : 0,
+                shiftIndex: match ? match.si : null,
+                allRuns: boardRuns ?? b.rows.map((rr) => rr.run),
               })
             );
             day.fromSheet = true;
             day.sheetPlat = platMin;
             day.sheetPay = payMin;
+            day.fromBoard = boardShift ? true : undefined;
           } else if (anySpare) {
             const totalMin = b.rows.reduce(
               (a, r) => a + hmToMin(r.totalGuarantee),
@@ -356,11 +383,38 @@ function BookingSheetSlot({
                   ? "Spare / standby"
                   : "Unclear — check manually";
                 const runsDesc = b.rows.map((r) => r.run).join(" + ");
+                const firstDate = (rowDatesList[i] || [])[0] || "";
+                // Previewed against the pattern's first date, since that is
+                // the board the whole pattern will be matched against unless
+                // it straddles a season change.
+                const match =
+                  useDriving && !b.isDayOff && firstDate
+                    ? matchBoardShift(
+                        b.rows.map((r) => ({
+                          run: r.run,
+                          onTime: r.onTime,
+                          offTime: r.offTime,
+                        })),
+                        b.rows[0]?.shiftCode ?? null,
+                        firstDate
+                      )
+                    : null;
+                const boardShift = match && match.complete ? match.shift : null;
+                const sheetDisagrees =
+                  boardShift &&
+                  hasTotals &&
+                  (hmToMin(b.totalPlat) !== boardShift[1] ||
+                    hmToMin(b.totalPay) !== boardShift[2]);
                 let hoursDesc = "";
                 if (b.isDayOff) hoursDesc = "";
                 else if (useDriving)
-                  hoursDesc = hasTotals
-                    ? `Plat ${b.totalPlat} / Pay ${b.totalPay}`
+                  hoursDesc = boardShift
+                    ? `Plat ${fmtHM(boardShift[1])} / Pay ${fmtHM(boardShift[2])} — from the board, shift ${boardShift[0]}` +
+                      (sheetDisagrees
+                        ? ` (sheet prints ${b.totalPlat} / ${b.totalPay})`
+                        : "")
+                    : hasTotals
+                    ? `Plat ${b.totalPlat} / Pay ${b.totalPay} — as printed, no board match`
                     : `Plat/Pay ${fmtHM(fallbackTotalMin(b.rows))} (estimated - no totals line found)`;
                 else if (anySpare) {
                   const totalMin = b.rows.reduce(
