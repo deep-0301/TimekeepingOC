@@ -6,6 +6,7 @@ import {
   boardForDate,
   getShiftsForRun,
   searchRuns,
+  shiftEndpoints,
   shortLocation,
 } from "@/lib/board";
 import { computeDay } from "@/lib/pay";
@@ -614,11 +615,14 @@ export default function DayEditor({
                 ) : (
                   <>
                     {results.map(({ si, shift }) => {
-                      const [shiftId, totalPlat, totalPay, runs] = shift;
+                      const [, totalPlat, totalPay, runs] = shift;
+                      const { start, finish } = shiftEndpoints(shift);
                       return (
                         <div className="result-card" key={si}>
                           <div className="details">
-                            <span className="shift-tag">shift {shiftId}</span>
+                            <span className="shift-route">
+                              {start} &rarr; {finish}
+                            </span>
                             &nbsp; {runs.map((r) => r[0]).join(" + ")} &nbsp;
                             <b>{fmtHM(totalPlat)}</b> plat / <b>{fmtHM(totalPay)}</b>{" "}
                             pay

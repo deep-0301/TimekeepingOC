@@ -2419,3 +2419,18 @@ table.hos-table tr.row-hos-breach td {
     margin-left: 0;
   }
 }
+
+/* Where a shift signs on and signs off, in place of its board number - the
+   number means nothing to an operator picking work off a list. */
+.shift-route {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--steel-dark);
+  background: #e4eef2;
+  padding: 2px 7px;
+  border-radius: 3px;
+  white-space: nowrap;
+}

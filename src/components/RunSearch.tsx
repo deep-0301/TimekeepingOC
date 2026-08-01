@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { boardForDate, searchRuns } from "@/lib/board";
+import { boardForDate, searchRuns, shiftEndpoints } from "@/lib/board";
 import { fmtDate, fmtHM, dayLabel } from "@/lib/dateUtils";
 
 interface RunSearchProps {
@@ -67,7 +67,8 @@ export default function RunSearch({ periodDays, onAddShift }: RunSearchProps) {
         ) : (
           <>
             {results.map(({ si, shift, matchedRuns }) => {
-              const [shiftId, totalPlat, totalPay, runs] = shift;
+              const [, totalPlat, totalPay, runs] = shift;
+              const { start, finish } = shiftEndpoints(shift);
               const selectedDate = selectedDates[si] ?? dateOptions[0]?.value ?? "";
               return (
                 <div
@@ -76,7 +77,9 @@ export default function RunSearch({ periodDays, onAddShift }: RunSearchProps) {
                   style={{ flexDirection: "column", alignItems: "stretch" }}
                 >
                   <div className="details">
-                    <span className="shift-tag">shift {shiftId}</span>{" "}
+                    <span className="shift-route">
+                      {start} &rarr; {finish}
+                    </span>{" "}
                     &nbsp; {runs.length} piece(s) &nbsp; total{" "}
                     <b>{fmtHM(totalPlat)}</b> plat / <b>{fmtHM(totalPay)}</b>{" "}
                     pay

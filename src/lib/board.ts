@@ -145,6 +145,25 @@ export function shortLocation(name: string): string {
   return name.replace(/\s+(Station|Garage)$/i, "");
 }
 
+/**
+ * Where a shift signs on and signs off.
+ *
+ * Taken from the first piece's on location and the last piece's off location,
+ * which on a split shift belong to different pieces - the middle pieces say
+ * nothing about where the day starts or ends.
+ */
+export function shiftEndpoints(shift: BoardShift): {
+  start: string;
+  finish: string;
+} {
+  const runs = shift[3];
+  if (runs.length === 0) return { start: "", finish: "" };
+  return {
+    start: shortLocation(runs[0][3]),
+    finish: shortLocation(runs[runs.length - 1][4]),
+  };
+}
+
 export const runIndex: Record<string, RunIndexEntry[]> = {};
 BOARD_DATA.forEach((shift, si) => {
   shift[3].forEach((r) => {
