@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import InfoIcon from "./InfoIcon";
 
 interface Props {
   title: string;
@@ -31,7 +32,7 @@ export default function PanelHeading({ title, info }: Props) {
           aria-label={open ? `Hide help: ${title}` : `Help: ${title}`}
           onClick={() => setOpen((o) => !o)}
         >
-          i
+          <InfoIcon />
         </button>
       </div>
       {open && <div className="note info-note">{info}</div>}

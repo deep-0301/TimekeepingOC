@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import InfoIcon from "./InfoIcon";
 
 interface Props {
   /** Names what the note is about, for screen readers. */
@@ -28,7 +29,7 @@ export default function InfoNote({ label, children }: Props) {
         aria-label={open ? `Hide help: ${label}` : `Help: ${label}`}
         onClick={() => setOpen((o) => !o)}
       >
-        i
+        <InfoIcon />
       </button>
       {open && <div className="note info-note">{children}</div>}
     </>
