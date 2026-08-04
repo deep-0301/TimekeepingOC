@@ -2567,18 +2567,37 @@ table.hos-table tr.row-hos-breach td {
 
 .info-dot {
   flex: 0 0 auto;
-  width: 20px;
-  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
   padding: 0;
+  border: none;
   border-radius: 50%;
-  border: 1px solid var(--line);
   background: transparent;
   color: var(--ink-soft);
-  font-family: var(--font-display);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1;
-  text-transform: lowercase;
+  position: relative;
+  /* The phone-width touch rule sets min-height 44px on every button, which
+     stretched this one into an oval. The target is restored below without
+     distorting the circle. */
+  min-height: 0;
+}
+
+/* A 44px touch target that does not change the size of the mark. */
+.info-dot::after {
+  content: "";
+  position: absolute;
+  inset: -9px;
+}
+
+/* Sized here rather than on the svg so the glyph and its hit area stay
+   independent - the target has to stay thumb-sized on a phone even though
+   the mark itself is small. */
+.info-dot svg {
+  display: block;
+  width: 17px;
+  height: 17px;
 }
 
 .info-dot:hover {
@@ -2588,7 +2607,6 @@ table.hos-table tr.row-hos-breach td {
 
 .info-dot.is-open {
   background: var(--steel);
-  border-color: var(--steel);
   color: #fff;
 }
 
