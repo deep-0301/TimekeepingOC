@@ -10,7 +10,13 @@ pay-calculation logic.
 ## Features
 
 - **Run search** — look up a run number and see every shift piece paired
-  with it, grouped by full shift, from the 2026 Summer Weekday board data.
+  with it, grouped by full shift, from whichever board that date runs.
+  Seven boards are loaded: Summer 2026 weekday/Saturday/Sunday, Fall 2026
+  weekday/Saturday/Sunday, and the Fall 2026 STAT holiday board.
+- **Paddle search** — the whole paddle book for the date worked, trip by
+  trip with timepoints. Four books: Summer 2026 weekday, and Fall 2026
+  weekday/Saturday/Sunday. The summer weekend books have not been supplied
+  yet, and the app says so rather than searching the wrong one.
 - **Booking sheet import** — upload an Employee Booking Sheet PDF (text or
   scanned/OCR via Tesseract.js) or paste text directly; it extracts shifts,
   the season start date, and day-off pattern automatically.

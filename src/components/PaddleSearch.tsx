@@ -3,12 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   isReliefStop,
-  loadPaddleBook,
+  loadPaddleBookForDate,
+  paddleBookForDate,
   searchPaddles,
   type Paddle,
   type PaddleBook,
   type PaddleStop,
 } from "@/lib/paddles";
+import { fmtDate } from "@/lib/dateUtils";
 
 function StopRow({
   stop,
@@ -237,29 +239,39 @@ function PaddleCard({ paddle }: { paddle: Paddle }) {
 
 export default function PaddleSearch() {
   const [query, setQuery] = useState("");
-  const [book, setBook] = useState<PaddleBook | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  // Which book to search is a property of the date, the same way the pay
+  // board is - a Saturday paddle number means nothing on a Tuesday.
+  const [dateStr, setDateStr] = useState(() => fmtDate(new Date()));
+  // Held with the file it came from, so switching to a date on another book
+  // shows that book's loading state rather than the previous book's paddles.
+  const [loaded, setLoaded] = useState<{
+    file: string;
+    book?: PaddleBook;
+    error?: string;
+  } | null>(null);
+
+  const ref = paddleBookForDate(dateStr);
+  const bookFile = ref ? ref.file : "";
+  const current = loaded && loaded.file === bookFile ? loaded : null;
+  const book = current?.book ?? null;
+  const error = ref
+    ? (current?.error ?? "")
+    : "No paddle book has been loaded for that date yet.";
 
   useEffect(() => {
+    if (!bookFile) return;
     let live = true;
-    loadPaddleBook()
+    loadPaddleBookForDate(dateStr)
       .then((b) => {
-        if (live) {
-          setBook(b);
-          setLoading(false);
-        }
+        if (live) setLoaded({ file: bookFile, book: b });
       })
       .catch((e: Error) => {
-        if (live) {
-          setError(e.message);
-          setLoading(false);
-        }
+        if (live) setLoaded({ file: bookFile, error: e.message });
       });
     return () => {
       live = false;
     };
-  }, []);
+  }, [dateStr, bookFile]);
 
   const { results, truncated } = useMemo(
     () =>
@@ -270,6 +282,19 @@ export default function PaddleSearch() {
   return (
     <section className="panel">
       <h2>Find a paddle</h2>
+      <div className="paddle-date-row">
+        <label className="field">
+          <span>Date worked</span>
+          <input
+            type="date"
+            value={dateStr}
+            onChange={(e) => setDateStr(e.target.value)}
+          />
+        </label>
+        <span className="paddle-book-tag">
+          {ref ? `${ref.seasonLabel} ${ref.dayType}` : "no book"}
+        </span>
+      </div>
       <input
         type="text"
         className="run-search"
@@ -279,13 +304,11 @@ export default function PaddleSearch() {
         inputMode="numeric"
       />
       <div className="note">
-        {loading
-          ? "Loading the paddle book…"
-          : error
-            ? error
-            : book
-              ? `${book.paddles.length} ${book.dayType} paddles · effective ${book.effective}. Search by paddle number, or by route number to see every paddle on that route.`
-              : ""}
+        {error
+          ? error
+          : !book
+            ? "Loading the paddle book…"
+            : `${book.paddles.length} ${book.dayType} paddles · effective ${book.effective}. Search by paddle number, or by route number to see every paddle on that route.`}
       </div>
 
       <div className="search-results">

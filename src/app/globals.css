@@ -2434,3 +2434,25 @@ table.hos-table tr.row-hos-breach td {
   border-radius: 3px;
   white-space: nowrap;
 }
+
+/* The paddle book to search follows the date, so the picker sits above the
+   search box with the book it resolved to beside it. */
+.paddle-date-row {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.paddle-book-tag {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--steel-dark);
+  background: #e4eef2;
+  padding: 6px 10px;
+  border-radius: 4px;
+}

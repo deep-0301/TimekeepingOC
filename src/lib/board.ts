@@ -4,10 +4,31 @@ import summerSundayRaw from "@/data/board-data-summer-sunday.json";
 import fallWeekdayRaw from "@/data/board-data-fall-weekday.json";
 import fallSaturdayRaw from "@/data/board-data-fall-saturday.json";
 import fallSundayRaw from "@/data/board-data-fall-sunday.json";
+import fallStatRaw from "@/data/board-data-fall-stat.json";
 import { parseDateStr } from "./dateUtils";
 import type { BoardShift } from "./types";
 
-export type DayType = "weekday" | "saturday" | "sunday";
+export type DayType = "weekday" | "saturday" | "sunday" | "stat";
+
+/**
+ * Days that run a holiday board rather than their calendar day's board.
+ *
+ * Listed date by date rather than derived from the stat-holiday calendar,
+ * because the two are not the same thing. The Fall 2026 STAT board covers
+ * Labour Day and Thanksgiving and nothing else - Remembrance Day falls inside
+ * the same booking period and is not in it, so it runs ordinary weekday work
+ * and must keep the weekday board.
+ */
+const STAT_BOARD_DATES: Record<string, string> = {
+  "2026-09-07": "Labour Day",
+  "2026-10-12": "Thanksgiving",
+};
+
+/** The holiday whose board a date runs, when it runs one. */
+export function statBoardHoliday(dateStr: string): string | null {
+  return STAT_BOARD_DATES[dateStr] ?? null;
+}
+
 export type SeasonId = "summer" | "fall";
 
 interface SeasonDef {
@@ -66,6 +87,11 @@ const SOURCES: { season: SeasonId; dayType: DayType; rows: BoardShift[] }[] = [
     dayType: "sunday",
     rows: summerSundayRaw as unknown as BoardShift[],
   },
+  {
+    season: "fall",
+    dayType: "stat",
+    rows: fallStatRaw as unknown as BoardShift[],
+  },
 ];
 
 export const BOARD_DATA: BoardShift[] = [];
@@ -109,14 +135,20 @@ export interface BoardContext {
 /** Which board applies on a given date. */
 export function boardForDate(dateStr: string): BoardContext {
   const d = parseDateStr(dateStr);
-  const dayType = dayTypeForDate(d);
   const season = seasonForDate(d);
-  const segment =
+  const find = (dt: DayType) =>
     season == null
       ? null
-      : BOARD_SEGMENTS.find(
-          (s) => s.season === season.id && s.dayType === dayType
-        ) ?? null;
+      : (BOARD_SEGMENTS.find(
+          (s) => s.season === season.id && s.dayType === dt
+        ) ?? null);
+
+  // A holiday board is used only where one has actually been loaded for that
+  // season; otherwise the date falls back to its calendar day's board rather
+  // than resolving to nothing.
+  const statSegment = statBoardHoliday(dateStr) ? find("stat") : null;
+  const dayType: DayType = statSegment ? "stat" : dayTypeForDate(d);
+  const segment = statSegment ?? find(dayType);
   return {
     season,
     dayType,
