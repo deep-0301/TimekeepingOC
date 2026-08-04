@@ -1,3 +1,6 @@
+import type { ComponentType } from "react";
+import { Event, WbSunny } from "@/components/icons";
+
 import type { PaySettings } from "./types";
 
 export type BookingType = NonNullable<PaySettings["bookingType"]>;
@@ -5,7 +8,7 @@ export type BookingType = NonNullable<PaySettings["bookingType"]>;
 export interface BookingSheetSlotDef {
   key: string;
   title: string;
-  icon: string;
+  Icon: ComponentType<{ size?: number; className?: string }>;
   accent: "steel" | "amber";
 }
 
@@ -20,7 +23,7 @@ export const BOOKING_TYPE_INFO: Record<BookingType, BookingTypeInfo> = {
     label: "Daily booking",
     description: "One booking sheet - your own daily assignment.",
     slots: [
-      { key: "daily", title: "Booking sheet", icon: "🗓️", accent: "steel" },
+      { key: "daily", title: "Booking sheet", Icon: Event, accent: "steel" },
     ],
   },
   general: {
@@ -31,13 +34,13 @@ export const BOOKING_TYPE_INFO: Record<BookingType, BookingTypeInfo> = {
       {
         key: "weekday",
         title: "Weekday (Mon–Fri) sheet",
-        icon: "🗓️",
+        Icon: Event,
         accent: "steel",
       },
       {
         key: "weekend",
         title: "Weekend / holiday sheet",
-        icon: "🎉",
+        Icon: WbSunny,
         accent: "amber",
       },
     ],
@@ -50,13 +53,13 @@ export const BOOKING_TYPE_INFO: Record<BookingType, BookingTypeInfo> = {
       {
         key: "holidayRegular",
         title: "Regular holiday work sheet",
-        icon: "🗓️",
+        Icon: Event,
         accent: "steel",
       },
       {
         key: "holidayStat",
         title: "Holiday stat work sheet",
-        icon: "🎉",
+        Icon: WbSunny,
         accent: "amber",
       },
     ],

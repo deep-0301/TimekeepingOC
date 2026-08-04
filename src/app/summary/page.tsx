@@ -6,6 +6,7 @@ import GrossPaySign from "@/components/GrossPaySign";
 import WeekNav from "@/components/WeekNav";
 import SummaryTable from "@/components/SummaryTable";
 import SettingsPanel from "@/components/SettingsPanel";
+import { Settings } from "@/components/icons";
 
 export default function SummaryPage() {
   const {
@@ -61,7 +62,8 @@ export default function SummaryPage() {
             ))}
           </select>
           <button className="ghost" onClick={() => setSettingsOpen((v) => !v)}>
-            ⚙ Pay rules
+            <Settings />
+            Pay rules
           </button>
         </div>
         <SummaryTable week={periodComputed} settings={settings} />

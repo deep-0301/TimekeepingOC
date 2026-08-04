@@ -9,6 +9,7 @@ import { fmtHM, minToHHMM } from "@/lib/dateUtils";
 import { extractPdfText } from "@/lib/pdfExtract";
 import { newEmptyDayEntry, type EntriesMap, type EntryPiece } from "@/lib/types";
 import InfoNote from "./InfoNote";
+import { Description, FileUpload, WbSunny } from "./icons";
 
 interface HolidaySpareImportProps {
   onImport: (updater: (prev: EntriesMap) => EntriesMap) => void;
@@ -125,7 +126,9 @@ export default function HolidaySpareImport({ onImport }: HolidaySpareImportProps
   return (
     <div className="sheet-import-slot sheet-import-slot-steel">
       <h3>
-        <span className="sheet-import-icon">🌴</span>
+        <span className="sheet-import-icon">
+            <WbSunny />
+          </span>
         Regular holiday work sheet
       </h3>
 
@@ -160,13 +163,17 @@ export default function HolidaySpareImport({ onImport }: HolidaySpareImportProps
         />
         {fileName ? (
           <>
-            <div className="dropzone-icon">📄</div>
+            <div className="dropzone-icon">
+              <Description />
+            </div>
             <div className="dropzone-filename">{fileName}</div>
             <div className="dropzone-hint">Click or drop to replace</div>
           </>
         ) : (
           <>
-            <div className="dropzone-icon">⬆️</div>
+            <div className="dropzone-icon">
+              <FileUpload />
+            </div>
             <div className="dropzone-title">
               Drag &amp; drop your PDF here
             </div>

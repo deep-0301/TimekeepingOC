@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { NAV_LINKS, isActiveHref } from "@/lib/nav";
+import { Close, Logout } from "./icons";
 
 interface Props {
   open: boolean;
@@ -68,7 +69,7 @@ export default function NavDrawer({ open, onClose }: Props) {
             onClick={onClose}
             aria-label="Close menu"
           >
-            Close
+            <Close />
           </button>
         </div>
 
@@ -83,7 +84,7 @@ export default function NavDrawer({ open, onClose }: Props) {
             onClick={onClose}
           >
             <span className="nav-link-icon" aria-hidden="true">
-              {link.icon}
+              <link.Icon />
             </span>
             {link.label}
           </Link>
@@ -96,6 +97,7 @@ export default function NavDrawer({ open, onClose }: Props) {
           className="ghost small nav-signout"
           onClick={() => supabase.auth.signOut()}
         >
+          <Logout />
           Sign out
         </button>
       </div>

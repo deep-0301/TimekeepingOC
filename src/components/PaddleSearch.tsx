@@ -13,6 +13,7 @@ import {
 } from "@/lib/paddles";
 import { fmtDate } from "@/lib/dateUtils";
 import BookPicker from "./BookPicker";
+import { ArrowRightAlt, ChevronRight, ExpandMore } from "./icons";
 
 function StopRow({
   stop,
@@ -86,12 +87,16 @@ function TripSection({ section }: { section: Section }) {
         <span className="pt-trip-meta">
           {from && (
             <span className="pt-trip-range">
-              {from} <span className="pt-trip-arrow">→</span> {to}
+              {from} <span className="pt-trip-arrow">
+                <ArrowRightAlt />
+              </span> {to}
             </span>
           )}
           {section.nextDay && <span className="pt-tag pt-tag-next">+1 day</span>}
           {relief && <span className="pt-tag pt-tag-relief">relief</span>}
-          <span className="pt-trip-caret">{open ? "▾" : "▸"}</span>
+          <span className="pt-trip-caret">
+            {open ? <ExpandMore /> : <ChevronRight />}
+          </span>
         </span>
       </button>
 
@@ -205,7 +210,9 @@ function PaddleCard({ paddle }: { paddle: Paddle }) {
           <span className="paddle-sigtime">{paddle.on}</span>
           <span className="paddle-sigloc">{paddle.onL}</span>
         </span>
-        <span className="day-location-arrow">→</span>
+        <span className="day-location-arrow">
+            <ArrowRightAlt />
+          </span>
         <span className="paddle-signpoint">
           <span className="paddle-siglabel">
             Sign off{paddle.next ? " (next day)" : ""}
@@ -230,7 +237,9 @@ function PaddleCard({ paddle }: { paddle: Paddle }) {
         className={"manage-work-toggle" + (open ? " open" : "")}
         onClick={() => setOpen((o) => !o)}
       >
-        <span className="manage-work-caret">{open ? "▾" : "▸"}</span>
+        <span className="manage-work-caret">
+          {open ? <ExpandMore /> : <ChevronRight />}
+        </span>
         {open ? "Hide the run" : "Show the whole run"}
       </button>
 
