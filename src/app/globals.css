@@ -2542,3 +2542,64 @@ table.hos-table tr.row-hos-breach td {
     font-size: 9px;
   }
 }
+
+/* ==========================================================================
+   Help behind an "i" button
+   ========================================================================== */
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* The h2 carries the panel's bottom margin on its own; inside the row it
+   would push the button down with it. */
+.panel-head h2 {
+  margin-bottom: 0;
+}
+
+.panel-head,
+.summary-head {
+  margin-bottom: 12px;
+}
+
+.info-dot {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: lowercase;
+}
+
+.info-dot:hover {
+  background: #e4eef2;
+  color: var(--steel-dark);
+}
+
+.info-dot.is-open {
+  background: var(--steel);
+  border-color: var(--steel);
+  color: #fff;
+}
+
+/* Inside a heading row that wraps, the note drops to a line of its own
+   rather than squeezing in beside the title. */
+.info-note {
+  flex-basis: 100%;
+  margin-top: 0;
+  margin-bottom: 10px;
+  padding: 9px 11px;
+  border-left: 3px solid var(--steel);
+  border-radius: 0 5px 5px 0;
+  background: #eef4f7;
+}

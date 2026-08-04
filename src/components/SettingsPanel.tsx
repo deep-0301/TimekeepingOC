@@ -2,18 +2,41 @@
 
 import { useState } from "react";
 import type { PaySettings } from "@/lib/types";
+import PanelHeading from "./PanelHeading";
 
 interface SettingsPanelProps {
   settings: PaySettings;
   onSave: (next: PaySettings) => void;
 }
 
+const PAY_RULES_INFO = (
+  <>
+        Overtime is only earned on platform/standby time - a paid CLC break
+      never counts toward either threshold. Spares earn it day-by-day, once
+      that single day&apos;s standby/dispatch hours pass the daily
+      threshold. Regular booked work only earns it once the pay period&apos;s
+      running total of platform hours passes the biweekly threshold, so
+      it&apos;s whichever day&apos;s hours push the period past that line -
+      not any single day&apos;s own total.
+      <br />
+      Sunday premium is applied as the extra portion on top of Regular Pay —
+      e.g. 1.25× means Sunday hours are already paid at 1.0× under Regular
+      Pay, and this line adds the remaining 0.25×. Overtime is paid in full
+      at 1.5× under its own line (those hours are excluded from Regular).
+      Stat holiday amounts vary and aren&apos;t fully derivable from a
+      single paystub — adjust to match your CBA/paystub if needed.
+  </>
+);
+
 export default function SettingsPanel({ settings, onSave }: SettingsPanelProps) {
   const [form, setForm] = useState<PaySettings>(settings);
 
   return (
     <section className="panel">
-      <h2>Pay Rules</h2>
+      <PanelHeading
+        title="Pay Rules"
+        info={PAY_RULES_INFO}
+      />
       <div className="settings-grid">
         <div className="field">
           <label>Base hourly rate ($)</label>
@@ -121,22 +144,6 @@ export default function SettingsPanel({ settings, onSave }: SettingsPanelProps) 
             }
           />
         </div>
-      </div>
-      <div className="note">
-        Overtime is only earned on platform/standby time - a paid CLC break
-        never counts toward either threshold. Spares earn it day-by-day, once
-        that single day&apos;s standby/dispatch hours pass the daily
-        threshold. Regular booked work only earns it once the pay period&apos;s
-        running total of platform hours passes the biweekly threshold, so
-        it&apos;s whichever day&apos;s hours push the period past that line -
-        not any single day&apos;s own total.
-        <br />
-        Sunday premium is applied as the extra portion on top of Regular Pay —
-        e.g. 1.25× means Sunday hours are already paid at 1.0× under Regular
-        Pay, and this line adds the remaining 0.25×. Overtime is paid in full
-        at 1.5× under its own line (those hours are excluded from Regular).
-        Stat holiday amounts vary and aren&apos;t fully derivable from a
-        single paystub — adjust to match your CBA/paystub if needed.
       </div>
       <div style={{ marginTop: 12 }}>
         <button onClick={() => onSave(form)}>Save rules</button>

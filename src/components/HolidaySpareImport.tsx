@@ -8,6 +8,7 @@ import {
 import { fmtHM, minToHHMM } from "@/lib/dateUtils";
 import { extractPdfText } from "@/lib/pdfExtract";
 import { newEmptyDayEntry, type EntriesMap, type EntryPiece } from "@/lib/types";
+import InfoNote from "./InfoNote";
 
 interface HolidaySpareImportProps {
   onImport: (updater: (prev: EntriesMap) => EntriesMap) => void;
@@ -200,11 +201,11 @@ export default function HolidaySpareImport({ onImport }: HolidaySpareImportProps
 
       {plans.length > 0 && (
         <>
-          <div className="note" style={{ marginTop: 10 }}>
+          <InfoNote label="Reviewing what was parsed">
             Review below, uncheck anything you don&apos;t want, then import.
             Floating-spare days come in with no report time or garage yet —
             add those from the Calendar once imported.
-          </div>
+          </InfoNote>
           <table className="summary-table" style={{ marginTop: 6 }}>
             <tbody>
               {plans.map((p, i) => {

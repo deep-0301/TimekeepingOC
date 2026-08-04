@@ -6,6 +6,7 @@ import { fmtDate, fmtHM, parseDateStr } from "@/lib/dateUtils";
 import type { DayFieldName, DayFieldValue, SpareInfo } from "@/lib/types";
 import TimeField24 from "./TimeField24";
 import GarageField from "./GarageField";
+import PanelHeading from "./PanelHeading";
 
 type Frequency = "once" | "daily" | "weekly" | "biweekly";
 type Mode = "run" | "spare" | "dayoff";
@@ -233,11 +234,10 @@ export default function ManualWorkEntry({
 
   return (
     <section className="panel">
-      <h2>Add work manually</h2>
-      <div className="note">
-        No booking sheet handy? Add a single day&apos;s work directly — a
-        paddle number, a spare/standby shift, or a recurring day off.
-      </div>
+      <PanelHeading
+        title="Add work manually"
+        info="No booking sheet handy? Add a single day's work directly — a paddle number, a spare/standby shift, or a recurring day off."
+      />
       <div className="day-editor-extras">
         <div className="field">
           <label>{frequency === "once" ? "Date" : "From"}</label>

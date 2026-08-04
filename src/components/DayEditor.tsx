@@ -15,6 +15,7 @@ import { getHolidayForDate } from "@/lib/statHolidays";
 import type { DayFieldName, DayFieldValue, EntriesMap, SpareInfo } from "@/lib/types";
 import TimeField24 from "./TimeField24";
 import GarageField from "./GarageField";
+import InfoNote from "./InfoNote";
 
 /** AVLC rule: revised time = AVLC time + 5 minutes. */
 const AVLC_BUMP_MIN = 5;
@@ -369,14 +370,14 @@ export default function DayEditor({
 
         {isSpare && day?.spare && (
           <div className="spare-panel">
-            <div className="note">
+            <InfoNote label="How spare pay works">
               Spares are paid their guaranteed standby hours by default.
               If they get dispatched, add the run below - standby time from
               Reports to the run&apos;s actual start is calculated
               automatically, no need to log when standby ended. A report
               time of exactly 9:30, 12:30, 14:30, 16:30 or 18:30 always
               gets a 30-minute callup.
-            </div>
+            </InfoNote>
             <div className="day-editor-extras">
               <GarageField
                 value={day.spare.garage || ""}

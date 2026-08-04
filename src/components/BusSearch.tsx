@@ -19,6 +19,7 @@ import {
   paddlesOnRouteAt,
   type PaddleGuess,
 } from "@/lib/paddles";
+import PanelHeading from "./PanelHeading";
 
 const REFRESH_MS = 15_000;
 
@@ -244,7 +245,10 @@ export default function BusSearch() {
 
   return (
     <section className="panel">
-      <h2>Find a bus</h2>
+      <PanelHeading
+        title="Find a bus"
+        info="Live positions from OC Transpo. Type the four-digit number on the bus, or a route number to see every bus running it."
+      />
 
       <form className="bus-form" onSubmit={submit}>
         <input
@@ -262,11 +266,6 @@ export default function BusSearch() {
           {loading ? "Looking…" : "Search"}
         </button>
       </form>
-
-      <div className="note">
-        Live positions from OC Transpo. Type the four-digit number on the bus, or
-        a route number to see every bus running it.
-      </div>
 
       {active && (
         <div className="bus-toolbar">
