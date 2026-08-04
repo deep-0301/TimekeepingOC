@@ -13,7 +13,10 @@ import {
 } from "@/lib/paddles";
 import { fmtDate } from "@/lib/dateUtils";
 import BookPicker from "./BookPicker";
+import { readPref, writePref } from "@/lib/uiPrefs";
 import { ArrowRightAlt, ChevronRight, ExpandMore } from "./icons";
+
+const BOOK_PREF = "paddleBook";
 
 function StopRow({
   stop,
@@ -252,15 +255,23 @@ export default function PaddleSearch() {
   const [query, setQuery] = useState("");
 
   const options = useMemo(() => paddleBookOptions(), []);
-  // Today's book is the one wanted nine times out of ten, so it is the
-  // default - but which book is being searched is stated outright and can be
-  // changed, rather than being inferred silently from a date.
-  const [bookKey, setBookKey] = useState(
-    () =>
+  // Last book chosen wins, then today's, then the first that exists. Without
+  // the first of those, an operator working the fall book was thrown back to
+  // the summer one on every visit, because the date still falls in summer.
+  const [bookKey, setBookKey] = useState(() => {
+    const saved = readPref(BOOK_PREF);
+    if (saved && options.some((o) => o.key === saved && o.file)) return saved;
+    return (
       paddleBookKeyForDate(fmtDate(new Date())) ??
       options.find((o) => o.file)?.key ??
       ""
-  );
+    );
+  });
+
+  const chooseBook = (key: string) => {
+    setBookKey(key);
+    writePref(BOOK_PREF, key);
+  };
 
   // Held with the key it came from, so switching books shows the new book's
   // loading state rather than the previous book's paddles.
@@ -312,7 +323,7 @@ export default function PaddleSearch() {
           available: !!o.file,
         }))}
         value={bookKey}
-        onChange={setBookKey}
+        onChange={chooseBook}
       />
       <input
         type="text"

@@ -11,12 +11,15 @@ import {
   shiftEndpoints,
 } from "@/lib/board";
 import BookPicker from "./BookPicker";
+import { readPref, writePref } from "@/lib/uiPrefs";
 import { fmtDate, fmtHM, dayLabel, parseDateStr } from "@/lib/dateUtils";
 
 interface RunSearchProps {
   periodDays: Date[];
   onAddShift: (si: number, dateStr: string) => void;
 }
+
+const BOARD_PREF = "payBoard";
 
 export default function RunSearch({ periodDays, onAddShift }: RunSearchProps) {
   const [query, setQuery] = useState("");
@@ -35,8 +38,20 @@ export default function RunSearch({ periodDays, onAddShift }: RunSearchProps) {
     const seg = contextDate ? boardForDate(contextDate).segment : null;
     return seg ? `${seg.season}:${seg.dayType}` : "";
   }, [contextDate]);
-  const [segKey, setSegKey] = useState("");
+  // Same as the paddle book: the last board picked is remembered, so a fall
+  // operator is not dropped back onto the summer board every visit.
+  const [segKey, setSegKey] = useState(() => {
+    const saved = readPref(BOARD_PREF);
+    return saved && BOARD_SEGMENTS.some((s) => `${s.season}:${s.dayType}` === saved)
+      ? saved
+      : "";
+  });
   const activeKey = segKey || defaultSegKey;
+
+  const chooseBoard = (key: string) => {
+    setSegKey(key);
+    writePref(BOARD_PREF, key);
+  };
   const segment = useMemo(
     () =>
       BOARD_SEGMENTS.find((s) => `${s.season}:${s.dayType}` === activeKey) ??
@@ -72,7 +87,7 @@ export default function RunSearch({ periodDays, onAddShift }: RunSearchProps) {
           available: s.count > 0,
         }))}
         value={activeKey}
-        onChange={setSegKey}
+        onChange={chooseBoard}
       />
       <input
         type="text"
