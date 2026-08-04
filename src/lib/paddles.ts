@@ -5,7 +5,13 @@
  * memory for the rest of the session.
  */
 
-import { boardForDate, type DayType, type SeasonId } from "./board";
+import {
+  SEASONS,
+  boardForDate,
+  dayTypeLabel,
+  type DayType,
+  type SeasonId,
+} from "./board";
 
 /** [time, location] with an optional trailing 1 marking a relief point. */
 export type PaddleStop = [string, string] | [string, string, number];
@@ -62,6 +68,62 @@ const BOOKS: Partial<Record<`${SeasonId}:${DayType}`, string>> = {
   "fall:saturday": "paddle-data-fall-saturday.json",
   "fall:sunday": "paddle-data-fall-sunday.json",
 };
+
+/** Every book the app knows about, including ones not yet supplied. */
+export interface PaddleBookOption {
+  key: string;
+  season: SeasonId;
+  dayType: DayType;
+  label: string;
+  /** null when that book has never been supplied. */
+  file: string | null;
+}
+
+const BOOK_DAY_TYPES: DayType[] = ["weekday", "saturday", "sunday"];
+
+/**
+ * The books offered by the picker, missing ones included.
+ *
+ * A gap is worth showing rather than hiding: an operator who cannot find the
+ * summer Saturday book should be able to see that it does not exist yet,
+ * instead of concluding their paddle number is wrong.
+ */
+export function paddleBookOptions(): PaddleBookOption[] {
+  const out: PaddleBookOption[] = [];
+  for (const season of SEASONS) {
+    for (const dayType of BOOK_DAY_TYPES) {
+      const key = `${season.id}:${dayType}`;
+      out.push({
+        key,
+        season: season.id,
+        dayType,
+        label: `${season.label} ${dayTypeLabel(dayType)}`,
+        file: BOOKS[key as `${SeasonId}:${DayType}`] ?? null,
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * The option a date falls on, for defaulting the picker.
+ *
+ * A holiday has its own board but no paddle book of its own, so it defaults
+ * to that season's weekday book rather than to nothing.
+ */
+export function paddleBookKeyForDate(dateStr: string): string | null {
+  const { season, dayType } = boardForDate(dateStr);
+  if (!season) return null;
+  const options = paddleBookOptions();
+  const exact = `${season.id}:${dayType}`;
+  if (options.some((o) => o.key === exact)) return exact;
+  const weekday = `${season.id}:weekday`;
+  return options.some((o) => o.key === weekday) ? weekday : null;
+}
+
+export function loadPaddleBookFile(file: string): Promise<PaddleBook> {
+  return loadFile(file);
+}
 
 export interface PaddleBookRef {
   file: string;

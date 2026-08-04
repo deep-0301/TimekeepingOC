@@ -3,14 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   isReliefStop,
-  loadPaddleBookForDate,
-  paddleBookForDate,
+  loadPaddleBookFile,
+  paddleBookKeyForDate,
+  paddleBookOptions,
   searchPaddles,
   type Paddle,
   type PaddleBook,
   type PaddleStop,
 } from "@/lib/paddles";
 import { fmtDate } from "@/lib/dateUtils";
+import BookPicker from "./BookPicker";
 
 function StopRow({
   stop,
@@ -239,39 +241,49 @@ function PaddleCard({ paddle }: { paddle: Paddle }) {
 
 export default function PaddleSearch() {
   const [query, setQuery] = useState("");
-  // Which book to search is a property of the date, the same way the pay
-  // board is - a Saturday paddle number means nothing on a Tuesday.
-  const [dateStr, setDateStr] = useState(() => fmtDate(new Date()));
-  // Held with the file it came from, so switching to a date on another book
-  // shows that book's loading state rather than the previous book's paddles.
+
+  const options = useMemo(() => paddleBookOptions(), []);
+  // Today's book is the one wanted nine times out of ten, so it is the
+  // default - but which book is being searched is stated outright and can be
+  // changed, rather than being inferred silently from a date.
+  const [bookKey, setBookKey] = useState(
+    () =>
+      paddleBookKeyForDate(fmtDate(new Date())) ??
+      options.find((o) => o.file)?.key ??
+      ""
+  );
+
+  // Held with the key it came from, so switching books shows the new book's
+  // loading state rather than the previous book's paddles.
   const [loaded, setLoaded] = useState<{
-    file: string;
+    key: string;
     book?: PaddleBook;
     error?: string;
   } | null>(null);
 
-  const ref = paddleBookForDate(dateStr);
-  const bookFile = ref ? ref.file : "";
-  const current = loaded && loaded.file === bookFile ? loaded : null;
+  const chosen = options.find((o) => o.key === bookKey) ?? null;
+  const file = chosen?.file ?? "";
+  const current = loaded && loaded.key === bookKey ? loaded : null;
   const book = current?.book ?? null;
-  const error = ref
-    ? (current?.error ?? "")
-    : "No paddle book has been loaded for that date yet.";
+  const error = chosen && !chosen.file
+    ? `The ${chosen.label} paddle book has not been supplied yet.`
+    : (current?.error ?? "");
 
   useEffect(() => {
-    if (!bookFile) return;
+    if (!file) return;
     let live = true;
-    loadPaddleBookForDate(dateStr)
+    const key = bookKey;
+    loadPaddleBookFile(file)
       .then((b) => {
-        if (live) setLoaded({ file: bookFile, book: b });
+        if (live) setLoaded({ key, book: b });
       })
       .catch((e: Error) => {
-        if (live) setLoaded({ file: bookFile, error: e.message });
+        if (live) setLoaded({ key, error: e.message });
       });
     return () => {
       live = false;
     };
-  }, [dateStr, bookFile]);
+  }, [file, bookKey]);
 
   const { results, truncated } = useMemo(
     () =>
@@ -282,19 +294,17 @@ export default function PaddleSearch() {
   return (
     <section className="panel">
       <h2>Find a paddle</h2>
-      <div className="paddle-date-row">
-        <label className="field">
-          <span>Date worked</span>
-          <input
-            type="date"
-            value={dateStr}
-            onChange={(e) => setDateStr(e.target.value)}
-          />
-        </label>
-        <span className="paddle-book-tag">
-          {ref ? `${ref.seasonLabel} ${ref.dayType}` : "no book"}
-        </span>
-      </div>
+      <BookPicker
+        legend="Which paddle book?"
+        options={options.map((o) => ({
+          key: o.key,
+          label: o.label,
+          sub: o.file ? undefined : "not loaded",
+          available: !!o.file,
+        }))}
+        value={bookKey}
+        onChange={setBookKey}
+      />
       <input
         type="text"
         className="run-search"

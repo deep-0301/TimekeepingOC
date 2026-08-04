@@ -2435,24 +2435,92 @@ table.hos-table tr.row-hos-breach td {
   white-space: nowrap;
 }
 
-/* The paddle book to search follows the date, so the picker sits above the
-   search box with the book it resolved to beside it. */
-.paddle-date-row {
-  display: flex;
-  align-items: flex-end;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 10px;
+/* ==========================================================================
+   Board / paddle-book picker
+   ========================================================================== */
+
+.book-picker {
+  margin-bottom: 12px;
 }
 
-.paddle-book-tag {
-  font-family: var(--font-display);
+.book-picker-legend {
+  display: block;
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  color: var(--steel-dark);
-  background: #e4eef2;
-  padding: 6px 10px;
-  border-radius: 4px;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+}
+
+.book-picker-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.book-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 7px 11px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: left;
+}
+
+.book-chip:hover:not(:disabled) {
+  background: #eef4f7;
+  color: var(--ink);
+}
+
+.book-chip.is-active {
+  background: var(--steel);
+  border-color: var(--steel);
+  color: #fff;
+}
+
+.book-chip.is-active:hover {
+  background: var(--steel-dark);
+  color: #fff;
+}
+
+/* A book that has never been supplied is shown rather than hidden, so its
+   absence reads as missing data instead of a bad paddle number. */
+.book-chip.is-missing {
+  border-style: dashed;
+  opacity: 0.55;
+}
+
+.book-chip-label {
+  white-space: nowrap;
+}
+
+.book-chip-sub {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  opacity: 0.75;
+}
+
+@media (max-width: 620px) {
+  /* Two per row on a phone rather than a long single-column stack. */
+  .book-picker-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .book-chip {
+    align-items: center;
+    text-align: center;
+  }
+
+  .book-chip-label {
+    white-space: normal;
+  }
 }

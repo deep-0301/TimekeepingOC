@@ -1,8 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { boardForDate, searchRuns, shiftEndpoints } from "@/lib/board";
-import { fmtDate, fmtHM, dayLabel } from "@/lib/dateUtils";
+import {
+  BOARD_SEGMENTS,
+  boardForDate,
+  dateMatchesSegment,
+  searchRunsInSegment,
+  segmentLabel,
+  segmentsForDisplay,
+  shiftEndpoints,
+} from "@/lib/board";
+import BookPicker from "./BookPicker";
+import { fmtDate, fmtHM, dayLabel, parseDateStr } from "@/lib/dateUtils";
 
 interface RunSearchProps {
   periodDays: Date[];
@@ -15,26 +24,56 @@ export default function RunSearch({ periodDays, onAddShift }: RunSearchProps) {
     {}
   );
 
-  const dateOptions = useMemo(
-    () => periodDays.map((d) => ({ value: fmtDate(d), label: dayLabel(d) })),
-    [periodDays]
-  );
-
-  // Results are scoped to the board the shown period runs on, since the
-  // same shift number exists on more than one season's board.
+  // The board the shown period opens on is the usual answer, but the same
+  // shift number exists on several boards, so which one is being searched is
+  // said outright and can be changed.
   const contextDate = useMemo(
     () => (periodDays.length ? fmtDate(periodDays[0]) : ""),
     [periodDays]
   );
-  const board = useMemo(() => boardForDate(contextDate), [contextDate]);
+  const defaultSegKey = useMemo(() => {
+    const seg = contextDate ? boardForDate(contextDate).segment : null;
+    return seg ? `${seg.season}:${seg.dayType}` : "";
+  }, [contextDate]);
+  const [segKey, setSegKey] = useState("");
+  const activeKey = segKey || defaultSegKey;
+  const segment = useMemo(
+    () =>
+      BOARD_SEGMENTS.find((s) => `${s.season}:${s.dayType}` === activeKey) ??
+      null,
+    [activeKey]
+  );
+
+  // Only dates that actually run the chosen board can take its work, so a
+  // Saturday shift cannot be dropped onto a Tuesday.
+  const dateOptions = useMemo(
+    () =>
+      periodDays
+        .map((d) => fmtDate(d))
+        .filter((v) => dateMatchesSegment(v, segment))
+        .map((v) => ({ value: v, label: dayLabel(parseDateStr(v)) })),
+    [periodDays, segment]
+  );
+
   const { results, truncated } = useMemo(
-    () => searchRuns(query, contextDate),
-    [query, contextDate]
+    () => searchRunsInSegment(query, segment),
+    [query, segment]
   );
 
   return (
     <section className="panel">
       <h2>Add a shift to a date</h2>
+      <BookPicker
+        legend="Which board?"
+        options={segmentsForDisplay().map((s) => ({
+          key: `${s.season}:${s.dayType}`,
+          label: segmentLabel(s),
+          sub: `${s.count} shifts`,
+          available: s.count > 0,
+        }))}
+        value={activeKey}
+        onChange={setSegKey}
+      />
       <input
         type="text"
         className="run-search"
@@ -43,26 +82,31 @@ export default function RunSearch({ periodDays, onAddShift }: RunSearchProps) {
         onChange={(e) => setQuery(e.target.value)}
       />
       <div className="note">
-        {board.season ? (
+        {segment ? (
           <>
-            From the{" "}
-            <b>
-              {board.season.label} {board.dayType}
-            </b>{" "}
-            pay board — the one that adds work to your calendar.
+            From the <b>{segmentLabel(segment)}</b> pay board — the one that
+            adds work to your calendar. Results are grouped by full shift, so
+            you can pick the exact combination you actually worked.
           </>
         ) : (
           "This period is outside the booking seasons loaded."
-        )}{" "}
-        Results are grouped by full shift, so you can pick the exact
-        combination you actually worked.
+        )}
+        {segment && dateOptions.length === 0 && (
+          <>
+            {" "}
+            <b>
+              No day in the period shown runs this board, so there is nowhere
+              to add it — move to a period that has one.
+            </b>
+          </>
+        )}
       </div>
       <div className="search-results">
         {query.trim() === "" ? null : results.length === 0 ? (
           <div className="note">
-            {board.empty
-              ? "No board is loaded for that date yet."
-              : "No matching paddle number found in that board."}
+            {segment
+              ? "No matching paddle number found on that board."
+              : "No board is loaded for that date yet."}
           </div>
         ) : (
           <>
@@ -130,6 +174,7 @@ export default function RunSearch({ periodDays, onAddShift }: RunSearchProps) {
                     </select>
                     <button
                       className="small"
+                      disabled={!selectedDate}
                       onClick={() => onAddShift(si, selectedDate)}
                     >
                       + Add whole shift

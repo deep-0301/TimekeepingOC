@@ -157,6 +157,47 @@ export function boardForDate(dateStr: string): BoardContext {
   };
 }
 
+/** "Weekday", "Saturday", "Sunday", "Holiday". */
+export function dayTypeLabel(dt: DayType): string {
+  if (dt === "weekday") return "Weekday";
+  if (dt === "saturday") return "Saturday";
+  if (dt === "sunday") return "Sunday";
+  return "Holiday";
+}
+
+/** "Fall 2026 Saturday", for naming a board in the UI. */
+export function segmentLabel(seg: BoardSegment): string {
+  const season = SEASONS.find((s) => s.id === seg.season);
+  return `${season ? season.label : seg.season} ${dayTypeLabel(seg.dayType)}`;
+}
+
+/**
+ * Boards in the order a person would list them, which is not the order they
+ * are stored in - storage order is append-only so that saved shiftIndex
+ * values keep pointing at the same work.
+ */
+export function segmentsForDisplay(): BoardSegment[] {
+  const seasonRank = (id: SeasonId) => SEASONS.findIndex((s) => s.id === id);
+  const dayRank: Record<DayType, number> = {
+    weekday: 0,
+    saturday: 1,
+    sunday: 2,
+    stat: 3,
+  };
+  return [...BOARD_SEGMENTS].sort(
+    (a, b) =>
+      seasonRank(a.season) - seasonRank(b.season) ||
+      dayRank[a.dayType] - dayRank[b.dayType]
+  );
+}
+
+/** Whether a date runs the board this segment holds. */
+export function dateMatchesSegment(dateStr: string, seg: BoardSegment | null): boolean {
+  if (!seg) return false;
+  const b = boardForDate(dateStr);
+  return b.segment === seg;
+}
+
 export function segmentOf(si: number): BoardSegment | null {
   return (
     BOARD_SEGMENTS.find((s) => si >= s.start && si < s.end) ?? null
@@ -212,7 +253,7 @@ export interface ShiftSearchResult {
 }
 
 function inSegment(si: number, seg: BoardSegment | null): boolean {
-  return seg ? si >= seg.start && si < seg.end : true;
+  return seg ? si >= seg.start && si < seg.end : false;
 }
 
 /** Every distinct shift (by board index) that contains this exact paddle
@@ -377,9 +418,28 @@ export function searchRuns(
   results: ShiftSearchResult[];
   truncated: boolean;
 } {
+  return searchRunsInSegment(
+    query,
+    dateStr ? boardForDate(dateStr).segment : null,
+    dateStr != null
+  );
+}
+
+/**
+ * The same search, scoped to a board chosen outright rather than derived from
+ * a date - for the board picker, where the operator says which board they are
+ * looking at.
+ */
+export function searchRunsInSegment(
+  query: string,
+  seg: BoardSegment | null,
+  scoped = true
+): {
+  results: ShiftSearchResult[];
+  truncated: boolean;
+} {
   const q = query.trim().toLowerCase();
   if (!q) return { results: [], truncated: false };
-  const seg = dateStr ? boardForDate(dateStr).segment : null;
 
   const matchingRuns = Object.keys(runIndex).filter((r) =>
     r.toLowerCase().includes(q)
@@ -388,7 +448,9 @@ export function searchRuns(
   const shiftMap = new Map<number, Set<string>>();
   matchingRuns.forEach((run) => {
     runIndex[run].forEach((inst) => {
-      if (dateStr && !inSegment(inst.si, seg)) return;
+      // `scoped` with a null segment means "a board was asked for and there
+      // is none", which must return nothing rather than every board at once.
+      if (scoped && !inSegment(inst.si, seg)) return;
       if (!shiftMap.has(inst.si)) shiftMap.set(inst.si, new Set());
       shiftMap.get(inst.si)!.add(run);
     });
