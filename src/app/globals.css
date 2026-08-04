@@ -2508,19 +2508,37 @@ table.hos-table tr.row-hos-breach td {
 }
 
 @media (max-width: 620px) {
-  /* Two per row on a phone rather than a long single-column stack. */
+  /* Two per row on a phone rather than a long single-column stack, and
+     tighter than on a desktop - seven of these sit above the search box and
+     at full size they pushed the results themselves off the first screen.
+     min-height keeps them thumb-sized even when the label fits on one line. */
+  .book-picker-legend {
+    font-size: 11px;
+    margin-bottom: 5px;
+  }
+
   .book-picker-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 6px;
+    gap: 5px;
   }
 
   .book-chip {
     align-items: center;
+    justify-content: center;
     text-align: center;
+    min-height: 36px;
+    padding: 5px 7px;
+    border-radius: 5px;
+    font-size: 11px;
+    line-height: 1.2;
   }
 
   .book-chip-label {
     white-space: normal;
+  }
+
+  .book-chip-sub {
+    font-size: 9px;
   }
 }
