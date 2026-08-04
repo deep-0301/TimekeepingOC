@@ -6,6 +6,7 @@ import BookingTypePicker from "@/components/BookingTypePicker";
 import ManualWorkEntry from "@/components/ManualWorkEntry";
 import ClearAllData from "@/components/ClearAllData";
 import { BOOKING_TYPE_INFO, type BookingType } from "@/lib/bookingType";
+import PanelHeading from "@/components/PanelHeading";
 
 export default function ImportPage() {
   const {
@@ -26,16 +27,18 @@ export default function ImportPage() {
   return (
     <>
       <section className="panel">
-        <h2>Current booking</h2>
-        <div className="note" style={{ marginBottom: 10 }}>
+        <PanelHeading
+          title="Current booking"
+          info="Changing this updates how many sheets are asked for below."
+        />
+        <div className="note" style={{ marginTop: -4, marginBottom: 10 }}>
           {currentInfo ? (
             <>
               <b>{currentInfo.label}</b> — {currentInfo.description}
             </>
           ) : (
             "You haven't picked a booking type yet."
-          )}{" "}
-          Changing this updates how many sheets are asked for below.
+          )}
         </div>
         <BookingTypePicker
           value={settings.bookingType}

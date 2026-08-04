@@ -5,6 +5,7 @@ import { useAppState } from "@/lib/AppStateContext";
 import MonthCalendar from "@/components/MonthCalendar";
 import BookingTypePicker from "@/components/BookingTypePicker";
 import type { BookingType } from "@/lib/bookingType";
+import PanelHeading from "@/components/PanelHeading";
 
 export default function Home() {
   const {
@@ -25,12 +26,10 @@ export default function Home() {
     <>
       {settings.bookingType == null && (
         <section className="panel">
-          <h2>Which booking do you have?</h2>
-          <div className="note" style={{ marginBottom: 10 }}>
-            Pick the one that matches your current bid — this sets up how
-            many booking sheets Import Sheets asks for. You can change this
-            anytime from Profile.
-          </div>
+          <PanelHeading
+            title="Which booking do you have?"
+            info="Pick the one that matches your current bid — this sets up how many booking sheets Import Sheets asks for. You can change this anytime from Profile."
+          />
           <BookingTypePicker
             value={settings.bookingType}
             onChange={(bt: BookingType) =>
@@ -41,16 +40,20 @@ export default function Home() {
       )}
       {hasNoData && (
         <section className="panel">
-          <h2>Get started</h2>
-          <div className="note">
+          <PanelHeading
+            title="Get started"
+            info={
+              <>
             You haven&apos;t added any work yet.{" "}
             <Link href="/import">Import your booking sheets</Link>{" "}
             to load a whole season at once, or tap any date below to add a
             single day&apos;s work manually — a paddle number, a day off, or
             a spare/standby shift. You can also add manual work (without a
             booking sheet) from the{" "}
-            <Link href="/import">Import Sheets</Link> page.
-          </div>
+                <Link href="/import">Import Sheets</Link> page.
+              </>
+            }
+          />
         </section>
       )}
       <MonthCalendar

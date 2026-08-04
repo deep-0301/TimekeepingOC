@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import PanelHeading from "./PanelHeading";
 
 interface ClearAllDataProps {
   onClearAll: () => void;
@@ -11,12 +12,10 @@ export default function ClearAllData({ onClearAll }: ClearAllDataProps) {
 
   return (
     <section className="panel">
-      <h2>Start over</h2>
-      <div className="note">
-        This clears every day you&apos;ve imported or entered — booked
-        shifts, day off, spare, everything. There&apos;s no undo, so only use
-        this if you want to wipe the calendar and begin again.
-      </div>
+      <PanelHeading
+        title="Start over"
+        info="This clears every day you've imported or entered — booked shifts, day off, spare, everything. There's no undo, so only use this if you want to wipe the calendar and begin again."
+      />
       {!armed ? (
         <button className="danger-solid" onClick={() => setArmed(true)}>
           Clear all my data

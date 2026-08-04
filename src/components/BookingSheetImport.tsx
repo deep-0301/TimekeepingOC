@@ -13,6 +13,7 @@ import { extractPdfText } from "@/lib/pdfExtract";
 import { newEmptyDayEntry, type EntriesMap, type EntryPiece } from "@/lib/types";
 import HolidaySpareImport from "./HolidaySpareImport";
 import type { SheetRow } from "@/lib/bookingSheetParser";
+import InfoNote from "./InfoNote";
 
 /** When a block's totals line wasn't captured (e.g. an OCR line-break
  * merged it into a row, dropping it), fall back to summing each row's own
@@ -361,11 +362,11 @@ function BookingSheetSlot({
 
       {blocks.length === 0 ? null : (
         <>
-          <div className="note" style={{ marginTop: 10 }}>
+          <InfoNote label="Reviewing what was parsed">
             Review below, uncheck anything you don&apos;t want, fix the first
             date if it looks off (the rest of that pattern&apos;s dates shift
             with it), then import.
-          </div>
+          </InfoNote>
           <table className="summary-table" style={{ marginTop: 6 }}>
             <tbody>
               {blocks.map((b, i) => {
