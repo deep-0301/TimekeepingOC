@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { minToHHMM } from "@/lib/dateUtils";
+import { fmtDate, minToHHMM } from "@/lib/dateUtils";
 import {
   agoLabel,
   compass,
@@ -15,7 +15,7 @@ import {
   type BusVehicle,
 } from "@/lib/buses";
 import {
-  loadPaddleBook,
+  loadPaddleBookForDate,
   paddlesOnRouteAt,
   type PaddleGuess,
 } from "@/lib/paddles";
@@ -30,7 +30,6 @@ const REFRESH_MS = 15_000;
 function PaddleGuesses({ vehicle }: { vehicle: BusVehicle }) {
   const [guesses, setGuesses] = useState<PaddleGuess[] | null>(null);
   const [error, setError] = useState("");
-  const [note, setNote] = useState("");
 
   const route = vehicle.route;
   const ts = vehicle.ts;
@@ -39,21 +38,10 @@ function PaddleGuesses({ vehicle }: { vehicle: BusVehicle }) {
     if (!route) return;
     let live = true;
 
-    loadPaddleBook()
+    const when = ts ? new Date(ts * 1000) : new Date();
+    loadPaddleBookForDate(fmtDate(when))
       .then((book) => {
         if (!live) return;
-        const when = ts ? new Date(ts * 1000) : new Date();
-        const day = when.getDay();
-        if (
-          book.dayType.toLowerCase().startsWith("weekday") &&
-          (day === 0 || day === 6)
-        ) {
-          setNote(
-            "The paddle book loaded here is the weekday one, so there is nothing to match against on a weekend.",
-          );
-          setGuesses([]);
-          return;
-        }
         setGuesses(
           paddlesOnRouteAt(book, route, when.getHours() * 60 + when.getMinutes()),
         );
@@ -68,7 +56,6 @@ function PaddleGuesses({ vehicle }: { vehicle: BusVehicle }) {
   }, [route, ts]);
 
   if (error) return <div className="note bus-guess-error">{error}</div>;
-  if (note) return <div className="note">{note}</div>;
   if (guesses === null) return <div className="note">Loading the paddle book…</div>;
   if (guesses.length === 0) {
     return (

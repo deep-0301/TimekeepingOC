@@ -1,8 +1,17 @@
 /**
- * The Summer 2026 paddle book (Mon-Fri). It is far too big to bundle, so it
- * is served from /public and fetched the first time someone looks a paddle
- * up, then kept in memory for the rest of the session.
+ * The paddle books. Each is far too big to bundle - the fall weekday book
+ * alone is 1.7 MB - so they are served from /public and fetched the first
+ * time someone looks a paddle up on a date that needs one, then kept in
+ * memory for the rest of the session.
  */
+
+import {
+  SEASONS,
+  boardForDate,
+  dayTypeLabel,
+  type DayType,
+  type SeasonId,
+} from "./board";
 
 /** [time, location] with an optional trailing 1 marking a relief point. */
 export type PaddleStop = [string, string] | [string, string, number];
@@ -45,33 +54,139 @@ export interface PaddleBook {
   paddles: Paddle[];
 }
 
-let cache: PaddleBook | null = null;
-let inFlight: Promise<PaddleBook> | null = null;
+/**
+ * Which book covers which season and day type.
+ *
+ * Not every combination exists yet: the summer weekend books have never been
+ * supplied, so a summer Saturday has a board but no paddles. Missing is
+ * different from empty and the UI has to be able to say so, which is why a
+ * lookup returns null rather than an empty book.
+ */
+const BOOKS: Partial<Record<`${SeasonId}:${DayType}`, string>> = {
+  "summer:weekday": "paddle-data-summer-weekday.json",
+  "fall:weekday": "paddle-data-fall-weekday.json",
+  "fall:saturday": "paddle-data-fall-saturday.json",
+  "fall:sunday": "paddle-data-fall-sunday.json",
+};
 
-export function loadPaddleBook(): Promise<PaddleBook> {
-  if (cache) return Promise.resolve(cache);
-  if (inFlight) return inFlight;
+/** Every book the app knows about, including ones not yet supplied. */
+export interface PaddleBookOption {
+  key: string;
+  season: SeasonId;
+  dayType: DayType;
+  label: string;
+  /** null when that book has never been supplied. */
+  file: string | null;
+}
+
+const BOOK_DAY_TYPES: DayType[] = ["weekday", "saturday", "sunday"];
+
+/**
+ * The books offered by the picker, missing ones included.
+ *
+ * A gap is worth showing rather than hiding: an operator who cannot find the
+ * summer Saturday book should be able to see that it does not exist yet,
+ * instead of concluding their paddle number is wrong.
+ */
+export function paddleBookOptions(): PaddleBookOption[] {
+  const out: PaddleBookOption[] = [];
+  for (const season of SEASONS) {
+    for (const dayType of BOOK_DAY_TYPES) {
+      const key = `${season.id}:${dayType}`;
+      out.push({
+        key,
+        season: season.id,
+        dayType,
+        label: `${season.label} ${dayTypeLabel(dayType)}`,
+        file: BOOKS[key as `${SeasonId}:${DayType}`] ?? null,
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * The option a date falls on, for defaulting the picker.
+ *
+ * A holiday has its own board but no paddle book of its own, so it defaults
+ * to that season's weekday book rather than to nothing.
+ */
+export function paddleBookKeyForDate(dateStr: string): string | null {
+  const { season, dayType } = boardForDate(dateStr);
+  if (!season) return null;
+  const options = paddleBookOptions();
+  const exact = `${season.id}:${dayType}`;
+  if (options.some((o) => o.key === exact)) return exact;
+  const weekday = `${season.id}:weekday`;
+  return options.some((o) => o.key === weekday) ? weekday : null;
+}
+
+export function loadPaddleBookFile(file: string): Promise<PaddleBook> {
+  return loadFile(file);
+}
+
+export interface PaddleBookRef {
+  file: string;
+  seasonLabel: string;
+  dayType: DayType;
+}
+
+/** The book a date needs, or null when no book covers it. */
+export function paddleBookForDate(dateStr: string): PaddleBookRef | null {
+  const { season, dayType } = boardForDate(dateStr);
+  if (!season) return null;
+  const file = BOOKS[`${season.id}:${dayType}`];
+  return file ? { file, seasonLabel: season.label, dayType } : null;
+}
+
+const cache = new Map<string, PaddleBook>();
+const inFlight = new Map<string, Promise<PaddleBook>>();
+
+function loadFile(file: string): Promise<PaddleBook> {
+  const hit = cache.get(file);
+  if (hit) return Promise.resolve(hit);
+  const pending = inFlight.get(file);
+  if (pending) return pending;
+
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-  inFlight = fetch(`${basePath}/paddle-data.json`)
+  const task = fetch(`${basePath}/${file}`)
     .then((r) => {
       if (!r.ok) throw new Error(`Could not load the paddle book (${r.status})`);
       return r.json() as Promise<PaddleBook>;
     })
     .then((book) => {
-      cache = book;
-      inFlight = null;
+      cache.set(file, book);
+      inFlight.delete(file);
       return book;
     })
     .catch((err) => {
-      inFlight = null;
+      inFlight.delete(file);
       throw err;
     });
-  return inFlight;
+
+  inFlight.set(file, task);
+  return task;
 }
 
-/** Already-loaded book, for render paths that must stay synchronous. */
-export function cachedPaddleBook(): PaddleBook | null {
-  return cache;
+/** Raised when a date has a board but no paddle book has been supplied. */
+export class NoPaddleBookError extends Error {}
+
+export function loadPaddleBookForDate(dateStr: string): Promise<PaddleBook> {
+  const ref = paddleBookForDate(dateStr);
+  if (!ref) {
+    return Promise.reject(
+      new NoPaddleBookError(
+        "No paddle book has been loaded for that date yet.",
+      ),
+    );
+  }
+  return loadFile(ref.file);
+}
+
+/** Already-loaded book for a date, for render paths that must stay synchronous. */
+export function cachedPaddleBook(dateStr: string): PaddleBook | null {
+  const ref = paddleBookForDate(dateStr);
+  return ref ? (cache.get(ref.file) ?? null) : null;
 }
 
 const MAX_PADDLE_RESULTS = 40;

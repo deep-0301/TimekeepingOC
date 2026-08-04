@@ -56,6 +56,8 @@ export interface EntryPiece {
   onLoc: string;
   offLoc: string;
   platMin: number;
+  /** Board index this piece's shift was matched to, when it could be. */
+  shiftIndex?: number | null;
   allRuns: string[];
 }
 
@@ -114,6 +116,9 @@ export interface DayEntry {
   /** Category of a day off, e.g. for payroll reporting. */
   dayOffType?: "sick" | "legislative";
   fromSheet?: boolean;
+  /** sheetPlat/sheetPay came from the board the runs matched, not from the
+   * figures printed on the sheet. */
+  fromBoard?: boolean;
   sheetPlat?: number;
   sheetPay?: number;
   spare?: SpareInfo | null;

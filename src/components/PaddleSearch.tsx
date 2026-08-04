@@ -3,12 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   isReliefStop,
-  loadPaddleBook,
+  loadPaddleBookFile,
+  paddleBookKeyForDate,
+  paddleBookOptions,
   searchPaddles,
   type Paddle,
   type PaddleBook,
   type PaddleStop,
 } from "@/lib/paddles";
+import { fmtDate } from "@/lib/dateUtils";
+import BookPicker from "./BookPicker";
 
 function StopRow({
   stop,
@@ -237,29 +241,49 @@ function PaddleCard({ paddle }: { paddle: Paddle }) {
 
 export default function PaddleSearch() {
   const [query, setQuery] = useState("");
-  const [book, setBook] = useState<PaddleBook | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+
+  const options = useMemo(() => paddleBookOptions(), []);
+  // Today's book is the one wanted nine times out of ten, so it is the
+  // default - but which book is being searched is stated outright and can be
+  // changed, rather than being inferred silently from a date.
+  const [bookKey, setBookKey] = useState(
+    () =>
+      paddleBookKeyForDate(fmtDate(new Date())) ??
+      options.find((o) => o.file)?.key ??
+      ""
+  );
+
+  // Held with the key it came from, so switching books shows the new book's
+  // loading state rather than the previous book's paddles.
+  const [loaded, setLoaded] = useState<{
+    key: string;
+    book?: PaddleBook;
+    error?: string;
+  } | null>(null);
+
+  const chosen = options.find((o) => o.key === bookKey) ?? null;
+  const file = chosen?.file ?? "";
+  const current = loaded && loaded.key === bookKey ? loaded : null;
+  const book = current?.book ?? null;
+  const error = chosen && !chosen.file
+    ? `The ${chosen.label} paddle book has not been supplied yet.`
+    : (current?.error ?? "");
 
   useEffect(() => {
+    if (!file) return;
     let live = true;
-    loadPaddleBook()
+    const key = bookKey;
+    loadPaddleBookFile(file)
       .then((b) => {
-        if (live) {
-          setBook(b);
-          setLoading(false);
-        }
+        if (live) setLoaded({ key, book: b });
       })
       .catch((e: Error) => {
-        if (live) {
-          setError(e.message);
-          setLoading(false);
-        }
+        if (live) setLoaded({ key, error: e.message });
       });
     return () => {
       live = false;
     };
-  }, []);
+  }, [file, bookKey]);
 
   const { results, truncated } = useMemo(
     () =>
@@ -270,6 +294,17 @@ export default function PaddleSearch() {
   return (
     <section className="panel">
       <h2>Find a paddle</h2>
+      <BookPicker
+        legend="Which paddle book?"
+        options={options.map((o) => ({
+          key: o.key,
+          label: o.label,
+          sub: o.file ? undefined : "not loaded",
+          available: !!o.file,
+        }))}
+        value={bookKey}
+        onChange={setBookKey}
+      />
       <input
         type="text"
         className="run-search"
@@ -279,13 +314,11 @@ export default function PaddleSearch() {
         inputMode="numeric"
       />
       <div className="note">
-        {loading
-          ? "Loading the paddle book…"
-          : error
-            ? error
-            : book
-              ? `${book.paddles.length} ${book.dayType} paddles · effective ${book.effective}. Search by paddle number, or by route number to see every paddle on that route.`
-              : ""}
+        {error
+          ? error
+          : !book
+            ? "Loading the paddle book…"
+            : `${book.paddles.length} ${book.dayType} paddles · effective ${book.effective}. Search by paddle number, or by route number to see every paddle on that route.`}
       </div>
 
       <div className="search-results">

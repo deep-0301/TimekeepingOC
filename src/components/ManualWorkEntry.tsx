@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { boardForDate, getShiftsForRun } from "@/lib/board";
+import { boardForDate, getShiftsForRun, shiftEndpoints } from "@/lib/board";
 import { fmtDate, fmtHM, parseDateStr } from "@/lib/dateUtils";
 import type { DayFieldName, DayFieldValue, SpareInfo } from "@/lib/types";
 import TimeField24 from "./TimeField24";
@@ -318,10 +318,13 @@ export default function ManualWorkEntry({
               ) : (
                 matches.map(({ si, shift }) => {
                   const [shiftId, totalPlat, totalPay, runs] = shift;
+                  const { start, finish } = shiftEndpoints(shift);
                   return (
                     <div className="result-card" key={si}>
                       <div className="details">
-                        <span className="shift-tag">shift {shiftId}</span>
+                        <span className="shift-route">
+                          {start} &rarr; {finish}
+                        </span>
                         &nbsp; {runs.map((r) => r[0]).join(" + ")} &nbsp;
                         <b>{fmtHM(totalPlat)}</b> plat /{" "}
                         <b>{fmtHM(totalPay)}</b> pay
