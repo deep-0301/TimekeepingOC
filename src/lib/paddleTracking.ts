@@ -161,46 +161,62 @@ export function clockLabel(min: number): string {
   return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
 }
 
-export interface VehicleMatch {
-  vehicle: BusVehicle;
-  /** Said plainly on the card, so a shortlist is never mistaken for a hit. */
-  reason: string;
-  /** The trip's own start time lines up - as close to certain as this gets. */
-  confident: boolean;
+/** How the one bus was picked out, or why it could not be. */
+export type MatchBasis = "trip-start" | "only-bus" | "unidentified";
+
+export interface PaddleMatch {
+  /** The bus working this paddle, or null when the feed cannot say. */
+  best: BusVehicle | null;
+  basis: MatchBasis;
+  /** Everything else on the route, kept for when the answer looks wrong. */
+  others: BusVehicle[];
 }
 
 /**
- * Which of the buses on the route could be working this paddle.
+ * The one bus working this paddle.
  *
- * When the feed reports a trip start time it is a strong signal: two buses on
- * the same route rarely begin a trip in the same minute, and the paddle knows
- * exactly when its trip was due to leave. Without it there is nothing left to
- * separate one bus on the route from another, and the list stays a list.
+ * The trip's start time is the only identifier the two sides share. Two buses
+ * on a route rarely begin a trip in the same minute, and the paddle knows
+ * exactly when its trip was due out, so a match there names the bus.
+ *
+ * Where that fails, guessing would be worse than not answering: handing an
+ * operator the wrong bus number costs them a phone call. So a single bus is
+ * returned only when something actually identifies it, and the rest of the
+ * route is kept aside rather than presented as an answer.
  */
-export function matchVehicles(
+export function bestVehicle(
   vehicles: BusVehicle[],
   segment: PaddleSegment,
-): VehicleMatch[] {
+): PaddleMatch {
   const due = segment.tripStartMin % 1440;
-  const out = vehicles.map((vehicle) => {
-    const started = vehicle.startTime ? toMin(vehicle.startTime) : null;
-    const gap = started === null ? null : Math.abs(started - due);
-    if (gap !== null && gap <= 1) {
-      return {
-        vehicle,
-        confident: true,
-        reason: `Its trip began at ${vehicle.startTime}, when this paddle's trip was due out.`,
-      };
-    }
-    return {
-      vehicle,
-      confident: false,
-      reason: `On route ${segment.route} now. The feed does not say which trip, so this is one of several.`,
-    };
-  });
 
-  out.sort((a, b) => Number(b.confident) - Number(a.confident));
-  return out;
+  // Closest trip start inside a minute either way. The tolerance covers the
+  // feed rounding to the second and the book printing to the minute.
+  let best: BusVehicle | null = null;
+  let bestGap = Infinity;
+  for (const v of vehicles) {
+    if (!v.startTime) continue;
+    const gap = Math.abs(toMin(v.startTime) - due);
+    if (gap <= 1 && gap < bestGap) {
+      best = v;
+      bestGap = gap;
+    }
+  }
+  if (best) {
+    const chosen = best;
+    return {
+      best: chosen,
+      basis: "trip-start",
+      others: vehicles.filter((v) => v !== chosen),
+    };
+  }
+
+  // Nothing to choose between when there is nothing else on the route.
+  if (vehicles.length === 1) {
+    return { best: vehicles[0], basis: "only-bus", others: [] };
+  }
+
+  return { best: null, basis: "unidentified", others: vehicles };
 }
 
 /** The minute of the day the bus is really at, given how late it is running. */

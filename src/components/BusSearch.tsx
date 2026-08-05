@@ -22,14 +22,14 @@ import {
   type PaddleGuess,
 } from "@/lib/paddles";
 import {
+  bestVehicle,
   clockLabel,
-  matchVehicles,
   normalisePaddleNumber,
   paddleWhereAt,
   scheduleMinuteFor,
+  type PaddleMatch,
   type PaddleSegment,
   type PaddleWhere,
-  type VehicleMatch,
 } from "@/lib/paddleTracking";
 import PanelHeading from "./PanelHeading";
 
@@ -294,29 +294,32 @@ function Place({ segment }: { segment: PaddleSegment }) {
 }
 
 /**
- * A paddle, where it is due to be, and the buses that could be working it.
+ * A paddle, where it is due to be, and the bus working it.
  *
  * The scheduled place comes from the paddle book, which names its timepoints
  * by intersection. The bus comes from the live feed. Those are two different
- * claims and are kept visibly apart: the schedule is certain, the bus is a
- * match, and each match says on what grounds it was made.
+ * claims and are kept visibly apart: the schedule is certain, the bus is
+ * identified, and the page says which it is on.
+ *
+ * One bus is shown, never a list. Where the feed carries nothing that
+ * identifies the trip, no bus is named at all - a wrong bus number is worse
+ * than none - and the rest of the route stays behind a link.
  */
 function PaddleTrack({
   number,
   paddle,
   where,
-  matches,
+  match,
   now,
 }: {
   number: string;
   paddle: Paddle;
   where: PaddleWhere;
-  matches: VehicleMatch[];
+  match: PaddleMatch | null;
   now: number;
 }) {
-  const [showRest, setShowRest] = useState(false);
-  const sure = matches.filter((m) => m.confident);
-  const rest = matches.filter((m) => !m.confident);
+  const [showOthers, setShowOthers] = useState(false);
+  const others = match?.others ?? [];
 
   return (
     <div className="paddle-track">
@@ -348,87 +351,84 @@ function PaddleTrack({
         )}
       </div>
 
-      {where.state === "running" && matches.length === 0 && (
+      {match && !match.best && others.length === 0 && (
         <div className="note">
-          No bus is reporting on route {where.segment.route} at the moment, so
-          there is nothing to match this paddle against.
+          No bus is reporting on route {routeOf(where)} at the moment, so there
+          is nothing to match this paddle against.
         </div>
       )}
 
-      {sure.map((m) => (
-        <Match key={keyOf(m)} match={m} paddle={paddle} where={where} now={now} />
-      ))}
-
-      {rest.length > 0 &&
-        (sure.length > 0 ? (
-          // A named bus is the answer; the rest of the route is a second
-          // opinion, and burying it keeps the answer from being crowded out.
-          <div className="paddle-others">
-            <button
-              type="button"
-              className="ghost small"
-              onClick={() => setShowRest((v) => !v)}
-            >
-              {showRest ? "Hide" : "Show"} the other {rest.length} bus
-              {rest.length === 1 ? "" : "es"} on route {routeOf(where)}
-            </button>
-            {showRest &&
-              rest.map((m) => (
-                <Match key={keyOf(m)} match={m} paddle={paddle} where={where} now={now} />
-              ))}
+      {match?.best && (
+        <>
+          <div className="paddle-match-why is-sure">
+            {match.basis === "trip-start"
+              ? `Its trip began at ${match.best.startTime}, which is when this paddle's trip was due out.`
+              : `The only bus on route ${routeOf(where)} right now.`}
           </div>
-        ) : (
-          <>
-            <div className="paddle-match-why">
-              These are the buses on route {routeOf(where)} right now. The feed
-              does not say which trip each one is on, so pick the one heading
-              your way.
-            </div>
-            {rest.map((m) => (
+          <Match vehicle={match.best} paddle={paddle} where={where} now={now} />
+        </>
+      )}
+
+      {/* Naming the wrong bus is worse than naming none, so when nothing in
+          the feed identifies the trip the answer is withheld rather than
+          guessed at. */}
+      {match && !match.best && others.length > 0 && (
+        <div className="paddle-match-why">
+          {others.length} buses are on route {routeOf(where)} right now, and the
+          feed does not say which trip any of them is on, so none of them can be
+          called yours.
+        </div>
+      )}
+
+      {others.length > 0 && (
+        <div className="paddle-others">
+          <button
+            type="button"
+            className="ghost small"
+            onClick={() => setShowOthers((v) => !v)}
+          >
+            {showOthers ? "Hide" : "Show"} {match?.best ? "the other " : "all "}
+            {others.length} bus{others.length === 1 ? "" : "es"} on route{" "}
+            {routeOf(where)}
+          </button>
+          {showOthers &&
+            others.map((v) => (
               <Match
-                key={keyOf(m)}
-                match={m}
+                key={v.vehicleId ?? v.fleet ?? String(v.tripId)}
+                vehicle={v}
                 paddle={paddle}
                 where={where}
                 now={now}
-                quiet
               />
             ))}
-          </>
-        ))}
+        </div>
+      )}
     </div>
   );
-}
-
-function keyOf(m: VehicleMatch): string {
-  return m.vehicle.vehicleId ?? m.vehicle.fleet ?? String(m.vehicle.tripId);
 }
 
 function routeOf(where: PaddleWhere): string {
   return where.state === "running" ? where.segment.route : "";
 }
 
-/** One candidate bus, with the grounds for the match and where it really is. */
+/** A bus card, preceded by where the paddle's schedule really puts it. */
 function Match({
-  match,
+  vehicle,
   paddle,
   where,
   now,
-  quiet,
 }: {
-  match: VehicleMatch;
+  vehicle: BusVehicle;
   paddle: Paddle;
   where: PaddleWhere;
   now: number;
-  /** The grounds were already given once for the whole group. */
-  quiet?: boolean;
 }) {
   // Where the bus really is, as opposed to where the timetable puts it: wind
   // the schedule back by however late the feed says it is running.
   const adjusted =
-    match.vehicle.delay === undefined
+    vehicle.delay === undefined
       ? null
-      : paddleWhereAt(paddle, scheduleMinuteFor(minuteOfDay(), match.vehicle.delay));
+      : paddleWhereAt(paddle, scheduleMinuteFor(minuteOfDay(), vehicle.delay));
   const moved =
     adjusted?.state === "running" &&
     where.state === "running" &&
@@ -436,11 +436,6 @@ function Match({
 
   return (
     <div className="paddle-match">
-      {!quiet && (
-        <div className={"paddle-match-why" + (match.confident ? " is-sure" : "")}>
-          {match.reason}
-        </div>
-      )}
       {moved && adjusted?.state === "running" && (
         <div className="note">
           Allowing for how late it is running, it is actually{" "}
@@ -448,7 +443,7 @@ function Match({
           <Place segment={adjusted.segment} />.
         </div>
       )}
-      <VehicleCard vehicle={match.vehicle} now={now} />
+      <VehicleCard vehicle={vehicle} now={now} />
     </div>
   );
 }
@@ -601,10 +596,10 @@ export default function BusSearch() {
           number={paddleView.number}
           paddle={paddleView.paddle}
           where={paddleView.where}
-          matches={
+          match={
             paddleView.where.state === "running"
-              ? matchVehicles(vehicles, paddleView.where.segment)
-              : []
+              ? bestVehicle(vehicles, paddleView.where.segment)
+              : null
           }
           now={now}
         />
