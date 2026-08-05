@@ -41,21 +41,56 @@ const CORS = {
 // Reading GTFS-Realtime JSON
 //
 // The spec is defined in protobuf, and every JSON serialisation of it picks
-// its own casing - `routeId` from some gateways, `route_id` from others, and
-// the odd feed that nests things one level deeper than you expect. Rather
-// than pin this to whatever OC Transpo emits today, every read goes through
-// `pick`, which tries both spellings.
+// its own casing - `routeId` from one gateway, `route_id` from another,
+// `RouteId` from anything built on .NET. Rather than pin this to whatever OC
+// Transpo emits today, every read goes through `pick`, which compares names
+// with case and separators stripped: `routeId`, `route_id`, `RouteId` and
+// `ROUTE_ID` are all the same key as far as this function is concerned.
 // ---------------------------------------------------------------------------
 
 // deno-lint-ignore no-explicit-any
 type Json = any;
 
+function normalise(name: string): string {
+  return name.replace(/[^a-z0-9]/gi, "").toLowerCase();
+}
+
+/**
+ * Normalised key -> real key, built once per object.
+ *
+ * A feed carries thousands of entities and each is read a dozen times over,
+ * so the mapping is cached against the object itself rather than rebuilt on
+ * every lookup.
+ */
+const keyMaps = new WeakMap<object, Map<string, string>>();
+
+function keyMap(obj: object): Map<string, string> {
+  let map = keyMaps.get(obj);
+  if (!map) {
+    map = new Map();
+    for (const key of Object.keys(obj)) {
+      const n = normalise(key);
+      // First spelling wins, so an exact match is never shadowed by a later
+      // key that happens to normalise the same way.
+      if (!map.has(n)) map.set(n, key);
+    }
+    keyMaps.set(obj, map);
+  }
+  return map;
+}
+
 function pick(obj: Json, ...names: string[]): Json {
   if (!obj || typeof obj !== "object") return undefined;
   for (const name of names) {
+    // Fast path: the feed already spells it the way we asked.
     if (obj[name] !== undefined && obj[name] !== null) return obj[name];
-    const snake = name.replace(/[A-Z]/g, (c) => "_" + c.toLowerCase());
-    if (obj[snake] !== undefined && obj[snake] !== null) return obj[snake];
+  }
+  const map = keyMap(obj);
+  for (const name of names) {
+    const real = map.get(normalise(name));
+    if (real !== undefined && obj[real] !== undefined && obj[real] !== null) {
+      return obj[real];
+    }
   }
   return undefined;
 }
@@ -114,9 +149,29 @@ interface Vehicle {
   delay?: number;
 }
 
+/**
+ * The entity list, wherever this gateway decided to put it.
+ *
+ * GTFS-Realtime says `entity` at the top level. Gateways that re-wrap the
+ * feed tend to hang it off `data` or hand back the bare array, so all three
+ * are accepted before giving up.
+ */
+function entitiesOf(feed: Json): Json[] {
+  if (Array.isArray(feed)) return feed;
+  const direct = pick(feed, "entity", "entities");
+  if (Array.isArray(direct)) return direct;
+  for (const wrapper of ["data", "feed", "result", "response"]) {
+    const inner = pick(feed, wrapper);
+    if (!inner) continue;
+    if (Array.isArray(inner)) return inner;
+    const nested = pick(inner, "entity", "entities");
+    if (Array.isArray(nested)) return nested;
+  }
+  return [];
+}
+
 function readVehicles(feed: Json): Vehicle[] {
-  const entities = pick(feed, "entity", "entities") ?? [];
-  if (!Array.isArray(entities)) return [];
+  const entities = entitiesOf(feed);
 
   const out: Vehicle[] = [];
   for (const entity of entities) {
@@ -157,10 +212,7 @@ function readVehicles(feed: Json): Vehicle[] {
 /** tripId -> seconds late, taken from the trip's next stop update. */
 function readDelays(feed: Json): Map<string, number> {
   const delays = new Map<string, number>();
-  const entities = pick(feed, "entity", "entities") ?? [];
-  if (!Array.isArray(entities)) return delays;
-
-  for (const entity of entities) {
+  for (const entity of entitiesOf(feed)) {
     const tu = pick(entity, "tripUpdate");
     if (!tu) continue;
     const tripId = str(pick(pick(tu, "trip") ?? {}, "tripId"));
@@ -285,17 +337,38 @@ Deno.serve(async (req) => {
     );
   }
 
+  const params = new URL(req.url).searchParams;
+  const debug = params.get("debug") === "1";
+
   let q = "";
   if (req.method === "POST") {
     const body = await req.json().catch(() => ({}));
     q = String(pick(body, "q", "bus", "query") ?? "").trim();
   } else {
-    const params = new URL(req.url).searchParams;
     q = (params.get("q") ?? params.get("bus") ?? "").trim();
   }
 
   try {
     const vp = await feed(VP_URL, VP_TTL_MS, apiKey);
+
+    // `?debug=1` answers with the feed's shape rather than its contents, for
+    // when the parser reads zero vehicles and the question is what the
+    // gateway actually sent. It carries no key and no secret - the sample is
+    // one bus's public position report.
+    if (debug) {
+      const entities = entitiesOf(vp);
+      return json({
+        topLevelType: Array.isArray(vp) ? "array" : typeof vp,
+        topLevelKeys:
+          vp && typeof vp === "object" && !Array.isArray(vp)
+            ? Object.keys(vp)
+            : null,
+        entityCount: entities.length,
+        firstEntity: entities[0] ?? null,
+        parsedFirstVehicle: readVehicles(vp)[0] ?? null,
+      });
+    }
+
     const all = readVehicles(vp);
 
     // Only the matched vehicles get the trip-update join. Pulling the second

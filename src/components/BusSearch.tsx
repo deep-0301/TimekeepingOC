@@ -293,9 +293,14 @@ export default function BusSearch() {
 
       {feed && vehicles.length === 0 && !error && (
         <div className="note">
-          {looksLikeFleetNumber(searchedFor)
-            ? `Bus ${searchedFor} is not reporting a position right now. Buses drop off the feed when they are in the garage, out of service, or between trips.`
-            : `Nothing is running route ${searchedFor} at the moment.`}
+          {/* No buses at all system-wide is a broken feed, not a quiet
+              network - saying "4710 is not reporting" there sends you
+              looking for the wrong problem. */}
+          {feed.total === 0
+            ? "The feed returned no buses at all, which should never happen while service is running. The vehicle feed is likely down or being read wrongly - it is not just this bus."
+            : looksLikeFleetNumber(searchedFor)
+              ? `Bus ${searchedFor} is not reporting a position right now. Buses drop off the feed when they are in the garage, out of service, or between trips.`
+              : `Nothing is running route ${searchedFor} at the moment.`}
         </div>
       )}
 
