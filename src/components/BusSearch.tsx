@@ -277,21 +277,21 @@ function minuteOfDay(): number {
   return d.getHours() * 60 + d.getMinutes();
 }
 
-/** A place on the road, named the way the paddle book names it. */
-function Place({ segment }: { segment: PaddleSegment }) {
-  if (segment.atStop) {
-    return (
-      <>
-        <b>{segment.from[1]}</b> ({segment.from[0]})
-      </>
-    );
-  }
-  return (
-    <>
-      <b>{segment.from[1]}</b> ({segment.from[0]}) and <b>{segment.to[1]}</b> (
-      {segment.to[0]})
-    </>
-  );
+/**
+ * Where the bus is, said the way you would say it out loud.
+ *
+ * A pair of timepoints with their printed times is a timetable, not a
+ * location. How far through the leg the bus is already tells us which end it
+ * is nearer, so it can name one place rather than bracketing two.
+ */
+function Where({ segment }: { segment: PaddleSegment }) {
+  const from = <b>{segment.from[1]}</b>;
+  const to = <b>{segment.to[1]}</b>;
+
+  if (segment.atStop) return <>At {from}.</>;
+  if (segment.progress < 0.35) return <>Just past {from}, heading for {to}.</>;
+  if (segment.progress > 0.65) return <>Coming up to {to}.</>;
+  return <>On the way from {from} to {to}.</>;
 }
 
 /**
@@ -347,8 +347,7 @@ function PaddleTrack({
       <div className="note">
         {where.state === "running" ? (
           <>
-            Due {where.segment.atStop ? "at" : "between"}{" "}
-            <Place segment={where.segment} /> right now.
+            <Where segment={where.segment} />
           </>
         ) : where.state === "layover" ? (
           <>
@@ -483,9 +482,8 @@ function Match({
     <div className="paddle-match">
       {moved && adjusted?.state === "running" && (
         <div className="note">
-          Allowing for how late it is running, it is actually{" "}
-          {adjusted.segment.atStop ? "at" : "between"}{" "}
-          <Place segment={adjusted.segment} />.
+          Allowing for how late it is running:{" "}
+          <Where segment={adjusted.segment} />
         </div>
       )}
       <VehicleCard vehicle={vehicle} now={now} />
