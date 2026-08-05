@@ -12,6 +12,7 @@ import type {
   SpareInfo,
 } from "@/lib/types";
 import DayEditor from "./DayEditor";
+import { ChevronLeft, ChevronRight } from "./icons";
 
 interface MonthCalendarProps {
   entries: EntriesMap;
@@ -99,7 +100,7 @@ export default function MonthCalendar({
             )
           }
         >
-          ◀
+          <ChevronLeft />
         </button>
         <span className="cal-month-label">{monthLabel}</span>
         <button
@@ -110,7 +111,7 @@ export default function MonthCalendar({
             )
           }
         >
-          ▶
+          <ChevronRight />
         </button>
       </div>
 

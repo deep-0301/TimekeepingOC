@@ -1,4 +1,5 @@
 import { fmtDate } from "@/lib/dateUtils";
+import { ChevronLeft, ChevronRight } from "./icons";
 
 interface WeekNavProps {
   refDate: Date;
@@ -16,7 +17,8 @@ export default function WeekNav({
   return (
     <nav className="week-nav">
       <button className="ghost" onClick={onPrevWeek}>
-        ◀ Prev period
+        <ChevronLeft />
+        Prev period
       </button>
       <input
         type="date"
@@ -24,7 +26,8 @@ export default function WeekNav({
         onChange={(e) => e.target.value && onPickDate(e.target.value)}
       />
       <button className="ghost" onClick={onNextWeek}>
-        Next period ▶
+        Next period
+        <ChevronRight />
       </button>
     </nav>
   );

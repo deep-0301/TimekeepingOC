@@ -2621,3 +2621,38 @@ table.hos-table tr.row-hos-breach td {
   border-radius: 0 5px 5px 0;
   background: #eef4f7;
 }
+
+/* ==========================================================================
+   Material icons
+   ========================================================================== */
+
+/* Sized in em so an icon matches whatever text it sits beside, and shifted
+   down a fraction so its optical centre lines up with the baseline rather
+   than the cap height. */
+.mi {
+  width: 1.15em;
+  height: 1.15em;
+  flex: 0 0 auto;
+  vertical-align: -0.28em;
+}
+
+/* Buttons that pair a glyph with a word need the two spaced and centred. */
+button .mi {
+  vertical-align: middle;
+}
+
+.nav-toggle,
+.nav-signout,
+.summary-head button.ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* The carets are decoration next to a label, so they read smaller. */
+.pt-trip-caret .mi,
+.manage-work-caret .mi {
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.2em;
+}

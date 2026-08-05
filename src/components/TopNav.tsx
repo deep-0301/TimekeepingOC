@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_LINKS, isActiveHref } from "@/lib/nav";
+import { Menu } from "./icons";
 
 interface Props {
   open: boolean;
@@ -28,11 +29,7 @@ export default function TopNav({ open, onOpen }: Props) {
         aria-controls="main-nav"
         onClick={onOpen}
       >
-        <span className="nav-toggle-bars" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </span>
+        <Menu />
         <span className="nav-toggle-current">
           {current ? current.label : "Menu"}
         </span>

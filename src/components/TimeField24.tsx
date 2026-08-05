@@ -1,5 +1,6 @@
 "use client";
 
+import { Schedule } from "./icons";
 const HOURS_24 = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES_60 = Array.from({ length: 60 }, (_, i) => i);
 
@@ -32,7 +33,9 @@ export default function TimeField24({
     <div className="field">
       <label>{label}</label>
       <div className="time24">
-        <span className="time24-icon">🕐</span>
+        <span className="time24-icon">
+        <Schedule />
+      </span>
         <select
           aria-label={`${label} hour`}
           value={h}

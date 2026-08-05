@@ -16,6 +16,7 @@ import type { DayFieldName, DayFieldValue, EntriesMap, SpareInfo } from "@/lib/t
 import TimeField24 from "./TimeField24";
 import GarageField from "./GarageField";
 import InfoNote from "./InfoNote";
+import { ArrowRightAlt, ChevronRight, Event, ExpandMore } from "./icons";
 
 /** AVLC rule: revised time = AVLC time + 5 minutes. */
 const AVLC_BUMP_MIN = 5;
@@ -176,7 +177,7 @@ export default function DayEditor({
       {holiday && (
         <div className="holiday-banner">
           <span>
-            📅 {holiday.name}{" "}
+            <Event /> {holiday.name}{" "}
             <span className="badge estimate">
               {holiday.category === "general" ? "statutory" : "designated"}
             </span>
@@ -217,7 +218,9 @@ export default function DayEditor({
             {shortLocation(pieces[0].onLoc)}{" "}
             <span className="day-location-time">{pieces[0].onTime}</span>
           </span>
-          <span className="day-location-arrow">→</span>
+          <span className="day-location-arrow">
+            <ArrowRightAlt />
+          </span>
           <span className="day-location-point">
             {shortLocation(pieces[pieces.length - 1].offLoc)}{" "}
             <span className="day-location-time">
@@ -280,7 +283,9 @@ export default function DayEditor({
         className={"manage-work-toggle" + (manageOpen ? " open" : "")}
         onClick={() => setManageOpen((o) => !o)}
       >
-        <span className="manage-work-caret">{manageOpen ? "▾" : "▸"}</span>
+        <span className="manage-work-caret">
+          {manageOpen ? <ExpandMore /> : <ChevronRight />}
+        </span>
         Manage work
       </button>
 
@@ -467,7 +472,7 @@ export default function DayEditor({
                               }
                             >
                               {selectedShiftIndex === si
-                                ? "✓ Selected"
+                                ? "Selected"
                                 : "+ Add whole shift"}
                             </button>
                           </div>

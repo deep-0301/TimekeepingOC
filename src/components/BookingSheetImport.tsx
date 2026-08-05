@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ComponentType } from "react";
 import {
   hmToMin,
   parseBookingSheetText,
@@ -14,6 +14,7 @@ import { newEmptyDayEntry, type EntriesMap, type EntryPiece } from "@/lib/types"
 import HolidaySpareImport from "./HolidaySpareImport";
 import type { SheetRow } from "@/lib/bookingSheetParser";
 import InfoNote from "./InfoNote";
+import { Description, FileUpload } from "./icons";
 
 /** When a block's totals line wasn't captured (e.g. an OCR line-break
  * merged it into a row, dropping it), fall back to summing each row's own
@@ -48,7 +49,7 @@ export default function BookingSheetImport({
           <HolidaySpareImport onImport={onImport} />
           <BookingSheetSlot
             title={statSlot.title}
-            icon={statSlot.icon}
+            Icon={statSlot.Icon}
             accent={statSlot.accent}
             onImport={onImport}
             onSeasonAnchorDetected={onSeasonAnchorDetected}
@@ -66,7 +67,7 @@ export default function BookingSheetImport({
           <BookingSheetSlot
             key={slot.key}
             title={slot.title}
-            icon={slot.icon}
+            Icon={slot.Icon}
             accent={slot.accent}
             onImport={onImport}
             onSeasonAnchorDetected={onSeasonAnchorDetected}
@@ -79,13 +80,13 @@ export default function BookingSheetImport({
 
 interface BookingSheetSlotProps extends BookingSheetImportProps {
   title: string;
-  icon: string;
+  Icon: ComponentType<{ size?: number; className?: string }>;
   accent: "steel" | "amber";
 }
 
 function BookingSheetSlot({
   title,
-  icon,
+  Icon,
   accent,
   onImport,
   onSeasonAnchorDetected,
@@ -286,7 +287,9 @@ function BookingSheetSlot({
   return (
     <div className={"sheet-import-slot sheet-import-slot-" + accent}>
       <h3>
-        <span className="sheet-import-icon">{icon}</span>
+        <span className="sheet-import-icon">
+          <Icon />
+        </span>
         {title}
       </h3>
 
@@ -321,13 +324,17 @@ function BookingSheetSlot({
         />
         {fileName ? (
           <>
-            <div className="dropzone-icon">📄</div>
+            <div className="dropzone-icon">
+              <Description />
+            </div>
             <div className="dropzone-filename">{fileName}</div>
             <div className="dropzone-hint">Click or drop to replace</div>
           </>
         ) : (
           <>
-            <div className="dropzone-icon">⬆️</div>
+            <div className="dropzone-icon">
+              <FileUpload />
+            </div>
             <div className="dropzone-title">
               Drag &amp; drop your PDF here
             </div>

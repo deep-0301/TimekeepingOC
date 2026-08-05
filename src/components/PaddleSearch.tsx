@@ -13,6 +13,10 @@ import {
 } from "@/lib/paddles";
 import { fmtDate } from "@/lib/dateUtils";
 import BookPicker from "./BookPicker";
+import { readPref, writePref } from "@/lib/uiPrefs";
+import { ArrowRightAlt, ChevronRight, ExpandMore } from "./icons";
+
+const BOOK_PREF = "paddleBook";
 
 function StopRow({
   stop,
@@ -86,12 +90,16 @@ function TripSection({ section }: { section: Section }) {
         <span className="pt-trip-meta">
           {from && (
             <span className="pt-trip-range">
-              {from} <span className="pt-trip-arrow">→</span> {to}
+              {from} <span className="pt-trip-arrow">
+                <ArrowRightAlt />
+              </span> {to}
             </span>
           )}
           {section.nextDay && <span className="pt-tag pt-tag-next">+1 day</span>}
           {relief && <span className="pt-tag pt-tag-relief">relief</span>}
-          <span className="pt-trip-caret">{open ? "▾" : "▸"}</span>
+          <span className="pt-trip-caret">
+            {open ? <ExpandMore /> : <ChevronRight />}
+          </span>
         </span>
       </button>
 
@@ -205,7 +213,9 @@ function PaddleCard({ paddle }: { paddle: Paddle }) {
           <span className="paddle-sigtime">{paddle.on}</span>
           <span className="paddle-sigloc">{paddle.onL}</span>
         </span>
-        <span className="day-location-arrow">→</span>
+        <span className="day-location-arrow">
+            <ArrowRightAlt />
+          </span>
         <span className="paddle-signpoint">
           <span className="paddle-siglabel">
             Sign off{paddle.next ? " (next day)" : ""}
@@ -230,7 +240,9 @@ function PaddleCard({ paddle }: { paddle: Paddle }) {
         className={"manage-work-toggle" + (open ? " open" : "")}
         onClick={() => setOpen((o) => !o)}
       >
-        <span className="manage-work-caret">{open ? "▾" : "▸"}</span>
+        <span className="manage-work-caret">
+          {open ? <ExpandMore /> : <ChevronRight />}
+        </span>
         {open ? "Hide the run" : "Show the whole run"}
       </button>
 
@@ -243,15 +255,23 @@ export default function PaddleSearch() {
   const [query, setQuery] = useState("");
 
   const options = useMemo(() => paddleBookOptions(), []);
-  // Today's book is the one wanted nine times out of ten, so it is the
-  // default - but which book is being searched is stated outright and can be
-  // changed, rather than being inferred silently from a date.
-  const [bookKey, setBookKey] = useState(
-    () =>
+  // Last book chosen wins, then today's, then the first that exists. Without
+  // the first of those, an operator working the fall book was thrown back to
+  // the summer one on every visit, because the date still falls in summer.
+  const [bookKey, setBookKey] = useState(() => {
+    const saved = readPref(BOOK_PREF);
+    if (saved && options.some((o) => o.key === saved && o.file)) return saved;
+    return (
       paddleBookKeyForDate(fmtDate(new Date())) ??
       options.find((o) => o.file)?.key ??
       ""
-  );
+    );
+  });
+
+  const chooseBook = (key: string) => {
+    setBookKey(key);
+    writePref(BOOK_PREF, key);
+  };
 
   // Held with the key it came from, so switching books shows the new book's
   // loading state rather than the previous book's paddles.
@@ -303,7 +323,7 @@ export default function PaddleSearch() {
           available: !!o.file,
         }))}
         value={bookKey}
-        onChange={setBookKey}
+        onChange={chooseBook}
       />
       <input
         type="text"

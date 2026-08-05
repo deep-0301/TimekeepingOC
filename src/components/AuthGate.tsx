@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
+import { CheckCircle, DirectionsBus, RadioButtonUnchecked } from "./icons";
 
 const PASSWORD_RULES: { label: string; test: (pw: string) => boolean }[] = [
   { label: "At least 8 characters", test: (pw) => pw.length >= 8 },
@@ -33,7 +34,9 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
       <div className="auth-shell">
         <div className="auth-card">
           <div className="auth-brand">
-            <div className="auth-brand-icon">🚌</div>
+            <div className="auth-brand-icon">
+              <DirectionsBus />
+            </div>
             <div>
               <div className="auth-brand-title">Run Number Timesheet</div>
               <div className="auth-brand-sub">ATU279 · OC Transpo</div>
@@ -253,7 +256,9 @@ function SignupForm() {
         <ul className="password-checklist">
           {passwordChecks.map((rule) => (
             <li key={rule.label} className={rule.met ? "met" : undefined}>
-              <span className="check-icon">{rule.met ? "✓" : "○"}</span>
+              <span className="check-icon">
+                    {rule.met ? <CheckCircle /> : <RadioButtonUnchecked />}
+                  </span>
               {rule.label}
             </li>
           ))}
