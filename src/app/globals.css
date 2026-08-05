@@ -2216,6 +2216,47 @@ table.hos-table tr.row-hos-breach td {
   font-weight: 500;
 }
 
+.paddle-track {
+  margin-top: 12px;
+}
+
+.paddle-track-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.paddle-track-dest {
+  font-weight: 600;
+  color: var(--steel-dark);
+}
+
+.paddle-match {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+/* Says on what grounds the bus was matched. A shortlist and a near-certainty
+   should not look the same, so the confident one is the only one that gets
+   the accent bar. */
+.paddle-match-why {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-soft, #5b6660);
+  padding-left: 9px;
+  border-left: 3px solid var(--line);
+  margin-bottom: 8px;
+}
+
+.paddle-match-why.is-sure {
+  border-left-color: var(--steel-dark);
+  color: var(--steel-dark);
+  font-weight: 500;
+}
+
 .bus-diagnostics {
   margin-top: 10px;
 }

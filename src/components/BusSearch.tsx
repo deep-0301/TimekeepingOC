@@ -18,8 +18,19 @@ import {
 import {
   loadPaddleBookForDate,
   paddlesOnRouteAt,
+  type Paddle,
   type PaddleGuess,
 } from "@/lib/paddles";
+import {
+  clockLabel,
+  matchVehicles,
+  normalisePaddleNumber,
+  paddleWhereAt,
+  scheduleMinuteFor,
+  type PaddleSegment,
+  type PaddleWhere,
+  type VehicleMatch,
+} from "@/lib/paddleTracking";
 import PanelHeading from "./PanelHeading";
 
 const REFRESH_MS = 15_000;
@@ -260,11 +271,198 @@ function FeedDiagnostics() {
   );
 }
 
+function minuteOfDay(): number {
+  const d = new Date();
+  return d.getHours() * 60 + d.getMinutes();
+}
+
+/** A place on the road, named the way the paddle book names it. */
+function Place({ segment }: { segment: PaddleSegment }) {
+  if (segment.atStop) {
+    return (
+      <>
+        <b>{segment.from[1]}</b> ({segment.from[0]})
+      </>
+    );
+  }
+  return (
+    <>
+      <b>{segment.from[1]}</b> ({segment.from[0]}) and <b>{segment.to[1]}</b> (
+      {segment.to[0]})
+    </>
+  );
+}
+
+/**
+ * A paddle, where it is due to be, and the buses that could be working it.
+ *
+ * The scheduled place comes from the paddle book, which names its timepoints
+ * by intersection. The bus comes from the live feed. Those are two different
+ * claims and are kept visibly apart: the schedule is certain, the bus is a
+ * match, and each match says on what grounds it was made.
+ */
+function PaddleTrack({
+  number,
+  paddle,
+  where,
+  matches,
+  now,
+}: {
+  number: string;
+  paddle: Paddle;
+  where: PaddleWhere;
+  matches: VehicleMatch[];
+  now: number;
+}) {
+  const [showRest, setShowRest] = useState(false);
+  const sure = matches.filter((m) => m.confident);
+  const rest = matches.filter((m) => !m.confident);
+
+  return (
+    <div className="paddle-track">
+      <div className="paddle-track-head">
+        <span className="paddle-number">{number}</span>
+        {where.state === "running" && (
+          <>
+            <span className="bus-route-badge">{where.segment.route}</span>
+            <span className="paddle-track-dest">{where.segment.destination}</span>
+          </>
+        )}
+      </div>
+
+      <div className="note">
+        {where.state === "running" ? (
+          <>
+            Due {where.segment.atStop ? "at" : "between"}{" "}
+            <Place segment={where.segment} /> right now.
+          </>
+        ) : where.state === "layover" ? (
+          <>
+            Between trips. Next out on route <b>{where.nextRoute}</b> to{" "}
+            {where.nextDestination} at {clockLabel(where.nextStart)}.
+          </>
+        ) : where.state === "before" ? (
+          <>This paddle signs on at {clockLabel(where.signOn)}. Nothing on the road yet.</>
+        ) : (
+          <>Signed off at {clockLabel(where.signOff)}. Nothing left to track.</>
+        )}
+      </div>
+
+      {where.state === "running" && matches.length === 0 && (
+        <div className="note">
+          No bus is reporting on route {where.segment.route} at the moment, so
+          there is nothing to match this paddle against.
+        </div>
+      )}
+
+      {sure.map((m) => (
+        <Match key={keyOf(m)} match={m} paddle={paddle} where={where} now={now} />
+      ))}
+
+      {rest.length > 0 &&
+        (sure.length > 0 ? (
+          // A named bus is the answer; the rest of the route is a second
+          // opinion, and burying it keeps the answer from being crowded out.
+          <div className="paddle-others">
+            <button
+              type="button"
+              className="ghost small"
+              onClick={() => setShowRest((v) => !v)}
+            >
+              {showRest ? "Hide" : "Show"} the other {rest.length} bus
+              {rest.length === 1 ? "" : "es"} on route {routeOf(where)}
+            </button>
+            {showRest &&
+              rest.map((m) => (
+                <Match key={keyOf(m)} match={m} paddle={paddle} where={where} now={now} />
+              ))}
+          </div>
+        ) : (
+          <>
+            <div className="paddle-match-why">
+              These are the buses on route {routeOf(where)} right now. The feed
+              does not say which trip each one is on, so pick the one heading
+              your way.
+            </div>
+            {rest.map((m) => (
+              <Match
+                key={keyOf(m)}
+                match={m}
+                paddle={paddle}
+                where={where}
+                now={now}
+                quiet
+              />
+            ))}
+          </>
+        ))}
+    </div>
+  );
+}
+
+function keyOf(m: VehicleMatch): string {
+  return m.vehicle.vehicleId ?? m.vehicle.fleet ?? String(m.vehicle.tripId);
+}
+
+function routeOf(where: PaddleWhere): string {
+  return where.state === "running" ? where.segment.route : "";
+}
+
+/** One candidate bus, with the grounds for the match and where it really is. */
+function Match({
+  match,
+  paddle,
+  where,
+  now,
+  quiet,
+}: {
+  match: VehicleMatch;
+  paddle: Paddle;
+  where: PaddleWhere;
+  now: number;
+  /** The grounds were already given once for the whole group. */
+  quiet?: boolean;
+}) {
+  // Where the bus really is, as opposed to where the timetable puts it: wind
+  // the schedule back by however late the feed says it is running.
+  const adjusted =
+    match.vehicle.delay === undefined
+      ? null
+      : paddleWhereAt(paddle, scheduleMinuteFor(minuteOfDay(), match.vehicle.delay));
+  const moved =
+    adjusted?.state === "running" &&
+    where.state === "running" &&
+    adjusted.segment.from !== where.segment.from;
+
+  return (
+    <div className="paddle-match">
+      {!quiet && (
+        <div className={"paddle-match-why" + (match.confident ? " is-sure" : "")}>
+          {match.reason}
+        </div>
+      )}
+      {moved && adjusted?.state === "running" && (
+        <div className="note">
+          Allowing for how late it is running, it is actually{" "}
+          {adjusted.segment.atStop ? "at" : "between"}{" "}
+          <Place segment={adjusted.segment} />.
+        </div>
+      )}
+      <VehicleCard vehicle={match.vehicle} now={now} />
+    </div>
+  );
+}
+
+type PaddleView =
+  | { kind: "missing"; number: string; dayType: string }
+  | { kind: "found"; number: string; paddle: Paddle; where: PaddleWhere };
+
 export default function BusSearch() {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState("");
   const [feed, setFeed] = useState<BusFeed | null>(null);
   const [error, setError] = useState("");
+  const [paddleView, setPaddleView] = useState<PaddleView | null>(null);
   const [loading, setLoading] = useState(false);
   const [auto, setAuto] = useState(true);
   const [now, setNow] = useState(() => Date.now());
@@ -276,6 +474,37 @@ export default function BusSearch() {
     const mine = ++seq.current;
     setLoading(true);
     try {
+      // A paddle number is answered in two steps - the book says which route
+      // it is on at this minute, and only then is the feed worth asking.
+      const number = normalisePaddleNumber(q);
+      if (number) {
+        const book = await loadPaddleBookForDate(fmtDate(new Date()));
+        if (seq.current !== mine) return;
+
+        const paddle = book.paddles.find((p) => p.p === number);
+        if (!paddle) {
+          setPaddleView({ kind: "missing", number, dayType: book.dayType });
+          setFeed(null);
+          setError("");
+          return;
+        }
+
+        const where = paddleWhereAt(paddle, minuteOfDay());
+        setPaddleView({ kind: "found", number, paddle, where });
+        if (where.state !== "running") {
+          setFeed(null);
+          setError("");
+          return;
+        }
+
+        const data = await fetchBuses(where.segment.route);
+        if (seq.current !== mine) return;
+        setFeed(data);
+        setError("");
+        return;
+      }
+
+      setPaddleView(null);
       const data = await fetchBuses(q);
       if (seq.current !== mine) return;
       setFeed(data);
@@ -316,7 +545,7 @@ export default function BusSearch() {
     <section className="panel">
       <PanelHeading
         title="Find a bus"
-        info="Live positions from OC Transpo. Type the four-digit number on the bus, or a route number to see every bus running it."
+        info="Live positions from OC Transpo. Type a paddle number (85-02 or 085002) to find the bus working it, the four-digit number on a bus to find that bus, or a route number to see every bus running it."
       />
 
       <form className="bus-form" onSubmit={submit}>
@@ -325,11 +554,10 @@ export default function BusSearch() {
           className="bus-input"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Bus number, e.g. 4358"
-          inputMode="numeric"
+          placeholder="Paddle 85-02, bus 4358, or route 95"
           autoComplete="off"
-          maxLength={6}
-          aria-label="Bus number or route"
+          maxLength={7}
+          aria-label="Paddle number, bus number or route"
         />
         <button type="submit" disabled={loading || !query.trim()}>
           {loading ? "Looking…" : "Search"}
@@ -360,7 +588,29 @@ export default function BusSearch() {
 
       {error && <div className="note bus-error">{error}</div>}
 
-      {feed && vehicles.length === 0 && !error && (
+      {paddleView?.kind === "missing" && (
+        <div className="note">
+          Paddle {paddleView.number} is not in today&rsquo;s{" "}
+          {paddleView.dayType} book. Check the number, or that the paddle
+          really runs today.
+        </div>
+      )}
+
+      {paddleView?.kind === "found" && (
+        <PaddleTrack
+          number={paddleView.number}
+          paddle={paddleView.paddle}
+          where={paddleView.where}
+          matches={
+            paddleView.where.state === "running"
+              ? matchVehicles(vehicles, paddleView.where.segment)
+              : []
+          }
+          now={now}
+        />
+      )}
+
+      {!paddleView && feed && vehicles.length === 0 && !error && (
         <div className="note">
           {/* No buses at all system-wide is a broken feed, not a quiet
               network - saying "4710 is not reporting" there sends you
@@ -377,7 +627,9 @@ export default function BusSearch() {
           the one failure the message above cannot explain on its own. */}
       {feed && feed.total === 0 && !error && <FeedDiagnostics />}
 
-      {vehicles.length > 0 && (
+      {/* In paddle mode the cards are rendered by PaddleTrack, each with the
+          grounds for its match, so the bare list would only repeat them. */}
+      {!paddleView && vehicles.length > 0 && (
         <>
           {feed?.kind === "route" && (
             <div className="note">
