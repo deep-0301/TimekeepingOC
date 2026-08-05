@@ -105,6 +105,23 @@ export async function fetchBuses(query: string): Promise<BusFeed> {
   return data as BusFeed;
 }
 
+/**
+ * The feed's shape rather than its contents.
+ *
+ * Asked for when the feed reports no buses at all, which means the reader and
+ * the gateway disagree about how the JSON is spelled. Running it from the
+ * page rather than a terminal matters: other sites' content-security policies
+ * block a fetch to Supabase from their console, and this is the one origin
+ * that is allowed to make the call anyway.
+ */
+export async function fetchBusDebug(): Promise<string> {
+  const { data, error } = await supabase.functions.invoke<unknown>("bus", {
+    body: { debug: 1 },
+  });
+  if (error) throw new Error(await describeInvokeError(error));
+  return JSON.stringify(data, null, 2);
+}
+
 /** Four digits is a fleet number, anything else is a route. */
 export function looksLikeFleetNumber(q: string): boolean {
   return /^\d{4,5}$/.test(q.trim());

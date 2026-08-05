@@ -6,6 +6,7 @@ import {
   agoLabel,
   compass,
   delayLabel,
+  fetchBusDebug,
   fetchBuses,
   kmh,
   looksLikeFleetNumber,
@@ -191,6 +192,74 @@ function VehicleCard({ vehicle, now }: { vehicle: BusVehicle; now: number }) {
   );
 }
 
+/**
+ * What the feed actually sent, for when nothing at all came back.
+ *
+ * This lives on the page rather than in a terminal on purpose. Reading the
+ * feed's shape is the only way to tell a dead upstream from a parser that
+ * disagrees with it about how the JSON is spelled, and the site is the one
+ * origin whose content-security policy permits the call.
+ */
+function FeedDiagnostics() {
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const run = async () => {
+    setBusy(true);
+    try {
+      setResult({ ok: true, text: await fetchBusDebug() });
+    } catch (e) {
+      setResult({ ok: false, text: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const copy = async () => {
+    if (!result) return;
+    try {
+      await navigator.clipboard.writeText(result.text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard access is refused on some browsers without a secure
+      // context; the text is on screen and can still be selected by hand.
+    }
+  };
+
+  return (
+    <div className="bus-diagnostics">
+      {!result ? (
+        <button
+          type="button"
+          className="ghost small"
+          onClick={() => void run()}
+          disabled={busy}
+        >
+          {busy ? "Checking…" : "Check what the feed sent"}
+        </button>
+      ) : (
+        <>
+          <div className="bus-diagnostics-head">
+            <span className="note">
+              {result.ok
+                ? "Send this to whoever maintains the app."
+                : "Could not read the feed."}
+            </span>
+            {result.ok && (
+              <button type="button" className="ghost small" onClick={() => void copy()}>
+                {copied ? "Copied" : "Copy"}
+              </button>
+            )}
+          </div>
+          <pre className="bus-diagnostics-body">{result.text}</pre>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function BusSearch() {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState("");
@@ -303,6 +372,10 @@ export default function BusSearch() {
               : `Nothing is running route ${searchedFor} at the moment.`}
         </div>
       )}
+
+      {/* Only worth offering when the whole feed came back empty, which is
+          the one failure the message above cannot explain on its own. */}
+      {feed && feed.total === 0 && !error && <FeedDiagnostics />}
 
       {vehicles.length > 0 && (
         <>

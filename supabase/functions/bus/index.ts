@@ -338,12 +338,16 @@ Deno.serve(async (req) => {
   }
 
   const params = new URL(req.url).searchParams;
-  const debug = params.get("debug") === "1";
+  let debug = params.get("debug") === "1";
 
   let q = "";
   if (req.method === "POST") {
     const body = await req.json().catch(() => ({}));
     q = String(pick(body, "q", "bus", "query") ?? "").trim();
+    // The page invokes this over POST, where there is no query string, so the
+    // flag has to be readable from the body as well.
+    const flag = pick(body, "debug");
+    if (flag === true || flag === 1 || flag === "1") debug = true;
   } else {
     q = (params.get("q") ?? params.get("bus") ?? "").trim();
   }
