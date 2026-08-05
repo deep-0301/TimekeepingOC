@@ -21,6 +21,7 @@ import {
   type Paddle,
   type PaddleGuess,
 } from "@/lib/paddles";
+import { recallBus, rememberBus, type RememberedBus } from "@/lib/paddleBusMemory";
 import {
   bestVehicle,
   clockLabel,
@@ -310,16 +311,26 @@ function PaddleTrack({
   paddle,
   where,
   match,
+  remembered,
+  vehicles,
   now,
 }: {
   number: string;
   paddle: Paddle;
   where: PaddleWhere;
   match: PaddleMatch | null;
+  remembered?: RememberedBus | null;
+  vehicles: BusVehicle[];
   now: number;
 }) {
   const [showOthers, setShowOthers] = useState(false);
   const others = match?.others ?? [];
+  // Off the road: the bus is looked up by the fleet number written down
+  // earlier, so anything that came back is that bus.
+  const recalledVehicle =
+    where.state !== "running" && remembered
+      ? (vehicles.find((v) => v.fleet === remembered.fleet) ?? null)
+      : null;
 
   return (
     <div className="paddle-track">
@@ -350,6 +361,40 @@ function PaddleTrack({
           <>Signed off at {clockLabel(where.signOff)}. Nothing left to track.</>
         )}
       </div>
+
+      {/* A paddle between trips is on no route, so the live search has no
+          handle on it. The bus identified while it was running does. */}
+      {where.state !== "running" && (
+        <>
+          {!remembered ? (
+            <div className="paddle-match-why">
+              No bus has been identified for this paddle yet today, and a paddle
+              off the road is on no route, so there is nothing to look one up
+              by. Search it again while it is running and the bus will be
+              remembered for the rest of the day.
+            </div>
+          ) : recalledVehicle ? (
+            <>
+              <div className="paddle-match-why is-sure">
+                Bus {remembered.fleet} was working this paddle earlier today.
+                It is not on a trip right now - this is where it is.
+              </div>
+              <div className="paddle-match">
+                <VehicleCard vehicle={recalledVehicle} now={now} />
+              </div>
+            </>
+          ) : (
+            <div className="paddle-match-why is-sure">
+              Bus {remembered.fleet} was working this paddle earlier today, and
+              is not reporting a position now - buses drop off the feed in the
+              garage.
+              {remembered.place
+                ? ` It was last seen near ${remembered.place} at ${new Date(remembered.at * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`
+                : ""}
+            </div>
+          )}
+        </>
+      )}
 
       {match && !match.best && others.length === 0 && (
         <div className="note">
@@ -450,7 +495,14 @@ function Match({
 
 type PaddleView =
   | { kind: "missing"; number: string; dayType: string }
-  | { kind: "found"; number: string; paddle: Paddle; where: PaddleWhere };
+  | {
+      kind: "found";
+      number: string;
+      paddle: Paddle;
+      where: PaddleWhere;
+      /** Only set when the paddle is off the road and a bus is on record. */
+      remembered?: RememberedBus | null;
+    };
 
 export default function BusSearch() {
   const [query, setQuery] = useState("");
@@ -484,15 +536,44 @@ export default function BusSearch() {
           return;
         }
 
+        const today = fmtDate(new Date());
         const where = paddleWhereAt(paddle, minuteOfDay());
-        setPaddleView({ kind: "found", number, paddle, where });
-        if (where.state !== "running") {
+
+        if (where.state === "running") {
+          const data = await fetchBuses(where.segment.route);
+          if (seq.current !== mine) return;
+
+          // Worth writing down while it is knowable: once the paddle goes on
+          // a break it is on no route, and nothing can find the bus again.
+          const found = bestVehicle(data.vehicles, where.segment).best;
+          if (found?.fleet) {
+            rememberBus(number, {
+              date: today,
+              fleet: found.fleet,
+              at: found.ts ?? Math.floor(Date.now() / 1000),
+              lat: found.lat,
+              lon: found.lon,
+              place: where.segment.from[1],
+            });
+          }
+
+          setPaddleView({ kind: "found", number, paddle, where });
+          setFeed(data);
+          setError("");
+          return;
+        }
+
+        // Off the road, so there is no route to ask about. The bus identified
+        // earlier today is the only handle left on it.
+        const remembered = recallBus(number, today);
+        setPaddleView({ kind: "found", number, paddle, where, remembered });
+        if (!remembered) {
           setFeed(null);
           setError("");
           return;
         }
 
-        const data = await fetchBuses(where.segment.route);
+        const data = await fetchBuses(remembered.fleet);
         if (seq.current !== mine) return;
         setFeed(data);
         setError("");
@@ -601,6 +682,8 @@ export default function BusSearch() {
               ? bestVehicle(vehicles, paddleView.where.segment)
               : null
           }
+          remembered={paddleView.remembered}
+          vehicles={vehicles}
           now={now}
         />
       )}
