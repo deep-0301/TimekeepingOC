@@ -114,7 +114,12 @@ function PaddleGuesses({ vehicle }: { vehicle: BusVehicle }) {
  * the card, so nothing is lost by it failing.
  */
 function StreetName({ lat, lon }: { lat: number; lon: number }) {
-  const [place, setPlace] = useState<BusPlace | null>(null);
+  // Held with the coordinates it was fetched for, so a bus that moves shows
+  // its new street rather than the previous one until the answer lands.
+  const [result, setResult] = useState<{
+    key: string;
+    value: BusPlace | { error: string };
+  } | null>(null);
 
   // Snapped to the same ~11 m grid the edge function caches on, so a bus
   // idling at a stop does not fire a fresh lookup on every refresh.
@@ -123,15 +128,28 @@ function StreetName({ lat, lon }: { lat: number; lon: number }) {
   useEffect(() => {
     let live = true;
     const [a, b] = key.split(",").map(Number);
-    void fetchPlace(a, b).then((p) => {
-      if (live) setPlace(p);
+    void fetchPlace(a, b).then((value) => {
+      if (live) setResult({ key, value });
     });
     return () => {
       live = false;
     };
   }, [key]);
 
-  if (!place) return null;
+  const place = result && result.key === key ? result.value : null;
+
+  if (!place) return <div className="bus-place is-pending">Finding the street…</div>;
+
+  if ("error" in place) {
+    // Shown rather than hidden: a name that silently fails to appear cannot
+    // be chased, and the operator can read this out to say what went wrong.
+    return (
+      <div className="bus-place is-failed">
+        Street name unavailable — {place.error}
+      </div>
+    );
+  }
+
   return (
     <div className="bus-place">
       {place.label}
