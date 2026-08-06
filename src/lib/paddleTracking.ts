@@ -162,7 +162,7 @@ export function clockLabel(min: number): string {
 }
 
 /** How the one bus was picked out, or why it could not be. */
-export type MatchBasis = "trip-start" | "only-bus" | "unidentified";
+export type MatchBasis = "trip" | "trip-start" | "only-bus" | "unidentified";
 
 export interface PaddleMatch {
   /** The bus working this paddle, or null when the feed cannot say. */
@@ -187,7 +187,23 @@ export interface PaddleMatch {
 export function bestVehicle(
   vehicles: BusVehicle[],
   segment: PaddleSegment,
+  /** GTFS trip ids known to belong to this paddle, where that is known. */
+  ownTrips?: ReadonlySet<string>,
 ): PaddleMatch {
+  // The strong case: the feed says which trip the bus is on, and the trip is
+  // one this paddle works. That is a lookup rather than a guess, so it is
+  // settled before anything is measured against the clock.
+  if (ownTrips?.size) {
+    const onOurTrip = vehicles.find((v) => v.tripId && ownTrips.has(v.tripId));
+    if (onOurTrip) {
+      return {
+        best: onOurTrip,
+        basis: "trip",
+        others: vehicles.filter((v) => v !== onOurTrip),
+      };
+    }
+  }
+
   const due = segment.tripStartMin % 1440;
 
   // Closest trip start inside a minute either way. The tolerance covers the
