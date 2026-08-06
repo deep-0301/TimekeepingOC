@@ -14,7 +14,6 @@ import {
   occupancyLabel,
   statusLabel,
   type BusFeed,
-  type BusPlace,
   type BusVehicle,
 } from "@/lib/buses";
 import {
@@ -24,6 +23,7 @@ import {
   type PaddleGuess,
 } from "@/lib/paddles";
 import { recallBus, rememberBus, type RememberedBus } from "@/lib/paddleBusMemory";
+import { nearestStop, stopById } from "@/lib/stops";
 import {
   bestVehicle,
   clockLabel,
@@ -106,29 +106,79 @@ function PaddleGuesses({ vehicle }: { vehicle: BusVehicle }) {
 }
 
 /**
- * The street the bus is actually on, from its coordinates.
+ * Where the bus is, in OC Transpo's own words.
  *
- * This is the live position turned into words, as opposed to the paddle's
- * scheduled place. It appears when it arrives and is simply absent when the
- * geocoder cannot answer - the coordinates and the map link are already on
- * the card, so nothing is lost by it failing.
+ * The stop list is asked first. Its names are already intersections and it is
+ * on the device, so the answer is exact and instant. A geocoder is only worth
+ * troubling when the bus is nowhere near a stop - deep in a garage, say -
+ * which is also the case where it will not be missed if it fails.
  */
-function StreetName({ lat, lon }: { lat: number; lon: number }) {
-  // Held with the coordinates it was fetched for, so a bus that moves shows
-  // its new street rather than the previous one until the answer lands.
-  const [result, setResult] = useState<{
-    key: string;
-    value: BusPlace | { error: string };
-  } | null>(null);
+async function describeSpot(
+  lat: number,
+  lon: number,
+  stopId?: string,
+): Promise<{ label: string; note?: string; credit: string } | { error: string }> {
+  const CREDIT = "OC Transpo stop data";
+  try {
+    // The feed usually names the stop the bus is running to, which beats
+    // anything measured off a coordinate.
+    if (stopId) {
+      const exact = await stopById(stopId);
+      if (exact) return { label: exact.name, note: "next stop", credit: CREDIT };
+    }
 
-  // Snapped to the same ~11 m grid the edge function caches on, so a bus
-  // idling at a stop does not fire a fresh lookup on every refresh.
-  const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+    const near = await nearestStop(lat, lon);
+    if (near && near.metres <= 400) {
+      return {
+        label: near.name,
+        note: near.metres <= 40 ? "at the stop" : `${near.metres} m away`,
+        credit: CREDIT,
+      };
+    }
+
+    // Far from any stop. A street name is more use than a stop half a
+    // kilometre off, so the geocoder gets its turn here.
+    const place = await fetchPlace(lat, lon);
+    if (!("error" in place)) {
+      return { label: place.label, credit: "© OpenStreetMap contributors" };
+    }
+    if (near) {
+      return {
+        label: near.name,
+        note: `${(near.metres / 1000).toFixed(1)} km away — nearest stop`,
+        credit: CREDIT,
+      };
+    }
+    return { error: place.error };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+function StreetName({
+  lat,
+  lon,
+  stopId,
+}: {
+  lat: number;
+  lon: number;
+  stopId?: string;
+}) {
+  type Spot = Awaited<ReturnType<typeof describeSpot>>;
+
+  // Held with the position it was worked out for, so a bus that moves shows
+  // its new location rather than the previous one until the answer lands.
+  const [result, setResult] = useState<{ key: string; value: Spot } | null>(null);
+
+  // Snapped to ~11 m, so a bus idling at a stop is not looked up again on
+  // every refresh.
+  // Pipe-separated, since a stop id must not be mistaken for a coordinate.
+  const key = `${lat.toFixed(4)}|${lon.toFixed(4)}|${stopId ?? ""}`;
 
   useEffect(() => {
     let live = true;
-    const [a, b] = key.split(",").map(Number);
-    void fetchPlace(a, b).then((value) => {
+    const [a, b, id] = key.split("|");
+    void describeSpot(Number(a), Number(b), id || undefined).then((value) => {
       if (live) setResult({ key, value });
     });
     return () => {
@@ -136,24 +186,23 @@ function StreetName({ lat, lon }: { lat: number; lon: number }) {
     };
   }, [key]);
 
-  const place = result && result.key === key ? result.value : null;
+  const spot = result && result.key === key ? result.value : null;
 
-  if (!place) return <div className="bus-place is-pending">Finding the street…</div>;
+  if (!spot) return <div className="bus-place is-pending">Finding the location…</div>;
 
-  if ("error" in place) {
+  if ("error" in spot) {
     // Shown rather than hidden: a name that silently fails to appear cannot
     // be chased, and the operator can read this out to say what went wrong.
     return (
-      <div className="bus-place is-failed">
-        Street name unavailable — {place.error}
-      </div>
+      <div className="bus-place is-failed">Location unavailable — {spot.error}</div>
     );
   }
 
   return (
     <div className="bus-place">
-      {place.label}
-      <span className="bus-place-credit">© OpenStreetMap contributors</span>
+      {spot.label}
+      {spot.note && <span className="bus-place-note">{spot.note}</span>}
+      <span className="bus-place-credit">{spot.credit}</span>
     </div>
   );
 }
@@ -185,7 +234,9 @@ function VehicleCard({ vehicle, now }: { vehicle: BusVehicle; now: number }) {
         </span>
       </div>
 
-      {hasPosition && <StreetName lat={vehicle.lat!} lon={vehicle.lon!} />}
+      {hasPosition && (
+        <StreetName lat={vehicle.lat!} lon={vehicle.lon!} stopId={vehicle.stopId} />
+      )}
 
       <dl className="bus-facts">
         {status && (
