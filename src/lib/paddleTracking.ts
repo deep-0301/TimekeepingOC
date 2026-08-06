@@ -100,7 +100,14 @@ export interface PaddleSegment {
 export type PaddleWhere =
   | { state: "before"; signOn: number; firstTripStart: number | null }
   | { state: "running"; segment: PaddleSegment }
-  | { state: "layover"; nextRoute: string; nextDestination: string; nextStart: number }
+  | {
+      state: "layover";
+      nextRoute: string;
+      nextDestination: string;
+      nextStart: number;
+      /** The route just finished, for finding a bus that is between trips. */
+      prevRoute: string | null;
+    }
   | { state: "done"; signOff: number };
 
 /**
@@ -145,11 +152,15 @@ export function paddleWhereAt(paddle: Paddle, minOfDay: number): PaddleWhere {
 
   const next = trips.find((t) => t.mins.length > 0 && t.mins[0] > now);
   if (next) {
+    const previous = [...trips]
+      .reverse()
+      .find((t) => t.mins.length > 0 && t.mins[t.mins.length - 1] <= now);
     return {
       state: "layover",
       nextRoute: next.trip[0],
       nextDestination: next.trip[1],
       nextStart: next.mins[0],
+      prevRoute: previous ? previous.trip[0] : null,
     };
   }
   return { state: "done", signOff };

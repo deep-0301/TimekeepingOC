@@ -74,6 +74,34 @@ export async function paddleForTrip(
   return file?.trips[tripId] ?? null;
 }
 
+/**
+ * Every GTFS trip this paddle works today.
+ *
+ * The inverse of the shipped mapping, built once on first use. It is what
+ * makes a bus findable while the paddle is between trips: the paddle is on no
+ * route then, so there is nothing to search by, but the bus is usually still
+ * reporting the trip it has just finished or the one it is about to start.
+ */
+let byPaddle: Map<string, Set<string>> | null = null;
+
+export async function tripsForPaddle(
+  paddleNumber: string,
+  when: Date = new Date(),
+): Promise<ReadonlySet<string>> {
+  const file = await usable(when);
+  if (!file) return new Set();
+
+  if (!byPaddle) {
+    byPaddle = new Map();
+    for (const [tripId, paddle] of Object.entries(file.trips)) {
+      let set = byPaddle.get(paddle);
+      if (!set) byPaddle.set(paddle, (set = new Set()));
+      set.add(tripId);
+    }
+  }
+  return byPaddle.get(paddleNumber) ?? new Set();
+}
+
 /** When the shipped mapping stops being trustworthy, as yyyy-mm-dd. */
 export async function tripsExpiry(): Promise<string | null> {
   const file = await load();
