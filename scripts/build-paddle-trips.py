@@ -103,13 +103,13 @@ def blocks_for(services, trips, first):
 
 def match(book, day_blocks):
     """
-    Paddle number -> block key, for the paddles that can be placed.
+    Paddle number -> the block keys describing its day, where it can be placed.
 
     An exact signature match first: every trip in the paddle, by route and
     start time, against every trip in the block. Where that fails - a paddle
-    whose first printed timepoint is not the trip's first stop, say - the
-    block sharing at least four fifths of the paddle's trips is taken, but
-    only when one block stands clearly above the rest.
+    whose first printed timepoint is not the trip's first stop, say - blocks
+    sharing at least four fifths of the paddle's trips are taken, provided
+    they all describe the same day of work.
     """
     signatures = {}
     for paddle in book["paddles"]:
@@ -124,25 +124,32 @@ def match(book, day_blocks):
         by_signature[signature].append(key)
         block_sets[key] = set(signature)
 
+    # A block is repeated under every service id it runs on - Saturday alone
+    # has 1,241 block records for 437 paddles - so several keys can describe
+    # the same day of work. Keys sharing a signature are the same block and
+    # are all kept; only a genuine disagreement about which trips the paddle
+    # works is treated as ambiguous.
     matched, exact = {}, 0
     for paddle, signature in signatures.items():
         hits = by_signature.get(signature, [])
-        if len(hits) == 1:
-            matched[paddle] = hits[0]
+        if hits:
+            matched[paddle] = hits
             exact += 1
 
     for paddle, signature in signatures.items():
         if paddle in matched or not signature:
             continue
         want = set(signature)
-        scored = sorted(
-            ((len(want & have) / len(want), key) for key, have in block_sets.items()),
-            reverse=True,
-        )
-        if scored and scored[0][0] >= 0.8 and (
-            len(scored) < 2 or scored[0][0] > scored[1][0]
-        ):
-            matched[paddle] = scored[0][1]
+        scored = [
+            (len(want & have) / len(want), key) for key, have in block_sets.items()
+        ]
+        best = max((s for s, _ in scored), default=0)
+        if best < 0.8:
+            continue
+        winners = [key for score, key in scored if score == best]
+        shapes = {tuple(sorted(block_sets[key])) for key in winners}
+        if len(shapes) == 1:
+            matched[paddle] = winners
 
     return matched, exact, len(signatures)
 
@@ -187,10 +194,11 @@ def main():
             if not day_blocks:
                 continue
             matched, exact, total = match(book, day_blocks)
-            for paddle, key in matched.items():
+            for paddle, keys in matched.items():
                 placed.add(paddle)
-                for _, _, trip_id in day_blocks[key]:
-                    trip_to_paddle[trip_id] = paddle
+                for key in keys:
+                    for _, _, trip_id in day_blocks[key]:
+                        trip_to_paddle[trip_id] = paddle
             print(f"  {book['dayType']:9} {column:9} {exact} exact, "
                   f"{len(matched)} of {total} placed")
         print(f"  {book_path}: {len(placed)} distinct paddles tied to a block")

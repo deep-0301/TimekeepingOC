@@ -64,6 +64,8 @@ export interface PaddleBook {
  */
 const BOOKS: Partial<Record<`${SeasonId}:${DayType}`, string>> = {
   "summer:weekday": "paddle-data-summer-weekday.json",
+  "summer:saturday": "paddle-data-summer-saturday.json",
+  "summer:sunday": "paddle-data-summer-sunday.json",
   "fall:weekday": "paddle-data-fall-weekday.json",
   "fall:saturday": "paddle-data-fall-saturday.json",
   "fall:sunday": "paddle-data-fall-sunday.json",
@@ -84,9 +86,9 @@ const BOOK_DAY_TYPES: DayType[] = ["weekday", "saturday", "sunday"];
 /**
  * The books offered by the picker, missing ones included.
  *
- * A gap is worth showing rather than hiding: an operator who cannot find the
- * summer Saturday book should be able to see that it does not exist yet,
- * instead of concluding their paddle number is wrong.
+ * A gap is worth showing rather than hiding: an operator who cannot find a
+ * book should be able to see that it has not been supplied yet, instead of
+ * concluding their paddle number is wrong.
  */
 export function paddleBookOptions(): PaddleBookOption[] {
   const out: PaddleBookOption[] = [];
