@@ -128,11 +128,28 @@ function fleetNumber(id?: string, label?: string): string | undefined {
   return undefined;
 }
 
+/**
+ * The number painted on the front of the bus, from a GTFS route id.
+ *
+ * Route 10 is served by route_id "10" on one pattern and "10-371-1" on
+ * another, and the realtime feed reports whichever applies. Across all 309
+ * of OC Transpo's routes the short name is always the part before the first
+ * dash, so a search for "10" has to find both.
+ */
+function routeNumber(routeId?: string): string | undefined {
+  if (!routeId) return undefined;
+  const short = routeId.split("-")[0].trim();
+  return short || routeId;
+}
+
 interface Vehicle {
   fleet?: string;
   vehicleId?: string;
   label?: string;
+  /** The number on the bus, e.g. "10". */
   route?: string;
+  /** The GTFS route id it came from, e.g. "10-371-1". */
+  routeId?: string;
   tripId?: string;
   directionId?: number;
   startTime?: string;
@@ -191,7 +208,8 @@ function readVehicles(feed: Json): Vehicle[] {
       fleet: fleetNumber(vehicleId, label),
       vehicleId,
       label,
-      route: str(pick(trip, "routeId")),
+      route: routeNumber(str(pick(trip, "routeId"))),
+      routeId: str(pick(trip, "routeId")),
       tripId: str(pick(trip, "tripId")),
       directionId: num(pick(trip, "directionId")),
       startTime: str(pick(trip, "startTime")),

@@ -27,6 +27,7 @@ import {
 } from "@/lib/paddles";
 import { recallBus, rememberBus, type RememberedBus } from "@/lib/paddleBusMemory";
 import { nearestStop, stopById } from "@/lib/stops";
+import { paddleForTrip } from "@/lib/paddleTrips";
 import {
   bestVehicle,
   clockLabel,
@@ -589,9 +590,11 @@ function PaddleTrack({
       {match?.best && (
         <>
           <div className="paddle-match-why is-sure">
-            {match.basis === "trip-start"
-              ? `Its trip began at ${match.best.startTime}, which is when this paddle's trip was due out.`
-              : `The only bus on route ${routeOf(where)} right now.`}
+            {match.basis === "trip"
+              ? "The feed has this bus on a trip that belongs to this paddle. That is a lookup, not a guess."
+              : match.basis === "trip-start"
+                ? `Its trip began at ${match.best.startTime}, which is when this paddle's trip was due out.`
+                : `The only bus on route ${routeOf(where)} right now.`}
           </div>
           <Match vehicle={match.best} paddle={paddle} where={where} now={now} />
         </>
@@ -684,6 +687,8 @@ type PaddleView =
       where: PaddleWhere;
       /** Only set when the paddle is off the road and a bus is on record. */
       remembered?: RememberedBus | null;
+      /** Trips on screen that the GTFS says belong to this paddle. */
+      ownTrips?: ReadonlySet<string>;
     };
 
 export default function BusSearch() {
@@ -727,7 +732,17 @@ export default function BusSearch() {
 
           // Worth writing down while it is knowable: once the paddle goes on
           // a break it is on no route, and nothing can find the bus again.
-          const found = bestVehicle(data.vehicles, where.segment).best;
+          // Which of these buses is on a trip this paddle actually works.
+          // A lookup, where the shipped mapping covers today.
+          const ownTrips = new Set<string>();
+          for (const v of data.vehicles) {
+            if (v.tripId && (await paddleForTrip(v.tripId)) === number) {
+              ownTrips.add(v.tripId);
+            }
+          }
+          if (seq.current !== mine) return;
+
+          const found = bestVehicle(data.vehicles, where.segment, ownTrips).best;
           if (found?.fleet) {
             rememberBus(number, {
               date: today,
@@ -739,7 +754,7 @@ export default function BusSearch() {
             });
           }
 
-          setPaddleView({ kind: "found", number, paddle, where });
+          setPaddleView({ kind: "found", number, paddle, where, ownTrips });
           setFeed(data);
           setError("");
           return;
@@ -876,7 +891,7 @@ export default function BusSearch() {
           where={paddleView.where}
           match={
             paddleView.where.state === "running"
-              ? bestVehicle(vehicles, paddleView.where.segment)
+              ? bestVehicle(vehicles, paddleView.where.segment, paddleView.ownTrips)
               : null
           }
           remembered={paddleView.remembered}
