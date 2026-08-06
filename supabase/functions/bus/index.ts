@@ -288,6 +288,122 @@ async function feed(url: string, ttl: number, apiKey: string): Promise<Json> {
 }
 
 // ---------------------------------------------------------------------------
+// Coordinates to a street name
+//
+// The feed gives a latitude and a longitude, which is not an answer to "where
+// is my bus". OpenStreetMap's reverse geocoder turns the pair into a road and
+// a neighbourhood.
+//
+// It runs here rather than in the page for three reasons: their usage policy
+// asks for one identified client rather than a browser per operator, it caps
+// callers at a request a second, and a cache kept here serves everyone at
+// once. All three are handled below.
+// ---------------------------------------------------------------------------
+
+const GEO_URL =
+  Deno.env.get("OCT_GEOCODER_URL") ??
+  "https://nominatim.openstreetmap.org/reverse";
+
+/** Their policy asks callers to identify themselves. */
+const GEO_AGENT =
+  "TimekeepingOC/1.0 (+https://deep-0301.github.io/TimekeepingOC/)";
+
+/** Roads do not move, so a hit stays good for a day. */
+const GEO_TTL_MS = 24 * 60 * 60 * 1000;
+const GEO_MAX_ENTRIES = 5000;
+const GEO_MIN_GAP_MS = 1100;
+
+interface Place {
+  label: string;
+  road?: string;
+  area?: string;
+  attribution: string;
+}
+
+const geoCache = new Map<string, { at: number; place: Place }>();
+
+/** ~11 m, so buses sitting at the same stop share one lookup. */
+function geoKey(lat: number, lon: number): string {
+  return `${lat.toFixed(4)},${lon.toFixed(4)}`;
+}
+
+// One upstream call at a time, spaced out. Every request joins the tail of
+// this chain, so the rate limit holds however many arrive at once.
+let geoChain: Promise<unknown> = Promise.resolve();
+let geoLast = 0;
+
+function geoQueue<T>(task: () => Promise<T>): Promise<T> {
+  const run = geoChain.then(async () => {
+    const wait = GEO_MIN_GAP_MS - (Date.now() - geoLast);
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    geoLast = Date.now();
+    return task();
+  });
+  // The chain must survive a failed lookup, or one error stops every later
+  // request behind it.
+  geoChain = run.catch(() => {});
+  return run;
+}
+
+function readPlace(body: Json): Place | null {
+  const address = pick(body, "address") ?? {};
+  const road =
+    str(pick(address, "road")) ??
+    str(pick(address, "pedestrian")) ??
+    str(pick(address, "footway")) ??
+    str(pick(body, "name"));
+  const area =
+    str(pick(address, "neighbourhood")) ??
+    str(pick(address, "suburb")) ??
+    str(pick(address, "cityDistrict")) ??
+    str(pick(address, "town")) ??
+    str(pick(address, "village")) ??
+    str(pick(address, "city"));
+
+  const label = road && area ? `${road}, ${area}` : (road ?? area);
+  if (!label) return null;
+
+  return {
+    label,
+    road,
+    area,
+    attribution: str(pick(body, "licence")) ?? "© OpenStreetMap contributors",
+  };
+}
+
+async function place(lat: number, lon: number): Promise<Place | null> {
+  const key = geoKey(lat, lon);
+  const hit = geoCache.get(key);
+  if (hit && Date.now() - hit.at < GEO_TTL_MS) return hit.place;
+
+  const target = new URL(GEO_URL);
+  target.searchParams.set("format", "jsonv2");
+  target.searchParams.set("lat", String(lat));
+  target.searchParams.set("lon", String(lon));
+  // Street level. Zooming out lands on the suburb, which is not an answer.
+  target.searchParams.set("zoom", "17");
+  target.searchParams.set("addressdetails", "1");
+
+  const found = await geoQueue(async () => {
+    const res = await fetch(target, {
+      headers: { "user-agent": GEO_AGENT, "accept-language": "en" },
+    });
+    if (!res.ok) throw new Error(`Geocoder returned ${res.status}`);
+    return readPlace(await res.json());
+  });
+
+  if (found) {
+    // Oldest out first, so a long-running instance cannot grow without bound.
+    if (geoCache.size >= GEO_MAX_ENTRIES) {
+      const oldest = geoCache.keys().next().value;
+      if (oldest !== undefined) geoCache.delete(oldest);
+    }
+    geoCache.set(key, { at: Date.now(), place: found });
+  }
+  return found;
+}
+
+// ---------------------------------------------------------------------------
 // Matching
 // ---------------------------------------------------------------------------
 
@@ -326,6 +442,44 @@ function json(body: Json, status = 200): Response {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
+  const params = new URL(req.url).searchParams;
+  let debug = params.get("debug") === "1";
+  let lat = num(params.get("lat"));
+  let lon = num(params.get("lon"));
+
+  let q = "";
+  if (req.method === "POST") {
+    const body = await req.json().catch(() => ({}));
+    q = String(pick(body, "q", "bus", "query") ?? "").trim();
+    // The page invokes this over POST, where there is no query string, so
+    // everything has to be readable from the body as well.
+    const flag = pick(body, "debug");
+    if (flag === true || flag === 1 || flag === "1") debug = true;
+    lat = lat ?? num(pick(body, "lat"));
+    lon = lon ?? num(pick(body, "lon"));
+  } else {
+    q = (params.get("q") ?? params.get("bus") ?? "").trim();
+  }
+
+  // A coordinate lookup answers on its own - it touches neither feed, so it
+  // is settled before the OC Transpo key is required.
+  if (lat !== undefined && lon !== undefined) {
+    if (Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+      return json({ error: "That is not a coordinate on Earth." }, 400);
+    }
+    try {
+      const found = await place(lat, lon);
+      return found
+        ? json(found)
+        : json({ error: "No road is recorded at that point." }, 404);
+    } catch (err) {
+      return json(
+        { error: err instanceof Error ? err.message : String(err) },
+        502,
+      );
+    }
+  }
+
   const apiKey = Deno.env.get("OCT_API_KEY");
   if (!apiKey) {
     return json(
@@ -335,21 +489,6 @@ Deno.serve(async (req) => {
       },
       500,
     );
-  }
-
-  const params = new URL(req.url).searchParams;
-  let debug = params.get("debug") === "1";
-
-  let q = "";
-  if (req.method === "POST") {
-    const body = await req.json().catch(() => ({}));
-    q = String(pick(body, "q", "bus", "query") ?? "").trim();
-    // The page invokes this over POST, where there is no query string, so the
-    // flag has to be readable from the body as well.
-    const flag = pick(body, "debug");
-    if (flag === true || flag === 1 || flag === "1") debug = true;
-  } else {
-    q = (params.get("q") ?? params.get("bus") ?? "").trim();
   }
 
   try {

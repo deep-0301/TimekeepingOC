@@ -2216,6 +2216,26 @@ table.hos-table tr.row-hos-breach td {
   font-weight: 500;
 }
 
+/* The live position in words. Sits directly under the fleet number because
+   it is the answer to the question the page was opened to ask. */
+.bus-place {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin: 2px 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--steel-dark);
+}
+
+.bus-place-credit {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
 .paddle-track {
   margin-top: 12px;
 }

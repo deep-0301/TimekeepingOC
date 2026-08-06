@@ -8,11 +8,13 @@ import {
   delayLabel,
   fetchBusDebug,
   fetchBuses,
+  fetchPlace,
   kmh,
   looksLikeFleetNumber,
   occupancyLabel,
   statusLabel,
   type BusFeed,
+  type BusPlace,
   type BusVehicle,
 } from "@/lib/buses";
 import {
@@ -103,6 +105,41 @@ function PaddleGuesses({ vehicle }: { vehicle: BusVehicle }) {
   );
 }
 
+/**
+ * The street the bus is actually on, from its coordinates.
+ *
+ * This is the live position turned into words, as opposed to the paddle's
+ * scheduled place. It appears when it arrives and is simply absent when the
+ * geocoder cannot answer - the coordinates and the map link are already on
+ * the card, so nothing is lost by it failing.
+ */
+function StreetName({ lat, lon }: { lat: number; lon: number }) {
+  const [place, setPlace] = useState<BusPlace | null>(null);
+
+  // Snapped to the same ~11 m grid the edge function caches on, so a bus
+  // idling at a stop does not fire a fresh lookup on every refresh.
+  const key = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+
+  useEffect(() => {
+    let live = true;
+    const [a, b] = key.split(",").map(Number);
+    void fetchPlace(a, b).then((p) => {
+      if (live) setPlace(p);
+    });
+    return () => {
+      live = false;
+    };
+  }, [key]);
+
+  if (!place) return null;
+  return (
+    <div className="bus-place">
+      {place.label}
+      <span className="bus-place-credit">© OpenStreetMap contributors</span>
+    </div>
+  );
+}
+
 function VehicleCard({ vehicle, now }: { vehicle: BusVehicle; now: number }) {
   const [showPaddles, setShowPaddles] = useState(false);
 
@@ -129,6 +166,8 @@ function VehicleCard({ vehicle, now }: { vehicle: BusVehicle; now: number }) {
           {delay && <span className={`bus-delay is-${delay.tone}`}>{delay.text}</span>}
         </span>
       </div>
+
+      {hasPosition && <StreetName lat={vehicle.lat!} lon={vehicle.lon!} />}
 
       <dl className="bus-facts">
         {status && (

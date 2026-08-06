@@ -105,6 +105,36 @@ export async function fetchBuses(query: string): Promise<BusFeed> {
   return data as BusFeed;
 }
 
+export interface BusPlace {
+  /** What to show: "Fallowfield Road, Barrhaven". */
+  label: string;
+  road?: string;
+  area?: string;
+  /** OpenStreetMap's data is free to use, on condition it is credited. */
+  attribution: string;
+}
+
+/**
+ * The road a coordinate sits on.
+ *
+ * A latitude and a longitude is not an answer to "where is my bus", so the
+ * pair is turned into a street name. The lookup runs in the edge function -
+ * see supabase/functions/bus for why it cannot sensibly run in the page.
+ */
+export async function fetchPlace(
+  lat: number,
+  lon: number,
+): Promise<BusPlace | null> {
+  const { data, error } = await supabase.functions.invoke<
+    BusPlace | { error: string }
+  >("bus", { body: { lat, lon } });
+
+  // A street name is a nicety on top of a position that is already shown, so
+  // a failure here is not worth breaking the card over.
+  if (error || !data || "error" in data) return null;
+  return data;
+}
+
 /**
  * The feed's shape rather than its contents.
  *
