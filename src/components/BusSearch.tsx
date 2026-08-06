@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fmtDate, minToHHMM } from "@/lib/dateUtils";
+import { fmtDate } from "@/lib/dateUtils";
 import {
   delayLabel,
   alertAffects,
@@ -16,12 +16,7 @@ import {
   type BusVehicle,
   type ServiceAlert,
 } from "@/lib/buses";
-import {
-  loadPaddleBookForDate,
-  paddlesOnRouteAt,
-  type Paddle,
-  type PaddleGuess,
-} from "@/lib/paddles";
+import { loadPaddleBookForDate, type Paddle } from "@/lib/paddles";
 import { recallBus, rememberBus, type RememberedBus } from "@/lib/paddleBusMemory";
 import { nearestStop, stopById } from "@/lib/stops";
 import { paddleForTrip, tripsForPaddle } from "@/lib/paddleTrips";
@@ -44,18 +39,19 @@ const REFRESH_MS = 15_000;
 /**
  * The paddle this bus is working, and its whole day.
  *
- * The GTFS mapping answers this outright where it covers the trip: the feed
- * names the trip, the mapping names the paddle. Only when it cannot - a trip
- * outside the booking period the mapping was built for - does it fall back to
- * the old shortlist of everything scheduled on the route at this hour, and it
- * says which of the two you are looking at.
+ * Shown without being asked for, because it is the question a bus number is
+ * looked up to answer. The GTFS mapping settles it outright - the feed names
+ * the trip, the mapping names the paddle - so there is nothing to weigh up
+ * and no reason to make an operator press anything.
+ *
+ * It answers only when it is certain. The route-and-clock shortlist this
+ * replaced offered seven paddles and identified none of them, which is not
+ * an answer to "which run is this bus on".
  */
-function WhichPaddle({ vehicle }: { vehicle: BusVehicle }) {
-  const [exact, setExact] = useState<Paddle | null>(null);
-  const [guesses, setGuesses] = useState<PaddleGuess[] | null>(null);
-  const [error, setError] = useState("");
+function PaddleForBus({ vehicle }: { vehicle: BusVehicle }) {
+  const [paddle, setPaddle] = useState<Paddle | null>(null);
+  const [missing, setMissing] = useState(false);
 
-  const route = vehicle.route;
   const tripId = vehicle.tripId;
   const ts = vehicle.ts;
 
@@ -64,81 +60,44 @@ function WhichPaddle({ vehicle }: { vehicle: BusVehicle }) {
     const when = ts ? new Date(ts * 1000) : new Date();
 
     (async () => {
-      const book = await loadPaddleBookForDate(fmtDate(when));
-      if (!live) return;
-
       const number = await paddleForTrip(tripId, when);
       if (!live) return;
-
-      const found = number
-        ? (book.paddles.find((p) => p.p === number) ?? null)
-        : null;
-      if (found) {
-        setExact(found);
+      if (!number) {
+        setMissing(true);
         return;
       }
-      if (route) {
-        setGuesses(
-          paddlesOnRouteAt(book, route, when.getHours() * 60 + when.getMinutes()),
-        );
-      } else {
-        setGuesses([]);
-      }
-    })().catch((err: Error) => {
-      if (live) setError(err.message);
+      const book = await loadPaddleBookForDate(fmtDate(when));
+      if (!live) return;
+      const found = book.paddles.find((p) => p.p === number) ?? null;
+      if (found) setPaddle(found);
+      else setMissing(true);
+    })().catch(() => {
+      if (live) setMissing(true);
     });
 
     return () => {
       live = false;
     };
-  }, [route, tripId, ts]);
+  }, [tripId, ts]);
 
-  if (error) return <div className="note bus-guess-error">{error}</div>;
-  if (!exact && guesses === null) {
-    return <div className="note">Looking up the paddle…</div>;
-  }
-
-  if (exact) {
-    return (
-      <>
-        <div className="paddle-match-why is-sure">
-          Paddle <b>{exact.p}</b> — the feed names this bus&rsquo;s trip and the
-          trip belongs to that paddle. A lookup, not a guess.
-        </div>
-        <PaddleTimeline paddle={exact} />
-      </>
-    );
-  }
-
-  if (!guesses || guesses.length === 0) {
+  if (missing) {
     return (
       <div className="note">
-        No paddle in the book is scheduled on route {route} at this time. The bus
-        may be on a trip the book does not cover, or running well off schedule.
+        The paddle working this bus cannot be named - its trip is outside the
+        booking period the paddle-to-trip mapping was built for.
       </div>
     );
   }
+  if (!paddle) return null;
 
   return (
-    <>
-      <div className="note">
-        {guesses.length === 1
-          ? "One paddle is scheduled on this route right now"
-          : `${guesses.length} paddles are scheduled on this route right now`}
-        {" — matched on route and time only, so treat it as a shortlist."}
+    <div className="bus-paddle">
+      <div className="paddle-match-why is-sure">
+        Paddle <b>{paddle.p}</b> — the feed names this bus&rsquo;s trip and the
+        trip belongs to that paddle.
       </div>
-      <ul className="bus-guess-list">
-        {guesses.map((g) => (
-          <li key={`${g.paddle.p}-${g.tripIndex}`}>
-            <b className="bus-guess-num">{g.paddle.p}</b>
-            <span className="bus-guess-meta">
-              to {g.trip[1]} · {minToHHMM(g.startMin % 1440)}–
-              {minToHHMM(g.endMin % 1440)}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </>
+      <PaddleTimeline paddle={paddle} />
+    </div>
   );
 }
 
@@ -316,9 +275,14 @@ function StreetName({
   );
 }
 
-function VehicleCard({ vehicle }: { vehicle: BusVehicle }) {
-  const [showPaddles, setShowPaddles] = useState(false);
-
+function VehicleCard({
+  vehicle,
+  withPaddle,
+}: {
+  vehicle: BusVehicle;
+  /** Name the paddle underneath. Off where the paddle is already the subject. */
+  withPaddle?: boolean;
+}) {
   const delay = delayLabel(vehicle.delay);
   const status = statusLabel(vehicle.status);
   const occupancy = occupancyLabel(vehicle.occupancy);
@@ -371,26 +335,13 @@ function VehicleCard({ vehicle }: { vehicle: BusVehicle }) {
           >
             Open map
           </a>
-          {vehicle.route && (
-            <button
-              type="button"
-              className="ghost small"
-              onClick={() => setShowPaddles((v) => !v)}
-            >
-              {showPaddles ? "Hide paddles" : "Which paddle?"}
-            </button>
-          )}
           <span className="bus-coords">
             {vehicle.lat?.toFixed(5)}, {vehicle.lon?.toFixed(5)}
           </span>
         </div>
       )}
 
-      {showPaddles && (
-        <div className="bus-guesses">
-          <WhichPaddle vehicle={vehicle} />
-        </div>
-      )}
+      {withPaddle && <PaddleForBus vehicle={vehicle} />}
     </article>
   );
 }
@@ -997,6 +948,7 @@ export default function BusSearch() {
               <VehicleCard
                 key={v.vehicleId ?? v.fleet ?? String(v.tripId)}
                 vehicle={v}
+                withPaddle={feed?.kind === "bus"}
               />
             ))}
           </div>

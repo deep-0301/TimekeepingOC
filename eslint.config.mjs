@@ -16,6 +16,11 @@ const eslintConfig = defineConfig([
     "public/**",
     // Deno, not Next - different globals and import syntax entirely:
     "supabase/functions/**",
+    // The built site, which Pages serves from this branch's root while it is
+    // set to publish from a branch. Generated, minified, and not ours to fix.
+    "_next/**",
+    "*.html",
+    "tesseract/**",
   ]),
 ]);
 
