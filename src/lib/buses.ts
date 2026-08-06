@@ -105,6 +105,44 @@ export async function fetchBuses(query: string): Promise<BusFeed> {
   return data as BusFeed;
 }
 
+export interface ServiceAlert {
+  id: string;
+  header: string;
+  description?: string;
+  url?: string;
+  /** Route numbers affected. Empty means it could not be tied to a route. */
+  routes: string[];
+  effect?: string;
+  cause?: string;
+  starts?: number;
+  ends?: number;
+  source: "gtfs-rt" | "rss";
+}
+
+/**
+ * Detours, cancellations and the rest, from OC Transpo.
+ *
+ * Fetched through the edge function for the same two reasons as the vehicle
+ * feed: the alerts feed wants the subscription key, and octranspo.com sends
+ * no CORS headers, so a browser could not read the RSS either way.
+ */
+export async function fetchAlerts(): Promise<ServiceAlert[]> {
+  const { data, error } = await supabase.functions.invoke<
+    { alerts: ServiceAlert[] } | { error: string }
+  >("bus", { body: { alerts: 1 } });
+
+  if (error) throw new Error(await describeInvokeError(error));
+  if (!data) throw new Error("The alerts feed returned nothing.");
+  if ("error" in data) throw new Error(data.error);
+  return data.alerts ?? [];
+}
+
+/** Does this alert concern the route being looked at? */
+export function alertAffects(alert: ServiceAlert, route: string): boolean {
+  const want = route.trim().toUpperCase();
+  return alert.routes.some((r) => r.toUpperCase() === want);
+}
+
 export interface BusPlace {
   /** What to show: "Fallowfield Road, Barrhaven". */
   label: string;

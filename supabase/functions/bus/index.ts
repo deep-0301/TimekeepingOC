@@ -495,6 +495,188 @@ async function place(lat: number, lon: number): Promise<Place | null> {
 }
 
 // ---------------------------------------------------------------------------
+// Service alerts
+//
+// Two sources, because it is not knowable from here which one OC Transpo
+// actually serves. The GTFS-Realtime alerts feed is the better of the two -
+// it names the routes each alert affects, so an alert can be shown against
+// the route being looked at rather than as a wall of text. The RSS feed on
+// octranspo.com is the fallback, and the routes have to be read out of the
+// wording.
+// ---------------------------------------------------------------------------
+
+const SA_URL =
+  Deno.env.get("OCT_SA_URL") ??
+  "https://nextrip-public-api.azure-api.net/octranspo/gtfs-rt-sa/beta/v1/ServiceAlerts";
+const RSS_URL =
+  Deno.env.get("OCT_RSS_URL") ?? "https://www.octranspo.com/en/feeds/updates-en/";
+
+/** Alerts change slowly and are read often. */
+const SA_TTL_MS = 120_000;
+
+interface Alert {
+  id: string;
+  header: string;
+  description?: string;
+  url?: string;
+  /** Route numbers the alert applies to, as printed on the bus. */
+  routes: string[];
+  effect?: string;
+  cause?: string;
+  starts?: number;
+  ends?: number;
+  source: "gtfs-rt" | "rss";
+}
+
+/** GTFS-RT wraps human text in a list of translations, one per language. */
+function translated(node: Json): string | undefined {
+  const list = pick(node, "translation");
+  if (Array.isArray(list) && list.length) {
+    const en = list.find((t) => (str(pick(t, "language")) ?? "en").startsWith("en"));
+    return str(pick(en ?? list[0], "text"));
+  }
+  return str(node);
+}
+
+function readAlerts(feed: Json): Alert[] {
+  const out: Alert[] = [];
+  for (const entity of entitiesOf(feed)) {
+    const a = pick(entity, "alert");
+    if (!a) continue;
+
+    const header = translated(pick(a, "headerText"));
+    if (!header) continue;
+
+    const informed = pick(a, "informedEntity") ?? [];
+    const routes = Array.isArray(informed)
+      ? [...new Set(informed.map((i: Json) => str(pick(i, "routeId"))).filter(Boolean))]
+      : [];
+
+    const periods = pick(a, "activePeriod") ?? [];
+    const first = Array.isArray(periods) ? periods[0] : undefined;
+
+    out.push({
+      id: str(pick(entity, "id")) ?? header.slice(0, 60),
+      header,
+      description: translated(pick(a, "descriptionText")),
+      url: translated(pick(a, "url")),
+      routes: routes as string[],
+      effect: str(pick(a, "effect")),
+      cause: str(pick(a, "cause")),
+      starts: num(pick(first, "start")),
+      ends: num(pick(first, "end")),
+      source: "gtfs-rt",
+    });
+  }
+  return out;
+}
+
+function unescapeXml(s: string): string {
+  return s
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;|&apos;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tag(item: string, name: string): string | undefined {
+  const m = item.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)</${name}>`, "i"));
+  return m ? unescapeXml(m[1]) || undefined : undefined;
+}
+
+/**
+ * Route numbers mentioned in an alert's wording.
+ *
+ * The RSS feed has no structured field for this, so "Routes 44, 88 and 111"
+ * has to be read out of the sentence. Only the run immediately after the word
+ * is taken, which keeps dates and stop numbers elsewhere in the text out.
+ */
+function routesFromText(text: string): string[] {
+  const found = new Set<string>();
+  const phrase = /\brou?tes?\s+((?:[A-Z]?\d{1,3}[A-Z]?)(?:\s*(?:,|and|&|\/)\s*[A-Z]?\d{1,3}[A-Z]?)*)/gi;
+  for (const m of text.matchAll(phrase)) {
+    for (const part of m[1].split(/\s*(?:,|and|&|\/)\s*/i)) {
+      const token = part.trim().toUpperCase();
+      if (/^[A-Z]?\d{1,3}[A-Z]?$/.test(token)) found.add(token);
+    }
+  }
+  return [...found];
+}
+
+function readRss(xml: string): Alert[] {
+  const out: Alert[] = [];
+  for (const m of xml.matchAll(/<item[^>]*>([\s\S]*?)<\/item>/gi)) {
+    const item = m[1];
+    const header = tag(item, "title");
+    if (!header) continue;
+    const description = tag(item, "description");
+    const published = tag(item, "pubDate");
+    const at = published ? Date.parse(published) : NaN;
+
+    out.push({
+      id: tag(item, "guid") ?? tag(item, "link") ?? header.slice(0, 60),
+      header,
+      description,
+      url: tag(item, "link"),
+      routes: routesFromText(`${header} ${description ?? ""}`),
+      starts: Number.isNaN(at) ? undefined : Math.floor(at / 1000),
+      source: "rss",
+    });
+  }
+  return out;
+}
+
+let alertsCache: { at: number; alerts: Alert[] } | null = null;
+
+async function alerts(apiKey?: string): Promise<Alert[]> {
+  if (alertsCache && Date.now() - alertsCache.at < SA_TTL_MS) {
+    return alertsCache.alerts;
+  }
+
+  const refusals: string[] = [];
+  let found: Alert[] = [];
+
+  // The realtime feed first: it says which routes each alert applies to.
+  if (apiKey) {
+    try {
+      const target = new URL(SA_URL);
+      target.searchParams.set("format", "json");
+      const res = await fetch(target, {
+        headers: { "Ocp-Apim-Subscription-Key": apiKey, accept: "application/json" },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      found = readAlerts(await res.json());
+    } catch (err) {
+      refusals.push(
+        `alerts feed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  if (found.length === 0) {
+    try {
+      const res = await fetch(RSS_URL, { headers: { accept: "application/rss+xml" } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      found = readRss(await res.text());
+    } catch (err) {
+      refusals.push(`rss: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  // Nothing to report and nowhere to read it from are different answers.
+  if (found.length === 0 && refusals.length) throw new Error(refusals.join("; "));
+
+  alertsCache = { at: Date.now(), alerts: found };
+  return found;
+}
+
+// ---------------------------------------------------------------------------
 // Matching
 // ---------------------------------------------------------------------------
 
@@ -537,6 +719,7 @@ Deno.serve(async (req) => {
   let debug = params.get("debug") === "1";
   let lat = num(params.get("lat"));
   let lon = num(params.get("lon"));
+  let wantsAlerts = params.get("alerts") === "1";
 
   let q = "";
   if (req.method === "POST") {
@@ -548,6 +731,8 @@ Deno.serve(async (req) => {
     if (flag === true || flag === 1 || flag === "1") debug = true;
     lat = lat ?? num(pick(body, "lat"));
     lon = lon ?? num(pick(body, "lon"));
+    const wanted = pick(body, "alerts");
+    if (wanted === true || wanted === 1 || wanted === "1") wantsAlerts = true;
   } else {
     q = (params.get("q") ?? params.get("bus") ?? "").trim();
   }
@@ -572,6 +757,20 @@ Deno.serve(async (req) => {
   }
 
   const apiKey = Deno.env.get("OCT_API_KEY");
+
+  // Alerts are answered before the key is insisted on, because the RSS feed
+  // needs no key and is worth serving even on a deployment without one.
+  if (wantsAlerts) {
+    try {
+      return json({ alerts: await alerts(apiKey) });
+    } catch (err) {
+      return json(
+        { error: err instanceof Error ? err.message : String(err) },
+        502,
+      );
+    }
+  }
+
   if (!apiKey) {
     return json(
       {
