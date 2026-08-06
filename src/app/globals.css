@@ -2216,6 +2216,68 @@ table.hos-table tr.row-hos-breach td {
   font-weight: 500;
 }
 
+.bus-alerts {
+  margin: 10px 0;
+  border: 1px solid var(--holiday);
+  border-radius: 6px;
+  background: var(--holiday-bg);
+  overflow: hidden;
+}
+
+.bus-alerts-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--holiday);
+  font-size: 13px;
+  padding: 9px 12px;
+  border-radius: 0;
+}
+
+.bus-alerts-head:hover {
+  background: rgba(169, 121, 10, 0.08);
+}
+
+.bus-alerts-count {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  background: var(--holiday);
+  color: #fff;
+  border-radius: 3px;
+  padding: 1px 7px;
+}
+
+.bus-alerts-caret {
+  margin-left: auto;
+  display: inline-flex;
+}
+
+.bus-alert {
+  padding: 10px 12px;
+  border-top: 1px solid rgba(169, 121, 10, 0.35);
+  background: var(--card);
+}
+
+.bus-alert-head {
+  font-weight: 600;
+  font-size: 13.5px;
+  margin-bottom: 4px;
+}
+
+.bus-alert-body {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+}
+
+.bus-alerts-failed {
+  color: var(--ink-soft);
+}
+
 /* The live position in words. Sits directly under the fleet number because
    it is the answer to the question the page was opened to ask. */
 .bus-place {

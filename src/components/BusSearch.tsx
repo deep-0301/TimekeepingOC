@@ -6,6 +6,8 @@ import {
   agoLabel,
   compass,
   delayLabel,
+  alertAffects,
+  fetchAlerts,
   fetchBusDebug,
   fetchBuses,
   fetchPlace,
@@ -15,6 +17,7 @@ import {
   statusLabel,
   type BusFeed,
   type BusVehicle,
+  type ServiceAlert,
 } from "@/lib/buses";
 import {
   loadPaddleBookForDate,
@@ -35,6 +38,7 @@ import {
   type PaddleWhere,
 } from "@/lib/paddleTracking";
 import PanelHeading from "./PanelHeading";
+import { ChevronRight, ExpandMore } from "./icons";
 
 const REFRESH_MS = 15_000;
 
@@ -102,6 +106,78 @@ function PaddleGuesses({ vehicle }: { vehicle: BusVehicle }) {
         ))}
       </ul>
     </>
+  );
+}
+
+/**
+ * Detours and disruptions on the route in front of you.
+ *
+ * Scoped to the route rather than listing everything OC Transpo has posted:
+ * an operator looking up their own bus wants to know about their own road.
+ * An alert the feed could not tie to a route is therefore not shown here at
+ * all - a system-wide notice would otherwise appear against every search.
+ *
+ * Collapsed by default. The count is the part worth seeing at a glance; the
+ * wording of a detour is not something to read past on the way to a bus.
+ */
+function RouteAlerts({ routes }: { routes: string[] }) {
+  const [all, setAll] = useState<ServiceAlert[] | null>(null);
+  const [failed, setFailed] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const key = routes.join(",");
+
+  useEffect(() => {
+    let live = true;
+    fetchAlerts()
+      .then((a) => {
+        if (live) setAll(a);
+      })
+      .catch((e: Error) => {
+        if (live) setFailed(e.message);
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  if (failed) {
+    return <div className="note bus-alerts-failed">Service alerts unavailable — {failed}</div>;
+  }
+  if (!all) return null;
+
+  const mine = all.filter((a) => key.split(",").some((r) => r && alertAffects(a, r)));
+  if (mine.length === 0) return null;
+
+  return (
+    <div className="bus-alerts">
+      <button
+        type="button"
+        className="bus-alerts-head"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        <span className="bus-alerts-count">{mine.length}</span>
+        service alert{mine.length === 1 ? "" : "s"} on route
+        {key.includes(",") ? "s" : ""} {key.split(",").filter(Boolean).join(", ")}
+        <span className="bus-alerts-caret">
+          {open ? <ExpandMore /> : <ChevronRight />}
+        </span>
+      </button>
+
+      {open &&
+        mine.map((a) => (
+          <div className="bus-alert" key={a.id}>
+            <div className="bus-alert-head">{a.header}</div>
+            {a.description && <div className="bus-alert-body">{a.description}</div>}
+            {a.url && (
+              <a href={a.url} target="_blank" rel="noreferrer" className="bus-map-link">
+                Read it on octranspo.com
+              </a>
+            )}
+          </div>
+        ))}
+    </div>
   );
 }
 
@@ -723,6 +799,19 @@ export default function BusSearch() {
   const vehicles = feed?.vehicles ?? [];
   const searchedFor = feed?.query ?? "";
 
+  // Whatever route the operator is actually looking at, however they got
+  // here - a paddle, a route search, or the bus that turned up.
+  const routesOnScreen = [
+    ...new Set(
+      [
+        paddleView?.kind === "found" && paddleView.where.state === "running"
+          ? paddleView.where.segment.route
+          : null,
+        ...vehicles.map((v) => v.route ?? null),
+      ].filter((r): r is string => !!r),
+    ),
+  ];
+
   return (
     <section className="panel">
       <PanelHeading
@@ -767,6 +856,8 @@ export default function BusSearch() {
           {feed && <span className="bus-total">{feed.total} buses in service</span>}
         </div>
       )}
+
+      {routesOnScreen.length > 0 && <RouteAlerts routes={routesOnScreen} />}
 
       {error && <div className="note bus-error">{error}</div>}
 
