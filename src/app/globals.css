@@ -2236,6 +2236,16 @@ table.hos-table tr.row-hos-breach td {
   color: var(--ink-soft);
 }
 
+.bus-place-note {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  background: #e4eef2;
+  padding: 1px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
 .bus-place-credit {
   font-size: 10px;
   font-weight: 400;
