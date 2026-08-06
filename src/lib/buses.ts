@@ -124,14 +124,16 @@ export interface BusPlace {
 export async function fetchPlace(
   lat: number,
   lon: number,
-): Promise<BusPlace | null> {
+): Promise<BusPlace | { error: string }> {
   const { data, error } = await supabase.functions.invoke<
     BusPlace | { error: string }
   >("bus", { body: { lat, lon } });
 
   // A street name is a nicety on top of a position that is already shown, so
-  // a failure here is not worth breaking the card over.
-  if (error || !data || "error" in data) return null;
+  // a failure never breaks the card. It is still reported rather than
+  // swallowed - a name that quietly fails to appear is impossible to chase.
+  if (error) return { error: await describeInvokeError(error) };
+  if (!data) return { error: "The geocoder returned nothing." };
   return data;
 }
 

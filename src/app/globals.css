@@ -2229,6 +2229,13 @@ table.hos-table tr.row-hos-breach td {
   color: var(--steel-dark);
 }
 
+.bus-place.is-pending,
+.bus-place.is-failed {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
 .bus-place-credit {
   font-size: 10px;
   font-weight: 400;

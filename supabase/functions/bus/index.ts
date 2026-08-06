@@ -303,6 +303,8 @@ async function feed(url: string, ttl: number, apiKey: string): Promise<Json> {
 const GEO_URL =
   Deno.env.get("OCT_GEOCODER_URL") ??
   "https://nominatim.openstreetmap.org/reverse";
+const PHOTON_URL =
+  Deno.env.get("OCT_GEOCODER_FALLBACK_URL") ?? "https://photon.komoot.io/reverse";
 
 /** Their policy asks callers to identify themselves. */
 const GEO_AGENT =
@@ -318,6 +320,8 @@ interface Place {
   road?: string;
   area?: string;
   attribution: string;
+  /** Which geocoder answered, so a thin result can be traced to its source. */
+  source?: string;
 }
 
 const geoCache = new Map<string, { at: number; place: Place }>();
@@ -345,52 +349,139 @@ function geoQueue<T>(task: () => Promise<T>): Promise<T> {
   return run;
 }
 
-function readPlace(body: Json): Place | null {
-  const address = pick(body, "address") ?? {};
-  const road =
-    str(pick(address, "road")) ??
-    str(pick(address, "pedestrian")) ??
-    str(pick(address, "footway")) ??
-    str(pick(body, "name"));
-  const area =
-    str(pick(address, "neighbourhood")) ??
-    str(pick(address, "suburb")) ??
-    str(pick(address, "cityDistrict")) ??
-    str(pick(address, "town")) ??
-    str(pick(address, "village")) ??
-    str(pick(address, "city"));
+function compose(
+  road: string | undefined,
+  area: string | undefined,
+  fallback: string | undefined,
+  attribution: string,
+): Place | null {
+  // `display_name` is the whole postal address, and its leading components
+  // are the specific ones. Two of them place a bus and still fit on a phone.
+  const spelled = fallback
+    ?.split(",")
+    .slice(0, 2)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(", ");
 
-  const label = road && area ? `${road}, ${area}` : (road ?? area);
+  // A bare city name is not an answer to "where is my bus", so the written
+  // address is preferred over it whenever no road came back.
+  const label =
+    road && area && road !== area ? `${road}, ${area}` : (road ?? spelled ?? area);
   if (!label) return null;
-
-  return {
-    label,
-    road,
-    area,
-    attribution: str(pick(body, "licence")) ?? "© OpenStreetMap contributors",
-  };
+  return { label, road, area, attribution };
 }
+
+function readNominatim(body: Json): Place | null {
+  const address = pick(body, "address") ?? {};
+  return compose(
+    str(pick(address, "road")) ??
+      str(pick(address, "pedestrian")) ??
+      str(pick(address, "footway")) ??
+      str(pick(address, "cycleway")) ??
+      str(pick(address, "path")) ??
+      str(pick(body, "name")),
+    str(pick(address, "neighbourhood")) ??
+      str(pick(address, "suburb")) ??
+      str(pick(address, "cityDistrict")) ??
+      str(pick(address, "town")) ??
+      str(pick(address, "village")) ??
+      str(pick(address, "city")),
+    str(pick(body, "displayName")),
+    str(pick(body, "licence")) ?? "© OpenStreetMap contributors",
+  );
+}
+
+/** Photon returns GeoJSON, with the address flattened into the properties. */
+function readPhoton(body: Json): Place | null {
+  const features = pick(body, "features");
+  if (!Array.isArray(features) || features.length === 0) return null;
+  const p = pick(features[0], "properties") ?? {};
+  return compose(
+    str(pick(p, "street")) ?? str(pick(p, "name")),
+    str(pick(p, "district")) ?? str(pick(p, "locality")) ?? str(pick(p, "city")),
+    undefined,
+    "© OpenStreetMap contributors",
+  );
+}
+
+interface Provider {
+  name: string;
+  url: (lat: number, lon: number) => URL;
+  read: (body: Json) => Place | null;
+}
+
+/**
+ * Two geocoders, tried in order.
+ *
+ * Nominatim is the reference implementation and gives the best street names,
+ * but it is run on donated hardware and throttles hard - which includes the
+ * datacentre this function runs in. Photon is built on the same OpenStreetMap
+ * data with a far more permissive service, so it covers the times Nominatim
+ * will not answer. Neither being available is reported rather than hidden.
+ */
+const PROVIDERS: Provider[] = [
+  {
+    name: "nominatim",
+    url: (lat, lon) => {
+      const u = new URL(GEO_URL);
+      u.searchParams.set("format", "jsonv2");
+      u.searchParams.set("lat", String(lat));
+      u.searchParams.set("lon", String(lon));
+      // Street level. Zooming out lands on the suburb, which is not an answer.
+      u.searchParams.set("zoom", "17");
+      u.searchParams.set("addressdetails", "1");
+      return u;
+    },
+    read: readNominatim,
+  },
+  {
+    name: "photon",
+    url: (lat, lon) => {
+      const u = new URL(PHOTON_URL);
+      u.searchParams.set("lat", String(lat));
+      u.searchParams.set("lon", String(lon));
+      u.searchParams.set("limit", "1");
+      return u;
+    },
+    read: readPhoton,
+  },
+];
 
 async function place(lat: number, lon: number): Promise<Place | null> {
   const key = geoKey(lat, lon);
   const hit = geoCache.get(key);
   if (hit && Date.now() - hit.at < GEO_TTL_MS) return hit.place;
 
-  const target = new URL(GEO_URL);
-  target.searchParams.set("format", "jsonv2");
-  target.searchParams.set("lat", String(lat));
-  target.searchParams.set("lon", String(lon));
-  // Street level. Zooming out lands on the suburb, which is not an answer.
-  target.searchParams.set("zoom", "17");
-  target.searchParams.set("addressdetails", "1");
+  // A geocoder that answered but knows nothing about the point is a
+  // different matter from one that would not answer at all: the first means
+  // there is no road there, the second means we are being turned away.
+  const refusals: string[] = [];
+  let found: Place | null = null;
 
-  const found = await geoQueue(async () => {
-    const res = await fetch(target, {
-      headers: { "user-agent": GEO_AGENT, "accept-language": "en" },
-    });
-    if (!res.ok) throw new Error(`Geocoder returned ${res.status}`);
-    return readPlace(await res.json());
-  });
+  for (const provider of PROVIDERS) {
+    try {
+      found = await geoQueue(async () => {
+        const res = await fetch(provider.url(lat, lon), {
+          headers: { "user-agent": GEO_AGENT, "accept-language": "en" },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return provider.read(await res.json());
+      });
+      if (found) {
+        found = { ...found, source: provider.name };
+        break;
+      }
+    } catch (err) {
+      refusals.push(
+        `${provider.name}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  // Being turned away by every geocoder is the interesting case, and silence
+  // about it is what made this hard to diagnose the first time round.
+  if (!found && refusals.length) throw new Error(refusals.join("; "));
 
   if (found) {
     // Oldest out first, so a long-running instance cannot grow without bound.
