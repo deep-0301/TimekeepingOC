@@ -12,7 +12,7 @@
  */
 
 import type { BusVehicle } from "./buses";
-import type { Paddle, PaddleStop, PaddleTrip } from "./paddles";
+import type { Paddle, PaddleBook, PaddleStop, PaddleTrip } from "./paddles";
 
 function toMin(hhmm: string): number {
   const [h, m] = hhmm.split(":");
@@ -170,6 +170,43 @@ export function paddleWhereAt(paddle: Paddle, minOfDay: number): PaddleWhere {
 export function clockLabel(min: number): string {
   const m = ((min % 1440) + 1440) % 1440;
   return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
+}
+
+/**
+ * The paddle whose trip left at this time on this route.
+ *
+ * The way back when the trip id is no help - either the trip belongs to a
+ * block that could not be tied to a paddle, or the realtime feed numbers its
+ * trips differently from the static schedule. Neither is visible from here,
+ * and neither needs to be: a route and a departure minute identify a trip on
+ * their own, because two trips on a route do not leave in the same minute.
+ *
+ * Answers only when exactly one paddle claims that departure. Where two do,
+ * the paddle book itself cannot tell them apart and neither can we.
+ */
+export function paddleWorkingTrip(
+  book: PaddleBook,
+  route: string,
+  startTime: string,
+): Paddle | null {
+  const want = route.trim().toLowerCase();
+  const due = toMin(startTime);
+  if (!want || !Number.isFinite(due)) return null;
+
+  const found: Paddle[] = [];
+  for (const paddle of book.paddles) {
+    for (const trip of paddle.t) {
+      if (trip[0].toLowerCase() !== want || trip[3].length === 0) continue;
+      // A minute either way, since the feed counts seconds and the book
+      // prints whole minutes.
+      if (Math.abs(toMin(trip[3][0][0]) - due) <= 1) {
+        found.push(paddle);
+        break;
+      }
+    }
+    if (found.length > 1) return null;
+  }
+  return found[0] ?? null;
 }
 
 /** How the one bus was picked out, or why it could not be. */

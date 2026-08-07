@@ -22,6 +22,7 @@ import { nearestStop, stopById } from "@/lib/stops";
 import { paddleForTrip, tripsForPaddle } from "@/lib/paddleTrips";
 import {
   bestVehicle,
+  paddleWorkingTrip,
   clockLabel,
   normalisePaddleNumber,
   paddleWhereAt,
@@ -44,15 +45,22 @@ const REFRESH_MS = 15_000;
  * the trip, the mapping names the paddle - so there is nothing to weigh up
  * and no reason to make an operator press anything.
  *
- * It answers only when it is certain. The route-and-clock shortlist this
- * replaced offered seven paddles and identified none of them, which is not
- * an answer to "which run is this bus on".
+ * Where the trip id is no help - the block was never tied to a paddle, or
+ * the realtime feed numbers its trips differently from the static schedule -
+ * the trip's route and departure minute identify it instead, and the card
+ * says which of the two answered. Either way it is one paddle. The shortlist
+ * this replaced offered seven and identified none of them, which is not an
+ * answer to "which run is this bus on".
  */
 function PaddleForBus({ vehicle }: { vehicle: BusVehicle }) {
-  const [paddle, setPaddle] = useState<Paddle | null>(null);
+  const [paddle, setPaddle] = useState<{ paddle: Paddle; certain: boolean } | null>(
+    null,
+  );
   const [missing, setMissing] = useState(false);
 
   const tripId = vehicle.tripId;
+  const route = vehicle.route;
+  const startTime = vehicle.startTime;
   const ts = vehicle.ts;
 
   useEffect(() => {
@@ -62,14 +70,25 @@ function PaddleForBus({ vehicle }: { vehicle: BusVehicle }) {
     (async () => {
       const number = await paddleForTrip(tripId, when);
       if (!live) return;
-      if (!number) {
-        setMissing(true);
-        return;
-      }
+
       const book = await loadPaddleBookForDate(fmtDate(when));
       if (!live) return;
-      const found = book.paddles.find((p) => p.p === number) ?? null;
-      if (found) setPaddle(found);
+
+      const byTrip = number
+        ? (book.paddles.find((p) => p.p === number) ?? null)
+        : null;
+      if (byTrip) {
+        setPaddle({ paddle: byTrip, certain: true });
+        return;
+      }
+
+      // The trip id got us nowhere. A route and a departure minute identify
+      // the trip just as well, and the feed gives both.
+      const byStart =
+        route && startTime
+          ? paddleWorkingTrip(book, route, startTime)
+          : null;
+      if (byStart) setPaddle({ paddle: byStart, certain: false });
       else setMissing(true);
     })().catch(() => {
       if (live) setMissing(true);
@@ -78,13 +97,14 @@ function PaddleForBus({ vehicle }: { vehicle: BusVehicle }) {
     return () => {
       live = false;
     };
-  }, [tripId, ts]);
+  }, [tripId, route, startTime, ts]);
 
   if (missing) {
     return (
       <div className="note">
-        The paddle working this bus cannot be named - its trip is outside the
-        booking period the paddle-to-trip mapping was built for.
+        The paddle working this bus cannot be named. Its trip is not in the
+        booking period the mapping covers, and no single paddle in
+        today&rsquo;s book has a trip leaving on this route at that time.
       </div>
     );
   }
@@ -93,10 +113,12 @@ function PaddleForBus({ vehicle }: { vehicle: BusVehicle }) {
   return (
     <div className="bus-paddle">
       <div className="paddle-match-why is-sure">
-        Paddle <b>{paddle.p}</b> — the feed names this bus&rsquo;s trip and the
-        trip belongs to that paddle.
+        Paddle <b>{paddle.paddle.p}</b> —{" "}
+        {paddle.certain
+          ? "the feed names this bus’s trip and the trip belongs to that paddle."
+          : `the only paddle in today’s book with a trip leaving route ${route} at ${startTime}.`}
       </div>
-      <PaddleTimeline paddle={paddle} />
+      <PaddleTimeline paddle={paddle.paddle} />
     </div>
   );
 }
