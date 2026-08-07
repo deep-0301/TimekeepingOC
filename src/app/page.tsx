@@ -13,7 +13,6 @@ export default function Home() {
     settings,
     saveSettings,
     addShiftToDate,
-    removePiece,
     clearSheetDay,
     updateDayField,
     updateSpare,
@@ -60,7 +59,6 @@ export default function Home() {
         entries={entries}
         settings={settings}
         onAddShift={addShiftToDate}
-        onRemovePiece={removePiece}
         onClearSheetDay={clearSheetDay}
         onUpdateDayField={updateDayField}
         onUpdateSpare={updateSpare}

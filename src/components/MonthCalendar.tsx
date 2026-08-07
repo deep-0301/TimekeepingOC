@@ -18,7 +18,6 @@ interface MonthCalendarProps {
   entries: EntriesMap;
   settings: PaySettings;
   onAddShift: (si: number, dateStr: string) => void;
-  onRemovePiece: (dateStr: string, idx: number) => void;
   onClearSheetDay: (dateStr: string) => void;
   onUpdateDayField: (
     dateStr: string,
@@ -36,7 +35,6 @@ export default function MonthCalendar({
   entries,
   settings,
   onAddShift,
-  onRemovePiece,
   onClearSheetDay,
   onUpdateDayField,
   onUpdateSpare,
@@ -215,7 +213,6 @@ export default function MonthCalendar({
           dateStr={selectedDate}
           entries={entries}
           onAddShift={onAddShift}
-          onRemovePiece={onRemovePiece}
           onClearSheetDay={onClearSheetDay}
           onUpdateDayField={onUpdateDayField}
           onUpdateSpare={onUpdateSpare}
