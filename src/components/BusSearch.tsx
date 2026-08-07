@@ -33,6 +33,7 @@ import {
 } from "@/lib/paddleTracking";
 import PanelHeading from "./PanelHeading";
 import PaddleTimeline from "./PaddleTimeline";
+import MapDialog from "./MapDialog";
 import { ChevronRight, ExpandMore } from "./icons";
 
 const REFRESH_MS = 15_000;
@@ -305,6 +306,7 @@ function VehicleCard({
   /** Name the paddle underneath. Off where the paddle is already the subject. */
   withPaddle?: boolean;
 }) {
+  const [mapOpen, setMapOpen] = useState(false);
   const delay = delayLabel(vehicle.delay);
   const status = statusLabel(vehicle.status);
   const occupancy = occupancyLabel(vehicle.occupancy);
@@ -349,14 +351,13 @@ function VehicleCard({
 
       {hasPosition && (
         <div className="bus-actions">
-          <a
-            className="bus-map-link"
-            href={`https://www.openstreetmap.org/?mlat=${vehicle.lat}&mlon=${vehicle.lon}#map=17/${vehicle.lat}/${vehicle.lon}`}
-            target="_blank"
-            rel="noreferrer"
+          <button
+            type="button"
+            className="ghost small"
+            onClick={() => setMapOpen(true)}
           >
             Open map
-          </a>
+          </button>
           <span className="bus-coords">
             {vehicle.lat?.toFixed(5)}, {vehicle.lon?.toFixed(5)}
           </span>
@@ -364,6 +365,17 @@ function VehicleCard({
       )}
 
       {withPaddle && <PaddleForBus vehicle={vehicle} />}
+
+      {mapOpen && hasPosition && (
+        <MapDialog
+          title={`Bus ${vehicle.fleet ?? vehicle.vehicleId ?? ""}${
+            vehicle.route ? ` on route ${vehicle.route}` : ""
+          }`}
+          lat={vehicle.lat!}
+          lon={vehicle.lon!}
+          onClose={() => setMapOpen(false)}
+        />
+      )}
     </article>
   );
 }

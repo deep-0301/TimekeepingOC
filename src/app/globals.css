@@ -2255,6 +2255,75 @@ table.hos-table tr.row-hos-breach td {
   color: var(--ink-soft);
 }
 
+/* The map sits over the page, so the search behind it is still there when
+   it closes - opening a new tab on a phone means losing the search. */
+.map-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(10, 20, 28, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.map-dialog {
+  background: var(--card);
+  border-radius: 10px;
+  overflow: hidden;
+  width: 100%;
+  max-width: 720px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+.map-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.map-dialog-title {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.map-dialog-close {
+  background: transparent;
+  color: var(--ink-soft);
+  padding: 6px;
+  line-height: 0;
+  font-size: 20px;
+}
+
+.map-dialog-close:hover {
+  background: #e4e8de;
+  color: var(--ink);
+}
+
+.map-frame {
+  border: 0;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 320px;
+}
+
+.map-dialog-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line);
+}
+
 .bus-alerts {
   margin: 10px 0;
   border: 1px solid var(--holiday);
