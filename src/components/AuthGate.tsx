@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
+import { describeAuthError } from "@/lib/authErrors";
 import { CheckCircle, DirectionsBus, RadioButtonUnchecked } from "./icons";
 
 const PASSWORD_RULES: { label: string; test: (pw: string) => boolean }[] = [
@@ -103,7 +104,7 @@ function LoginForm() {
       password,
     });
     setBusy(false);
-    setStatus(error ? error.message : "");
+    setStatus(error ? describeAuthError(error) : "");
     setIsError(!!error);
   }
 
@@ -191,12 +192,13 @@ function SignupForm() {
 
     setBusy(false);
     if (error) {
-      const lower = error.message.toLowerCase();
+      const described = describeAuthError(error);
+      const lower = described.toLowerCase();
       setIsError(true);
       setStatus(
         lower.includes("duplicate") || lower.includes("unique")
           ? "That operator number is already registered."
-          : error.message
+          : described
       );
       return;
     }
