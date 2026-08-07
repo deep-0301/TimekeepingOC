@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { DayType, SeasonId } from "@/lib/board";
 import {
   BOARD_SEGMENTS,
   boardForDate,
@@ -10,8 +11,8 @@ import {
   segmentsForDisplay,
   shiftEndpoints,
 } from "@/lib/board";
-import BookPicker from "./BookPicker";
-import { readPref, writePref } from "@/lib/uiPrefs";
+import SeasonDayPicker from "./SeasonDayPicker";
+import { readPrefToday, writePrefToday } from "@/lib/uiPrefs";
 import { fmtDate, fmtHM, dayLabel, parseDateStr } from "@/lib/dateUtils";
 
 interface RunSearchProps {
@@ -27,30 +28,37 @@ export default function RunSearch({ periodDays, onAddShift }: RunSearchProps) {
     {}
   );
 
-  // The board the shown period opens on is the usual answer, but the same
-  // shift number exists on several boards, so which one is being searched is
-  // said outright and can be changed.
-  const contextDate = useMemo(
-    () => (periodDays.length ? fmtDate(periodDays[0]) : ""),
-    [periodDays]
-  );
+  // Today's board when the period on screen contains today, which is the day
+  // work is nearly always being added for. Otherwise the period's own first
+  // day: defaulting to a board that no date in view runs would leave nowhere
+  // to put the shift. Either way the same shift number exists on several
+  // boards, so which one is being searched is said outright and can be
+  // changed.
+  const contextDate = useMemo(() => {
+    if (periodDays.length === 0) return "";
+    const today = fmtDate(new Date());
+    return periodDays.some((d) => fmtDate(d) === today)
+      ? today
+      : fmtDate(periodDays[0]);
+  }, [periodDays]);
   const defaultSegKey = useMemo(() => {
     const seg = contextDate ? boardForDate(contextDate).segment : null;
     return seg ? `${seg.season}:${seg.dayType}` : "";
   }, [contextDate]);
-  // Same as the paddle book: the last board picked is remembered, so a fall
-  // operator is not dropped back onto the summer board every visit.
+  // Same as the paddle book: a board picked by hand is remembered for the
+  // rest of the day, and after that the date decides again.
   const [segKey, setSegKey] = useState(() => {
-    const saved = readPref(BOARD_PREF);
+    const saved = readPrefToday(BOARD_PREF, fmtDate(new Date()));
     return saved && BOARD_SEGMENTS.some((s) => `${s.season}:${s.dayType}` === saved)
       ? saved
       : "";
   });
   const activeKey = segKey || defaultSegKey;
+  const [activeSeason, activeDay] = activeKey.split(":") as [SeasonId, DayType];
 
   const chooseBoard = (key: string) => {
     setSegKey(key);
-    writePref(BOARD_PREF, key);
+    writePrefToday(BOARD_PREF, fmtDate(new Date()), key);
   };
   const segment = useMemo(
     () =>
@@ -78,16 +86,17 @@ export default function RunSearch({ periodDays, onAddShift }: RunSearchProps) {
   return (
     <section className="panel">
       <h2>Add a shift to a date</h2>
-      <BookPicker
+      <SeasonDayPicker
         legend="Which board?"
         options={segmentsForDisplay().map((s) => ({
-          key: `${s.season}:${s.dayType}`,
-          label: segmentLabel(s),
+          season: s.season,
+          dayType: s.dayType,
           sub: `${s.count} shifts`,
           available: s.count > 0,
         }))}
-        value={activeKey}
-        onChange={chooseBoard}
+        season={activeSeason}
+        dayType={activeDay}
+        onChange={(season, day) => chooseBoard(`${season}:${day}`)}
       />
       <input
         type="text"
