@@ -369,7 +369,11 @@ select.period-select {
   color: var(--ink);
 }
 
-.result-card .shift-tag {
+/*
+ * A shift number is a label on a piece of work, and it looks the same
+ * wherever the piece is shown - in a search result or in the day itself.
+ */
+.shift-tag {
   font-size: 10px;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -377,6 +381,11 @@ select.period-select {
   background: #e4eef2;
   padding: 2px 6px;
   border-radius: 3px;
+  white-space: nowrap;
+}
+
+/* Inline in a search result it needs the space a flex gap gives it elsewhere. */
+.result-card .shift-tag {
   margin-left: 6px;
 }
 
@@ -390,12 +399,19 @@ select.period-select {
   color: var(--ink);
 }
 
+/*
+ * A piece of work is a row of facts and one thing you can do to it. The facts
+ * read as a heading (which paddle, which shift) over a leg (where and when),
+ * so the two are never mistaken for each other at a glance, and the action
+ * carries its own word rather than a glyph nobody agrees the meaning of.
+ */
 .piece-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 8px;
-  padding: 6px 0;
+  padding: 8px 0;
   border-bottom: 1px dashed var(--line);
   font-family: var(--font-mono);
   font-size: 12.5px;
@@ -403,6 +419,80 @@ select.period-select {
 
 .piece-row:last-of-type {
   border-bottom: none;
+}
+
+/* Reads as one of the panel's own labels, not as a heading of its own. */
+.piece-list-head {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin-bottom: 2px;
+}
+
+.piece-list-note {
+  margin: 6px 0 0;
+}
+
+.piece-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.piece-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.piece-run {
+  color: var(--ink);
+  font-size: 13.5px;
+}
+
+.piece-leg {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--ink-soft);
+}
+
+.piece-time {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.piece-arrow {
+  color: var(--steel);
+}
+
+.piece-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.piece-remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.day-editor-head-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.day-editor-head-actions button.ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .day-editor-extras {
@@ -997,6 +1087,8 @@ textarea.sheet-paste {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
   font-family: var(--font-display);
   font-size: 14px;
 }
