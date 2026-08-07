@@ -147,16 +147,21 @@ export function computeDay(
       const workedPayMin = hasOverride ? workedMin : shiftPayMin;
 
       // A dispatched spare is never paid less than the guaranteed hours -
-      // if the combined standby + worked time falls short, it's bumped
-      // flat up to the guarantee (matching the non-dispatched fallback,
-      // no partial CLC breakdown for a below-guarantee day). Once actual
-      // pay already clears the guarantee (worked hours, plus any CLC
-      // break), the real breakdown is kept as-is - the guarantee never
-      // reduces a legitimately higher figure.
+      // if the combined standby + worked time falls short, it's bumped up
+      // to the guarantee. The guarantee never reduces a legitimately
+      // higher figure either, so it is a floor on the time and nothing
+      // more.
       const rawPlatMin = standbyBeforeMin + workedMin;
-      const rawPayMin = standbyBeforeMin + workedPayMin;
       const guaranteeFloorMin = (sp.guaranteeHrs || 8) * 60;
-      const underGuarantee = rawPayMin < guaranteeFloorMin;
+
+      // The break the board itself pays on the run that was dispatched.
+      // This is paid time that is not platform time, so the guarantee does
+      // not absorb it: a spare sent out on a short run still earns the
+      // break that run carries, and 8 guaranteed hours plus a half-hour
+      // break is 8:30 of pay, not 8:00. Overridden times mean the board's
+      // own totals no longer describe what was worked, and the break goes
+      // with them - the same rule a partially-matched booked shift uses.
+      const clcBreakMin = Math.max(0, workedPayMin - workedMin);
 
       // AVLC/revised time on a dispatched spare works the same as a
       // booked run - the extra platform credit is how far the revised
@@ -167,8 +172,8 @@ export function computeDay(
           ? Math.max(0, e.revisedTimeMin - workOffMin)
           : 0;
 
-      const platMin = (underGuarantee ? guaranteeFloorMin : rawPlatMin) + avlcExtraMin;
-      const payMin = (underGuarantee ? guaranteeFloorMin : rawPayMin) + avlcExtraMin;
+      const platMin = Math.max(rawPlatMin, guaranteeFloorMin) + avlcExtraMin;
+      const payMin = platMin + clcBreakMin;
 
       const allRuns = shift ? shift[3].map((r) => r[0]) : [];
       const pieces: EntryPiece[] = shift
