@@ -20,6 +20,21 @@ function toMin(hhmm: string): number {
 }
 
 /**
+ * How far apart two clock times are, going round the dial.
+ *
+ * Work that runs past midnight is written both ways: the schedule keeps
+ * counting up, so a trip out at half past one in the morning is "25:30", and
+ * the paddle book restarts at zero and prints "1:30". Subtracting those gives
+ * a day's difference for two times a minute apart. Both are wrapped into one
+ * day and compared the short way round, so 23:59 and 00:00 are a minute
+ * apart rather than a day.
+ */
+function minutesApart(a: number, b: number): number {
+  const gap = Math.abs((((a - b) % 1440) + 1440) % 1440);
+  return Math.min(gap, 1440 - gap);
+}
+
+/**
  * The same paddle written either way.
  *
  * The paddle book prints `085002`; the work board and the booking sheet print
@@ -199,7 +214,7 @@ export function paddleWorkingTrip(
       if (trip[0].toLowerCase() !== want || trip[3].length === 0) continue;
       // A minute either way, since the feed counts seconds and the book
       // prints whole minutes.
-      if (Math.abs(toMin(trip[3][0][0]) - due) <= 1) {
+      if (minutesApart(toMin(trip[3][0][0]), due) <= 1) {
         found.push(paddle);
         break;
       }
@@ -260,7 +275,7 @@ export function bestVehicle(
   let bestGap = Infinity;
   for (const v of vehicles) {
     if (!v.startTime) continue;
-    const gap = Math.abs(toMin(v.startTime) - due);
+    const gap = minutesApart(toMin(v.startTime), due);
     if (gap <= 1 && gap < bestGap) {
       best = v;
       bestGap = gap;

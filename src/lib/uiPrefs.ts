@@ -20,6 +20,27 @@ export function readPref(key: string): string | null {
   }
 }
 
+/**
+ * A choice that holds for today and no longer.
+ *
+ * Which book you were last looking at is worth keeping while you work - being
+ * thrown back to a different one on every visit was the original complaint.
+ * Keeping it for ever is the opposite mistake: come back on a Saturday and
+ * the page opens on Friday's weekday book, which is wrong in a way that is
+ * easy to miss. Stamping the choice with its date settles both.
+ */
+export function readPrefToday(key: string, today: string): string | null {
+  const raw = readPref(key);
+  if (!raw) return null;
+  const cut = raw.indexOf("|");
+  if (cut < 0) return null;
+  return raw.slice(0, cut) === today ? raw.slice(cut + 1) : null;
+}
+
+export function writePrefToday(key: string, today: string, value: string): void {
+  writePref(key, `${today}|${value}`);
+}
+
 export function writePref(key: string, value: string): void {
   if (typeof window === "undefined") return;
   try {

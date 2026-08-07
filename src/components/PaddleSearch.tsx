@@ -11,8 +11,9 @@ import {
   type PaddleBook,
 } from "@/lib/paddles";
 import { fmtDate } from "@/lib/dateUtils";
-import BookPicker from "./BookPicker";
-import { readPref, writePref } from "@/lib/uiPrefs";
+import type { DayType, SeasonId } from "@/lib/board";
+import SeasonDayPicker from "./SeasonDayPicker";
+import { readPrefToday, writePrefToday } from "@/lib/uiPrefs";
 import { ArrowRightAlt, ChevronRight, ExpandMore } from "./icons";
 import PaddleTimeline from "./PaddleTimeline";
 
@@ -86,11 +87,12 @@ export default function PaddleSearch() {
   const [query, setQuery] = useState("");
 
   const options = useMemo(() => paddleBookOptions(), []);
-  // Last book chosen wins, then today's, then the first that exists. Without
-  // the first of those, an operator working the fall book was thrown back to
-  // the summer one on every visit, because the date still falls in summer.
+  // Today's book by default - the booking the date falls in, and the kind of
+  // day it is. A book chosen by hand overrides that, but only for the rest of
+  // the day: keeping it for ever means opening on Friday's weekday book on a
+  // Saturday, which is wrong in a way that is easy to miss.
   const [bookKey, setBookKey] = useState(() => {
-    const saved = readPref(BOOK_PREF);
+    const saved = readPrefToday(BOOK_PREF, fmtDate(new Date()));
     if (saved && options.some((o) => o.key === saved && o.file)) return saved;
     return (
       paddleBookKeyForDate(fmtDate(new Date())) ??
@@ -98,10 +100,11 @@ export default function PaddleSearch() {
       ""
     );
   });
+  const [season, dayType] = bookKey.split(":") as [SeasonId, DayType];
 
   const chooseBook = (key: string) => {
     setBookKey(key);
-    writePref(BOOK_PREF, key);
+    writePrefToday(BOOK_PREF, fmtDate(new Date()), key);
   };
 
   // Held with the key it came from, so switching books shows the new book's
@@ -145,16 +148,17 @@ export default function PaddleSearch() {
   return (
     <section className="panel">
       <h2>Find a paddle</h2>
-      <BookPicker
+      <SeasonDayPicker
         legend="Which paddle book?"
         options={options.map((o) => ({
-          key: o.key,
-          label: o.label,
+          season: o.season,
+          dayType: o.dayType,
           sub: o.file ? undefined : "not loaded",
           available: !!o.file,
         }))}
-        value={bookKey}
-        onChange={chooseBook}
+        season={season}
+        dayType={dayType}
+        onChange={(s, d) => chooseBook(`${s}:${d}`)}
       />
       <input
         type="text"
