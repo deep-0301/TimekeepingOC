@@ -16,13 +16,7 @@ import type { DayFieldName, DayFieldValue, EntriesMap, SpareInfo } from "@/lib/t
 import TimeField24 from "./TimeField24";
 import GarageField from "./GarageField";
 import InfoNote from "./InfoNote";
-import {
-  ArrowRightAlt,
-  ChevronRight,
-  DeleteOutline,
-  Event,
-  ExpandMore,
-} from "./icons";
+import { ArrowRightAlt, ChevronRight, Event, ExpandMore } from "./icons";
 
 /** AVLC rule: revised time = AVLC time + 5 minutes. */
 const AVLC_BUMP_MIN = 5;
@@ -31,7 +25,6 @@ interface DayEditorProps {
   dateStr: string;
   entries: EntriesMap;
   onAddShift: (si: number, dateStr: string) => void;
-  onRemovePiece: (dateStr: string, idx: number) => void;
   onClearSheetDay: (dateStr: string) => void;
   onUpdateDayField: (
     dateStr: string,
@@ -47,7 +40,6 @@ export default function DayEditor({
   dateStr,
   entries,
   onAddShift,
-  onRemovePiece,
   onClearSheetDay,
   onUpdateDayField,
   onUpdateSpare,
@@ -59,20 +51,12 @@ export default function DayEditor({
     entries[dateStr]?.spare?.runNumber || ""
   );
   const [confirmDelete, setConfirmDelete] = useState(false);
-  // Which piece is asking to be confirmed, by index, or none. The panel is
-  // remounted per date (`key={selectedDate}` at the call site), so an index
-  // alone cannot outlive the day it belongs to.
-  const [confirmPiece, setConfirmPiece] = useState<number | null>(null);
   const day = entries[dateStr];
   const isDayOff = !!day?.dayOff;
   const isSpare = !!day?.spare;
   const dc = computeDay(entries, dateStr);
   const pieces = dc.pieces;
   const holiday = getHolidayForDate(parseDateStr(dateStr));
-  // Booking-sheet and spare work is generated from something else - the sheet,
-  // or the paddle number - so pulling one piece out of it would only be undone
-  // the next time that source is read.
-  const canRemovePieces = !dc.fromSheet && !isSpare;
 
   const [bookedAction, setBookedAction] = useState(() =>
     day?.avlcMin || day?.revisedTimeMin ? "late" : ""
@@ -177,12 +161,9 @@ export default function DayEditor({
           {day && !confirmDelete && (
             <button
               className="ghost small"
-              onClick={() => {
-                setConfirmPiece(null);
-                setConfirmDelete(true);
-              }}
+              onClick={() => setConfirmDelete(true)}
             >
-              <DeleteOutline /> Delete day
+              Delete day
             </button>
           )}
           <button className="ghost small" onClick={onClose}>
@@ -274,75 +255,27 @@ export default function DayEditor({
           <div className="piece-list-head">
             {pieces.length === 1 ? "1 piece worked" : `${pieces.length} pieces worked`}
           </div>
-          {pieces.map((p, idx) => {
-            const confirming = confirmPiece === idx;
-            return (
-              <div className="piece-row" key={idx}>
-                <div className="piece-main">
-                  <div className="piece-head">
-                    <b className="piece-run">{p.run}</b>
-                    <span className="shift-tag">shift {p.shiftId}</span>
-                  </div>
-                  <div className="piece-leg">
-                    <span className="piece-point">
-                      {shortLocation(p.onLoc)}{" "}
-                      <span className="piece-time">{p.onTime}</span>
-                    </span>
-                    <span className="piece-arrow">
-                      <ArrowRightAlt />
-                    </span>
-                    <span className="piece-point">
-                      {shortLocation(p.offLoc)}{" "}
-                      <span className="piece-time">{p.offTime}</span>
-                    </span>
-                  </div>
-                </div>
-                {canRemovePieces &&
-                  (confirming ? (
-                    <div className="piece-actions">
-                      <span className="note" style={{ margin: 0 }}>
-                        Remove it?
-                      </span>
-                      <button
-                        className="danger-solid small"
-                        onClick={() => {
-                          setConfirmPiece(null);
-                          onRemovePiece(dateStr, idx);
-                        }}
-                      >
-                        Yes, remove
-                      </button>
-                      <button
-                        className="ghost small"
-                        onClick={() => setConfirmPiece(null)}
-                      >
-                        Keep
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="piece-actions">
-                      <button
-                        className="ghost small piece-remove"
-                        aria-label={`Remove piece ${p.run}, shift ${p.shiftId}, ${p.onTime} to ${p.offTime}`}
-                        onClick={() => {
-                          setConfirmDelete(false);
-                          setConfirmPiece(idx);
-                        }}
-                      >
-                        <DeleteOutline /> Remove
-                      </button>
-                    </div>
-                  ))}
+          {pieces.map((p, idx) => (
+            <div className="piece-row" key={idx}>
+              <div className="piece-head">
+                <b className="piece-run">{p.run}</b>
+                <span className="shift-tag">shift {p.shiftId}</span>
               </div>
-            );
-          })}
-          {!canRemovePieces && (
-            <div className="note piece-list-note">
-              {dc.fromSheet
-                ? "This work came from your booking sheet. Change it under Manage work below rather than piece by piece."
-                : "Spare work is set from the paddle number under Manage work below."}
+              <div className="piece-leg">
+                <span className="piece-point">
+                  {shortLocation(p.onLoc)}{" "}
+                  <span className="piece-time">{p.onTime}</span>
+                </span>
+                <span className="piece-arrow">
+                  <ArrowRightAlt />
+                </span>
+                <span className="piece-point">
+                  {shortLocation(p.offLoc)}{" "}
+                  <span className="piece-time">{p.offTime}</span>
+                </span>
+              </div>
             </div>
-          )}
+          ))}
         </div>
       )}
 

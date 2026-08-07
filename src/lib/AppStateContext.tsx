@@ -38,7 +38,6 @@ interface AppState {
   settingsOpen: boolean;
   setSettingsOpen: (updater: boolean | ((prev: boolean) => boolean)) => void;
   addShiftToDate: (si: number, dateStr: string) => void;
-  removePiece: (dateStr: string, idx: number) => void;
   clearSheetDay: (dateStr: string) => void;
   updateDayField: (
     dateStr: string,
@@ -141,19 +140,6 @@ export function AppStateProvider({
         return next;
       });
       setStatusLine(`Added shift ${BOARD_DATA[si][0]} to ${dateStr}`);
-    },
-    [updateEntries]
-  );
-
-  const removePiece = useCallback(
-    (dateStr: string, idx: number) => {
-      updateEntries((prev) => {
-        const day = prev[dateStr];
-        if (!day) return prev;
-        const pieces = [...day.pieces];
-        pieces.splice(idx, 1);
-        return { ...prev, [dateStr]: { ...day, pieces } };
-      });
     },
     [updateEntries]
   );
@@ -283,7 +269,6 @@ export function AppStateProvider({
     settingsOpen,
     setSettingsOpen,
     addShiftToDate,
-    removePiece,
     clearSheetDay,
     updateDayField,
     updateSpare,

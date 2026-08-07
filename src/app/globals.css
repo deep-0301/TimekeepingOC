@@ -400,17 +400,15 @@ select.period-select {
 }
 
 /*
- * A piece of work is a row of facts and one thing you can do to it. The facts
- * read as a heading (which paddle, which shift) over a leg (where and when),
- * so the two are never mistaken for each other at a glance, and the action
- * carries its own word rather than a glyph nobody agrees the meaning of.
+ * A piece of work is a row of facts and nothing else. The paddle and shift
+ * read as a heading over the leg below them, so the two are never mistaken
+ * for each other at a glance. Work is added and taken away under Manage
+ * work, not from the list itself.
  */
 .piece-row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-direction: column;
+  gap: 3px;
   padding: 8px 0;
   border-bottom: 1px dashed var(--line);
   font-family: var(--font-mono);
@@ -428,17 +426,6 @@ select.period-select {
   font-weight: 600;
   color: var(--ink-soft);
   margin-bottom: 2px;
-}
-
-.piece-list-note {
-  margin: 6px 0 0;
-}
-
-.piece-main {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
 }
 
 .piece-head {
@@ -469,30 +456,11 @@ select.period-select {
   color: var(--steel);
 }
 
-.piece-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.piece-remove {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
 .day-editor-head-actions {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-}
-
-.day-editor-head-actions button.ghost {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .day-editor-extras {
