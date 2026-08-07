@@ -1,3 +1,5 @@
+import { getHolidayForDate } from "./statHolidays";
+
 const WEEKDAYS7 = [
   "sunday",
   "monday",
@@ -278,6 +280,19 @@ export function parseBookingSheetText(
     }
   });
 
+  /**
+   * A stat holiday is not an ordinary day of that name.
+   *
+   * On Thanksgiving the work comes off the STAT board, which is different
+   * work entirely - different shift numbers, different times, different
+   * hours. Letting the Monday pattern repeat onto it fills the day with a
+   * shift nobody is booked to drive and puts wrong hours into the pay.
+   *
+   * Only repeats are held back. A block the sheet dates explicitly is the
+   * holiday assignment itself and belongs exactly where it says.
+   */
+  const isStat = (d: Date) => getHolidayForDate(d) !== null;
+
   // A weekday+cycle block's pattern repeats every `cycleLength` weeks for
   // the rest of the season (e.g. a 2-week bid cycle repeats all summer).
   // Explicit-date (holiday) blocks are one-off and never repeat.
@@ -293,7 +308,7 @@ export function parseBookingSheetText(
         const d = new Date(anchorDate);
         while (d <= end) {
           const dow = d.getDay();
-          if (dow >= 1 && dow <= 5) dates.push(new Date(d));
+          if (dow >= 1 && dow <= 5 && !isStat(d)) dates.push(new Date(d));
           d.setDate(d.getDate() + 1);
         }
       }
@@ -307,7 +322,7 @@ export function parseBookingSheetText(
       const d = new Date(b.date);
       const end = seasonEndDate ?? b.date;
       while (d <= end) {
-        dates.push(new Date(d));
+        if (!isStat(d)) dates.push(new Date(d));
         d.setDate(d.getDate() + 7 * cycleLength);
       }
       b.dates = dates;
