@@ -13,6 +13,7 @@ import type {
 } from "@/lib/types";
 import DayEditor from "./DayEditor";
 import { ChevronLeft, ChevronRight } from "./icons";
+import { hosBreaches } from "@/lib/hosFlags";
 
 interface MonthCalendarProps {
   entries: EntriesMap;
@@ -89,6 +90,14 @@ export default function MonthCalendar({
   // same question is 42 chances for them to disagree across midnight.
   const todayStr = fmtDate(new Date());
 
+  // Worked out for the whole grid at once. Each day's rolling totals reach a
+  // fortnight back, so asking cell by cell would walk the same fortnight
+  // forty-two times.
+  const hosByDate = useMemo(
+    () => hosBreaches(cells.map((d) => fmtDate(d)), entries),
+    [cells, entries]
+  );
+
   return (
     <>
     <section className="panel">
@@ -130,6 +139,7 @@ export default function MonthCalendar({
           const holiday = getHolidayForDate(d);
           const isSelected = selectedDate === dateStr;
           const isToday = dateStr === todayStr;
+          const hos = hosByDate.get(dateStr);
           const isWorking = !dc.dayOff && (dc.pieces.length > 0 || !!dc.spare);
           const dayOffType = entries[dateStr]?.dayOffType;
           const hasOvertime = dc.dayOff && dc.pieces.length > 0;
@@ -175,6 +185,14 @@ export default function MonthCalendar({
                   OT
                 </span>
               )}
+              {hos && (
+                <span
+                  className="cal-cell-hos"
+                  title={`Hours of service: ${hos.breaches.join(", ")}`}
+                >
+                  HOS
+                </span>
+              )}
               {holiday && (
                 <span className="cal-cell-holiday-label">{holiday.name}</span>
               )}
@@ -215,6 +233,10 @@ export default function MonthCalendar({
         </span>
         <span className="cal-legend-item">
           <span className="cal-cell-ot cal-legend-ot">OT</span> Overtime worked
+        </span>
+        <span className="cal-legend-item">
+          <span className="cal-cell-hos cal-legend-ot">HOS</span> Past an
+          hours-of-service limit
         </span>
         <span className="cal-legend-item">
           <span className="cal-legend-swatch cal-legend-holiday" /> Holiday
