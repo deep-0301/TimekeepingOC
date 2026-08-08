@@ -16,6 +16,7 @@ import type { DayFieldName, DayFieldValue, EntriesMap, SpareInfo } from "@/lib/t
 import TimeField24 from "./TimeField24";
 import GarageField from "./GarageField";
 import InfoNote from "./InfoNote";
+import DayPaddleView from "./DayPaddleView";
 import { ArrowRightAlt, ChevronRight, Event, ExpandMore } from "./icons";
 
 /** AVLC rule: revised time = AVLC time + 5 minutes. */
@@ -276,6 +277,7 @@ export default function DayEditor({
               </div>
             </div>
           ))}
+          <DayPaddleView dateStr={dateStr} runs={pieces.map((p) => p.run)} />
         </div>
       )}
 
