@@ -9,7 +9,7 @@ import type {
   DayFieldValue,
   EntriesMap,
   PaySettings,
-  RecordedBus,
+  BusSighting,
   SpareInfo,
 } from "@/lib/types";
 import DayEditor from "./DayEditor";
@@ -21,7 +21,7 @@ interface MonthCalendarProps {
   settings: PaySettings;
   onAddShift: (si: number, dateStr: string) => void;
   onClearSheetDay: (dateStr: string) => void;
-  onRecordBus: (dateStr: string, paddleNumber: string, bus: RecordedBus) => void;
+  onRecordBus: (dateStr: string, paddleNumber: string, sighting: BusSighting) => void;
   onUpdateDayField: (
     dateStr: string,
     field: DayFieldName,

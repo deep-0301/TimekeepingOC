@@ -16,7 +16,7 @@ import type {
   DayFieldName,
   DayFieldValue,
   EntriesMap,
-  RecordedBus,
+  BusSighting,
   SpareInfo,
 } from "@/lib/types";
 import TimeField24 from "./TimeField24";
@@ -37,7 +37,7 @@ interface DayEditorProps {
   entries: EntriesMap;
   onAddShift: (si: number, dateStr: string) => void;
   onClearSheetDay: (dateStr: string) => void;
-  onRecordBus: (dateStr: string, paddleNumber: string, bus: RecordedBus) => void;
+  onRecordBus: (dateStr: string, paddleNumber: string, sighting: BusSighting) => void;
   onUpdateDayField: (
     dateStr: string,
     field: DayFieldName,

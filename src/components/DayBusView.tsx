@@ -5,7 +5,7 @@ import { fmtDate } from "@/lib/dateUtils";
 import { lookUpPaddleBus } from "@/lib/paddleBus";
 import { loadPaddleBookForDate, paddleBookForDate } from "@/lib/paddles";
 import { normalisePaddleNumber } from "@/lib/paddleTracking";
-import type { RecordedBus } from "@/lib/types";
+import { seenCounts, type BusSighting, type RecordedBus } from "@/lib/types";
 
 /**
  * Which bus worked this day, kept with the day.
@@ -18,6 +18,12 @@ import type { RecordedBus } from "@/lib/types";
  *
  * So opening today's day asks the feed and saves what it learns. Every day
  * after that just reads what was saved, and asks nothing.
+ *
+ * Today is asked again on every visit, not only the first. The feed does not
+ * always answer the same way over a day - a bus swapped out mid-run, or one
+ * bad match near a layover - so the sightings are tallied and the bus kept is
+ * whichever has worked the paddle most. One odd reading in the evening does
+ * not displace the bus confirmed all morning.
  */
 
 interface Props {
@@ -25,7 +31,7 @@ interface Props {
   /** Run numbers worked that day, as printed on the board. */
   runs: string[];
   saved: Record<string, RecordedBus> | undefined;
-  onRecord: (dateStr: string, paddleNumber: string, bus: RecordedBus) => void;
+  onRecord: (dateStr: string, paddleNumber: string, sighting: BusSighting) => void;
 }
 
 type State = "idle" | "looking" | "done" | "failed";
@@ -33,6 +39,21 @@ type State = "idle" | "looking" | "done" | "failed";
 function seenAt(at: number): string {
   const d = new Date(at * 1000);
   return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+/**
+ * How settled the answer is, in words rather than a number nobody asked for.
+ *
+ * Only worth saying when the feed has disagreed with itself. While every
+ * sighting has named the same bus there is nothing to qualify, and "3 of 3"
+ * would only invite doubt where there is none.
+ */
+function confidence(bus: RecordedBus): string {
+  const counts = seenCounts(bus);
+  const mine = counts[bus.fleet] ?? 1;
+  const all = Object.values(counts).reduce((a, b) => a + b, 0);
+  const when = `seen ${seenAt(bus.at)}`;
+  return all > mine ? `${when} · ${mine} of ${all} sightings` : when;
 }
 
 export default function DayBusView({ dateStr, runs, saved, onRecord }: Props) {
@@ -92,14 +113,16 @@ export default function DayBusView({ dateStr, runs, saved, onRecord }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateStr, paddleKey, onRecord]);
 
-  // Only today can be answered, and only what is not already known is worth
-  // asking about. Every other day costs no request at all.
+  // Only today can be answered - every other day costs no request at all -
+  // but today is asked once per visit even when a bus is already known, so
+  // the tally keeps building and the answer settles on the bus that actually
+  // worked the run.
   useEffect(() => {
-    if (!isToday || missing.length === 0) return;
+    if (!isToday) return;
     if (asked.current === dateStr) return;
     asked.current = dateStr;
     void look();
-  }, [isToday, missing.length, dateStr, look]);
+  }, [isToday, dateStr, look]);
 
   if (paddles.length === 0) return null;
   if (!paddleBookForDate(dateStr)) return null;
@@ -118,7 +141,7 @@ export default function DayBusView({ dateStr, runs, saved, onRecord }: Props) {
                 <>
                   <b className="day-bus-fleet">{bus.fleet}</b>
                   {paddles.length > 1 && <span className="shift-tag">{run}</span>}
-                  <span className="day-bus-when">seen {seenAt(bus.at)}</span>
+                  <span className="day-bus-when">{confidence(bus)}</span>
                 </>
               ) : (
                 <span className="day-bus-unknown">

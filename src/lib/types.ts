@@ -135,10 +135,56 @@ export interface DayEntry {
 
 /** A bus identified as working a paddle on a particular day. */
 export interface RecordedBus {
-  /** Fleet number as the feed reports it. */
+  /**
+   * The bus that has worked this paddle most often today.
+   *
+   * Not the last one seen. A paddle is looked at several times over a day
+   * and the feed does not always answer the same way - a bus swapped out
+   * mid-run, or one bad match near a layover - and the answer confirmed all
+   * morning should not be displaced by a single later sighting.
+   */
   fleet: string;
-  /** Unix seconds of the position report that identified it. */
+  /** Unix seconds of the most recent report that showed this fleet. */
   at: number;
+  /** How many times each fleet has been seen on this paddle today. */
+  seen?: Record<string, number>;
+  /**
+   * The newest report counted so far, whichever bus it was.
+   *
+   * Opening the day twice inside one refresh window returns the same
+   * position report; without this it would be tallied twice and a re-read
+   * would masquerade as a confirmation.
+   */
+  lastAt?: number;
+}
+
+/** One observation of a bus on a paddle. */
+export interface BusSighting {
+  fleet: string;
+  /** Unix seconds the position was reported. */
+  at: number;
+}
+
+/** Whichever fleet has been seen most, with ties going to the one held. */
+export function mostSeen(
+  seen: Record<string, number>,
+  holding: string,
+): string {
+  let best = holding;
+  let bestCount = seen[holding] ?? 0;
+  for (const [fleet, count] of Object.entries(seen)) {
+    if (count > bestCount) {
+      best = fleet;
+      bestCount = count;
+    }
+  }
+  return best;
+}
+
+/** The tally a record carries, filled in for one written before tallying. */
+export function seenCounts(bus: RecordedBus | undefined): Record<string, number> {
+  if (!bus) return {};
+  return bus.seen ?? { [bus.fleet]: 1 };
 }
 
 export type EntriesMap = Record<string, DayEntry>;
