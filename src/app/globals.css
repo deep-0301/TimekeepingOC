@@ -463,6 +463,51 @@ select.period-select {
   gap: 8px;
 }
 
+/*
+ * The way into the paddle book from a day's work.
+ *
+ * It sits under the pieces rather than on them: the pieces are what was
+ * worked, and this is one more thing to read about the same work, not an
+ * action on any single row.
+ */
+.day-paddle {
+  margin-top: 10px;
+}
+
+.day-paddle-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.day-paddle-label {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.day-paddle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+}
+
+.day-paddle-btn.is-open {
+  background: #e4e8de;
+  border-color: var(--steel);
+}
+
+.day-paddle-body {
+  margin-top: 8px;
+}
+
+.day-paddle-note {
+  margin: 0 0 8px;
+}
+
 .day-editor-extras {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -941,6 +986,39 @@ textarea.sheet-paste {
   font-family: var(--font-mono);
   font-size: 15px;
   font-weight: 600;
+}
+
+/*
+ * Today is marked on the number itself, not on the cell.
+ *
+ * The cell's border is already spoken for by the day being selected and its
+ * background by there being work on it, and today can be either, both or
+ * neither. Ringing the date leaves all three readable at once.
+ */
+.cal-cell-today .cal-cell-date {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 23px;
+  height: 23px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--steel-dark);
+  color: #fff;
+}
+
+.cal-legend-today {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--steel-dark);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
 }
 
 .cal-cell-holiday-label {

@@ -85,6 +85,10 @@ export default function MonthCalendar({
     year: "numeric",
   });
 
+  // Read once per render rather than per cell: 42 cells asking the clock the
+  // same question is 42 chances for them to disagree across midnight.
+  const todayStr = fmtDate(new Date());
+
   return (
     <>
     <section className="panel">
@@ -125,6 +129,7 @@ export default function MonthCalendar({
           const dc = computeDay(entries, dateStr);
           const holiday = getHolidayForDate(d);
           const isSelected = selectedDate === dateStr;
+          const isToday = dateStr === todayStr;
           const isWorking = !dc.dayOff && (dc.pieces.length > 0 || !!dc.spare);
           const dayOffType = entries[dateStr]?.dayOffType;
           const hasOvertime = dc.dayOff && dc.pieces.length > 0;
@@ -151,9 +156,15 @@ export default function MonthCalendar({
                 (holiday ? " cal-cell-holiday" : "") +
                 (dc.dayOff ? " cal-cell-dayoff" : "") +
                 (isWorking ? " cal-cell-working" : "") +
+                (isToday ? " cal-cell-today" : "") +
                 (isSelected ? " cal-cell-selected" : "")
               }
-              title={holiday ? holiday.name : undefined}
+              aria-current={isToday ? "date" : undefined}
+              title={
+                holiday ? (isToday ? `Today - ${holiday.name}` : holiday.name)
+                  : isToday ? "Today"
+                  : undefined
+              }
               onClick={() =>
                 setSelectedDate((prev) => (prev === dateStr ? null : dateStr))
               }
@@ -181,6 +192,12 @@ export default function MonthCalendar({
       </div>
 
       <div className="cal-legend">
+        <span className="cal-legend-item">
+          <span className="cal-legend-today">
+            {new Date().getDate()}
+          </span>{" "}
+          Today
+        </span>
         <span className="cal-legend-item">
           <span className="cal-dot cal-dot-working" /> Working
         </span>
