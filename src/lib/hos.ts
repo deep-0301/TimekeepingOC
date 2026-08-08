@@ -174,7 +174,32 @@ export interface HosDayRow extends HosDay {
   rolling7Min: number;
   /** On-duty time over this day and the thirteen before it. */
   rolling14Min: number;
+  /**
+   * Off-duty time between going off duty the day before and coming on duty
+   * this day. Null when either day has nothing recorded, so there is no gap
+   * to measure rather than a gap of zero.
+   */
+  restBeforeMin: number | null;
   breaches: string[];
+}
+
+/**
+ * The break between one day's work and the next.
+ *
+ * This is the rule a single day cannot see. Signing off at 02:00 and back on
+ * at 06:00 leaves each of those two days looking lawful on its own - neither
+ * has much on-duty time, and both have plenty of off-duty time inside their
+ * own midnight-to-midnight window. It is the four hours between them that
+ * breaks the eight consecutive hours off duty the regulation requires.
+ *
+ * The previous day's finish is measured from its own midnight and may run
+ * past it - a shift signing off at 02:00 is recorded as 26:00 on the day it
+ * started. Shifting today's start by a day puts both on one axis, and the
+ * gap becomes a subtraction.
+ */
+function restBetween(prev: HosDay, today: HosDay): number | null {
+  if (prev.lastOffMin == null || today.firstOnMin == null) return null;
+  return Math.max(0, today.firstOnMin + 24 * H - prev.lastOffMin);
 }
 
 function shiftDate(dateStr: string, days: number): string {
@@ -216,6 +241,7 @@ export function hosRows(
     const d = dayAt(ds);
     const rolling7Min = rollingBack(ds, 7);
     const rolling14Min = rollingBack(ds, 14);
+    const restBeforeMin = restBetween(dayAt(shiftDate(ds, -1)), d);
     const breaches: string[] = [];
 
     if (d.drivingMin > HOS_LIMITS.dailyDriving) breaches.push("13 h driving");
@@ -223,12 +249,17 @@ export function hosRows(
     if (d.elapsedMin > HOS_LIMITS.elapsedWindow) breaches.push("16 h elapsed");
     if (d.onDutyMin > 0 && d.offDutyMin < HOS_LIMITS.dailyOffDuty)
       breaches.push("10 h off duty");
+    if (
+      restBeforeMin != null &&
+      restBeforeMin < HOS_LIMITS.consecutiveOffDuty
+    )
+      breaches.push("8 h rest since yesterday");
     if (cycle === "cycle1" && rolling7Min > HOS_LIMITS.cycle1)
       breaches.push("70 h / 7 days");
     if (cycle === "cycle2" && rolling14Min > HOS_LIMITS.cycle2)
       breaches.push("120 h / 14 days");
 
-    return { ...d, rolling7Min, rolling14Min, breaches };
+    return { ...d, rolling7Min, rolling14Min, restBeforeMin, breaches };
   });
 }
 

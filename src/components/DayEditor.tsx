@@ -17,6 +17,8 @@ import TimeField24 from "./TimeField24";
 import GarageField from "./GarageField";
 import InfoNote from "./InfoNote";
 import DayPaddleView from "./DayPaddleView";
+import { hosBreachFor } from "@/lib/hosFlags";
+import { HOS_LIMITS } from "@/lib/hos";
 import { ArrowRightAlt, ChevronRight, Event, ExpandMore } from "./icons";
 
 /** AVLC rule: revised time = AVLC time + 5 minutes. */
@@ -58,6 +60,10 @@ export default function DayEditor({
   const dc = computeDay(entries, dateStr);
   const pieces = dc.pieces;
   const holiday = getHolidayForDate(parseDateStr(dateStr));
+  // Recomputed with the day rather than memoised: it reaches a fortnight back
+  // through `entries`, and `entries` is exactly what changes when the day is
+  // edited, so a memo keyed on it would recompute anyway.
+  const hos = hosBreachFor(dateStr, entries);
 
   const [bookedAction, setBookedAction] = useState(() =>
     day?.avlcMin || day?.revisedTimeMin ? "late" : ""
@@ -189,6 +195,45 @@ export default function DayEditor({
               Mark as stat holiday
             </button>
           )}
+        </div>
+      )}
+
+      {hos && (
+        <div className="hos-banner">
+          <div className="hos-banner-head">
+            <span className="hos-banner-tag">HOS</span>
+            <span>
+              {hos.breaches.length === 1
+                ? "This day is past an hours-of-service limit."
+                : `This day is past ${hos.breaches.length} hours-of-service limits.`}
+            </span>
+          </div>
+          <ul className="hos-banner-list">
+            {hos.breaches.map((b) => (
+              <li key={b}>{b}</li>
+            ))}
+          </ul>
+          <div className="hos-banner-detail">
+            On duty <b>{fmtHM(hos.onDutyMin)}</b> · driving{" "}
+            <b>{fmtHM(hos.drivingMin)}</b>
+            {hos.firstOnMin != null && hos.lastOffMin != null && (
+              <>
+                {" "}
+                · {minToHHMM(hos.firstOnMin % 1440)} to{" "}
+                {minToHHMM(hos.lastOffMin % 1440)}
+                {hos.lastOffMin >= 1440 && " next day"}
+              </>
+            )}
+            {hos.restBeforeMin != null &&
+              hos.restBeforeMin < HOS_LIMITS.consecutiveOffDuty && (
+                <>
+                  {" "}
+                  · only <b>{fmtHM(hos.restBeforeMin)}</b> off since the day
+                  before
+                </>
+              )}
+            {hos.estimated && " · duty time estimated from the guarantee"}
+          </div>
         </div>
       )}
 

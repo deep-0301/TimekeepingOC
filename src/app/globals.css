@@ -951,9 +951,31 @@ textarea.sheet-paste {
   line-height: 1.2;
 }
 
+/*
+ * A day past an hours-of-service limit.
+ *
+ * Bottom-left, opposite the OT badge, because a day can easily be both -
+ * overtime is exactly how a day runs past fourteen hours on duty.
+ */
+.cal-cell-hos {
+  position: absolute;
+  bottom: 3px;
+  left: 3px;
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #fff;
+  background: var(--red);
+  border-radius: 4px;
+  padding: 1px 3px;
+  line-height: 1.2;
+}
+
 .cal-legend-ot {
   position: static;
 }
+
 
 .cal-cell:hover {
   border-color: var(--steel);
@@ -1156,6 +1178,58 @@ textarea.sheet-paste {
   color: var(--holiday);
   font-size: 13px;
   font-weight: 600;
+}
+
+/*
+ * The hours-of-service warning on a day.
+ *
+ * Built like the holiday banner beside it, in red rather than gold: this is
+ * the one thing in the panel that is not a record of what happened but a
+ * warning about it, and it names the limit rather than only saying a limit
+ * was passed - "8 h rest since yesterday" is something an operator can
+ * recognise, "over the limit" is not.
+ */
+.hos-banner {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border-left: 3px solid var(--red);
+  background: #f6dede;
+  color: #7c2b24;
+  font-size: 13px;
+}
+
+.hos-banner-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+
+.hos-banner-tag {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #fff;
+  background: var(--red);
+  border-radius: 4px;
+  padding: 2px 5px;
+  line-height: 1.2;
+}
+
+.hos-banner-list {
+  margin: 6px 0 0;
+  padding-left: 20px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+
+.hos-banner-detail {
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  opacity: 0.85;
 }
 
 .auth-shell {
