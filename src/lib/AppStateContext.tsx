@@ -20,7 +20,9 @@ import {
   type EntriesMap,
   type EntryPiece,
   type PaySettings,
-  type RecordedBus,
+  mostSeen,
+  seenCounts,
+  type BusSighting,
   type SpareInfo,
   type WeekComputed,
 } from "@/lib/types";
@@ -40,7 +42,7 @@ interface AppState {
   setSettingsOpen: (updater: boolean | ((prev: boolean) => boolean)) => void;
   addShiftToDate: (si: number, dateStr: string) => void;
   clearSheetDay: (dateStr: string) => void;
-  recordBus: (dateStr: string, paddleNumber: string, bus: RecordedBus) => void;
+  recordBus: (dateStr: string, paddleNumber: string, sighting: BusSighting) => void;
   updateDayField: (
     dateStr: string,
     field: DayFieldName,
@@ -166,15 +168,35 @@ export function AppStateProvider({
     [updateEntries]
   );
 
-  // Learned from the live feed rather than typed by anyone, so it is written
-  // only when it says something new - opening a day should not keep marking
-  // the record dirty for an answer already stored.
+  // Learned from the live feed rather than typed by anyone.
+  //
+  // Each sighting is counted and the bus kept is whichever has been seen
+  // most, so an answer confirmed over a morning is not displaced by one odd
+  // reading later. A report already counted changes nothing - opening the
+  // day twice inside a refresh window returns the same position report, and
+  // counting it again would turn a re-read into a confirmation.
   const recordBus = useCallback(
-    (dateStr: string, paddleNumber: string, bus: RecordedBus) => {
+    (dateStr: string, paddleNumber: string, sighting: BusSighting) => {
       updateEntries((prev) => {
+        const held = prev[dateStr]?.buses?.[paddleNumber];
+        if (held?.lastAt != null && sighting.at <= held.lastAt) return prev;
+
+        const seen = { ...seenCounts(held) };
+        seen[sighting.fleet] = (seen[sighting.fleet] ?? 0) + 1;
+        const fleet = mostSeen(seen, held?.fleet ?? sighting.fleet);
+
         const day = prev[dateStr] ? { ...prev[dateStr] } : newEmptyDayEntry();
-        if (day.buses?.[paddleNumber]?.fleet === bus.fleet) return prev;
-        day.buses = { ...(day.buses || {}), [paddleNumber]: bus };
+        day.buses = {
+          ...(day.buses || {}),
+          [paddleNumber]: {
+            fleet,
+            // `at` belongs to the bus being kept, not to whatever was just
+            // seen: it answers "when was this one last confirmed".
+            at: fleet === sighting.fleet ? sighting.at : (held?.at ?? sighting.at),
+            seen,
+            lastAt: sighting.at,
+          },
+        };
         return { ...prev, [dateStr]: day };
       });
     },
