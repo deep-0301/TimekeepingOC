@@ -24,6 +24,7 @@ import GarageField from "./GarageField";
 import InfoNote from "./InfoNote";
 import DayPaddleView from "./DayPaddleView";
 import DayBusView from "./DayBusView";
+import DayExchange from "./DayExchange";
 import { hosBreachFor } from "@/lib/hosFlags";
 import { HOS_LIMITS } from "@/lib/hos";
 import { ArrowRightAlt, ChevronRight, Event, ExpandMore } from "./icons";
@@ -338,6 +339,13 @@ export default function DayEditor({
             onRecord={onRecordBus}
           />
           <DayPaddleView dateStr={dateStr} runs={pieces.map((p) => p.run)} />
+          <DayExchange
+            dateStr={dateStr}
+            paddle={pieces[0]?.run ?? null}
+            onTime={pieces[0]?.onTime ?? null}
+            offTime={pieces[pieces.length - 1]?.offTime ?? null}
+            garage={pieces[0]?.onLoc ?? null}
+          />
         </div>
       )}
 
