@@ -122,6 +122,23 @@ export interface DayEntry {
   sheetPlat?: number;
   sheetPay?: number;
   spare?: SpareInfo | null;
+  /**
+   * Which bus worked which paddle that day, keyed by normalised paddle
+   * number.
+   *
+   * Written down when the live feed can still answer, because it soon
+   * cannot: there is no historical vehicle feed, so a bus that was not
+   * recorded while it was running is not recoverable afterwards.
+   */
+  buses?: Record<string, RecordedBus>;
+}
+
+/** A bus identified as working a paddle on a particular day. */
+export interface RecordedBus {
+  /** Fleet number as the feed reports it. */
+  fleet: string;
+  /** Unix seconds of the position report that identified it. */
+  at: number;
 }
 
 export type EntriesMap = Record<string, DayEntry>;

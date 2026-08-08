@@ -20,6 +20,7 @@ import {
   type EntriesMap,
   type EntryPiece,
   type PaySettings,
+  type RecordedBus,
   type SpareInfo,
   type WeekComputed,
 } from "@/lib/types";
@@ -39,6 +40,7 @@ interface AppState {
   setSettingsOpen: (updater: boolean | ((prev: boolean) => boolean)) => void;
   addShiftToDate: (si: number, dateStr: string) => void;
   clearSheetDay: (dateStr: string) => void;
+  recordBus: (dateStr: string, paddleNumber: string, bus: RecordedBus) => void;
   updateDayField: (
     dateStr: string,
     field: DayFieldName,
@@ -164,6 +166,21 @@ export function AppStateProvider({
     [updateEntries]
   );
 
+  // Learned from the live feed rather than typed by anyone, so it is written
+  // only when it says something new - opening a day should not keep marking
+  // the record dirty for an answer already stored.
+  const recordBus = useCallback(
+    (dateStr: string, paddleNumber: string, bus: RecordedBus) => {
+      updateEntries((prev) => {
+        const day = prev[dateStr] ? { ...prev[dateStr] } : newEmptyDayEntry();
+        if (day.buses?.[paddleNumber]?.fleet === bus.fleet) return prev;
+        day.buses = { ...(day.buses || {}), [paddleNumber]: bus };
+        return { ...prev, [dateStr]: day };
+      });
+    },
+    [updateEntries]
+  );
+
   const updateDayField = useCallback(
     (dateStr: string, field: DayFieldName, value: DayFieldValue) => {
       updateEntries((prev) => {
@@ -270,6 +287,7 @@ export function AppStateProvider({
     setSettingsOpen,
     addShiftToDate,
     clearSheetDay,
+    recordBus,
     updateDayField,
     updateSpare,
     updateEntries,

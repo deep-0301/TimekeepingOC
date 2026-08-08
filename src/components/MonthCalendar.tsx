@@ -9,6 +9,7 @@ import type {
   DayFieldValue,
   EntriesMap,
   PaySettings,
+  RecordedBus,
   SpareInfo,
 } from "@/lib/types";
 import DayEditor from "./DayEditor";
@@ -20,6 +21,7 @@ interface MonthCalendarProps {
   settings: PaySettings;
   onAddShift: (si: number, dateStr: string) => void;
   onClearSheetDay: (dateStr: string) => void;
+  onRecordBus: (dateStr: string, paddleNumber: string, bus: RecordedBus) => void;
   onUpdateDayField: (
     dateStr: string,
     field: DayFieldName,
@@ -37,6 +39,7 @@ export default function MonthCalendar({
   settings,
   onAddShift,
   onClearSheetDay,
+  onRecordBus,
   onUpdateDayField,
   onUpdateSpare,
   onDeleteDay,
@@ -253,6 +256,7 @@ export default function MonthCalendar({
           entries={entries}
           onAddShift={onAddShift}
           onClearSheetDay={onClearSheetDay}
+          onRecordBus={onRecordBus}
           onUpdateDayField={onUpdateDayField}
           onUpdateSpare={onUpdateSpare}
           onDeleteDay={onDeleteDay}
