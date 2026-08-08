@@ -3193,3 +3193,173 @@ button .mi {
   height: 1em;
   vertical-align: -0.2em;
 }
+
+/* ---------------------------------------------------------------------------
+ * Work exchange.
+ *
+ * The warning is styled to be read, not skimmed past: it is the only place in
+ * the app where the screen has to stop someone believing something that is
+ * not true - that a post here has swapped their shift.
+ * ------------------------------------------------------------------------ */
+.xc-warning {
+  margin: 8px 0 14px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border-left: 3px solid var(--holiday);
+  background: var(--holiday-bg);
+  color: var(--holiday);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.xc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.xc-post {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: var(--card);
+}
+
+.xc-post.is-settled {
+  opacity: 0.72;
+}
+
+.xc-post-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.xc-kind {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 3px;
+  padding: 2px 6px;
+  color: #fff;
+  background: var(--steel-dark);
+}
+
+/* Wanting work and giving it away are opposite errands; they read apart. */
+.xc-kind-want {
+  background: var(--green);
+}
+
+.xc-kind-swap {
+  background: var(--holiday);
+}
+
+.xc-date {
+  font-family: var(--font-display);
+  font-size: 14px;
+}
+
+.xc-post-body {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 5px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+.xc-times {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.xc-note {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.xc-post-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.xc-post-actions button.ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.xc-offer-note {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.xc-error {
+  color: var(--red);
+}
+
+.xc-offers {
+  margin-top: 10px;
+  border-top: 1px dashed var(--line);
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.xc-offer-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+}
+
+/* Contact details have been released to two people. They look like it. */
+.xc-contact {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border-left: 3px solid var(--green);
+  background: #e6f0e4;
+}
+
+.xc-contact-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.xc-contact-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+.xc-contact-kind {
+  font-size: 11px;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.xc-form {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}

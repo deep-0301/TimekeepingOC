@@ -10,6 +10,7 @@ import {
   Person,
   Schedule,
   Search,
+  SwapHoriz,
 } from "@/components/icons";
 
 export interface NavLink {
@@ -27,6 +28,7 @@ export const NAV_LINKS: NavLink[] = [
   { href: "/summary", label: "Pay Summary", Icon: AttachMoney },
   { href: "/biweekly", label: "Biweekly Hours", Icon: DateRange },
   { href: "/hos", label: "Hours of Service", Icon: Schedule },
+  { href: "/exchange", label: "Work Exchange", Icon: SwapHoriz },
   { href: "/profile", label: "Profile", Icon: Person },
 ];
 
