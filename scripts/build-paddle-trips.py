@@ -21,12 +21,16 @@ own validity dates and the app refuses to trust it outside them.
 """
 
 import collections
-from datetime import datetime
+from datetime import datetime, timedelta
 import csv
 import io
 import json
 import sys
 import zipfile
+
+# Below this, the book is not describing this feed and its matches are
+# coincidence. A book from the booking in force sits well above 80%.
+MIN_MATCH_RATE = 0.5
 
 WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday"]
 DAY_COLUMNS = {
@@ -62,6 +66,13 @@ def read_gtfs(path):
         r["route_id"]: r["route_short_name"] or r["route_id"] for r in rows("routes.txt")
     }
     calendar = {r["service_id"]: r for r in rows("calendar.txt")}
+    # Exceptions: a service added to (1) or removed from (2) one date.
+    exceptions = collections.defaultdict(dict)
+    try:
+        for r in rows("calendar_dates.txt"):
+            exceptions[r["date"]][r["service_id"]] = r["exception_type"]
+    except KeyError:
+        pass
     info = next(rows("feed_info.txt"))
 
     trips = {}
@@ -88,7 +99,47 @@ def read_gtfs(path):
             if held is None or seq < held[0]:
                 first[trip] = (seq, row[dep_i])
 
-    return short_name, calendar, trips, first, info
+    return short_name, calendar, exceptions, trips, first, info
+
+
+DAY_INDEX = {
+    "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
+    "friday": 4, "saturday": 5, "sunday": 6,
+}
+
+
+def dates_in(info, column):
+    """Every date in the feed's window that falls on this weekday."""
+    start = datetime.strptime(info["feed_start_date"], "%Y%m%d")
+    end = datetime.strptime(info["feed_end_date"], "%Y%m%d")
+    out = []
+    day = start
+    while day <= end:
+        if day.weekday() == DAY_INDEX[column]:
+            out.append(day.strftime("%Y%m%d"))
+        day += timedelta(days=1)
+    return out
+
+
+def services_on(date, column, calendar, exceptions):
+    """
+    The services actually running on one date.
+
+    Gathering every service that overlaps the feed's whole window instead put
+    several weeks of variants together, and a block appearing under two of
+    them with different trips reads as a disagreement about the paddle's day -
+    so the paddle went unplaced. One real date is one coherent day of work.
+    """
+    on = set()
+    for service, row in calendar.items():
+        if row[column] == "1" and row["start_date"] <= date <= row["end_date"]:
+            on.add(service)
+    for service, kind in exceptions.get(date, {}).items():
+        if kind == "1":
+            on.add(service)
+        elif kind == "2":
+            on.discard(service)
+    return on
 
 
 def blocks_for(services, trips, first):
@@ -160,7 +211,7 @@ def main():
         raise SystemExit(2)
 
     gtfs_path, *book_paths = sys.argv[1:]
-    short_name, calendar, trips, first, info = read_gtfs(gtfs_path)
+    short_name, calendar, exceptions, trips, first, info = read_gtfs(gtfs_path)
     print(f"{len(trips)} trips, feed {info['feed_version']} "
           f"{info['feed_start_date']}-{info['feed_end_date']}")
 
@@ -172,42 +223,84 @@ def main():
             print(f"  {book_path}: day type {book['dayType']!r} not handled, skipped")
             continue
 
-        # A book from another booking period must not be matched against this
-        # feed. Some of its paddles will coincide with a block by chance -
-        # Saturday service often barely changes - and a wrong bus number
-        # presented as certain is worse than no bus number at all.
+        # A book that has not come into force by the end of the feed cannot
+        # describe it. This used to demand the effective date fall *inside*
+        # the feed window, which is only true when the feed spans the whole
+        # booking; a feed covering a slice of one - published mid-booking,
+        # running a few weeks either side of today - would reject the very
+        # book in force, and did.
+        #
+        # What remains is that the book must have started. A stale book is
+        # caught below by how badly it matches, which is the direct evidence
+        # rather than a proxy for it.
         effective = book_effective(book)
-        if not effective or not (info["feed_start_date"] <= effective <= info["feed_end_date"]):
-            print(f"  {book_path}: effective {book['effective']} is outside this "
-                  f"feed ({info['feed_start_date']}-{info['feed_end_date']}), skipped")
+        if not effective or effective > info["feed_end_date"]:
+            print(f"  {book_path}: effective {book['effective']} has not begun by "
+                  f"the end of this feed ({info['feed_end_date']}), skipped")
             continue
 
         placed = set()
+        book_matched = 0
+        book_total = 0
+        found = {}
         for column in columns:
-            services = {
-                s for s, c in calendar.items()
-                if c[column] == "1"
-                and c["start_date"] <= info["feed_end_date"]
-                and c["end_date"] >= info["feed_start_date"]
-            }
-            day_blocks = blocks_for(services, trips, first)
-            if not day_blocks:
+            # Each real date of this weekday is tried, and the one describing
+            # the book best is the one used. Service changes part way through
+            # a feed otherwise leave whichever weeks disagree unplaceable.
+            best = None
+            for date in dates_in(info, column):
+                services = services_on(date, column, calendar, exceptions)
+                if not services:
+                    continue
+                day_blocks = blocks_for(services, trips, first)
+                if not day_blocks:
+                    continue
+                matched, exact, total = match(book, day_blocks)
+                if best is None or len(matched) > len(best[1]):
+                    best = (date, matched, exact, total, day_blocks)
+            if best is None:
                 continue
-            matched, exact, total = match(book, day_blocks)
+            date, matched, exact, total, day_blocks = best
+            book_matched = max(book_matched, len(matched))
+            book_total = max(book_total, total)
             for paddle, keys in matched.items():
                 placed.add(paddle)
                 for key in keys:
                     for _, _, trip_id in day_blocks[key]:
-                        trip_to_paddle[trip_id] = paddle
+                        found[trip_id] = paddle
             print(f"  {book['dayType']:9} {column:9} {exact} exact, "
-                  f"{len(matched)} of {total} placed")
-        print(f"  {book_path}: {len(placed)} distinct paddles tied to a block")
+                  f"{len(matched)} of {total} placed (best date {date})")
+
+        # How well the book describes the feed is the real test of whether it
+        # belongs to it. A book from the booking in force matches most of its
+        # paddles; one from another period matches a scattering of them by
+        # coincidence, and a wrong bus number presented as certain is worse
+        # than no bus number at all.
+        rate = book_matched / book_total if book_total else 0
+        if rate < MIN_MATCH_RATE:
+            print(f"  {book_path}: only {book_matched} of {book_total} paddles "
+                  f"({rate:.0%}) match this feed - too few to trust, skipped")
+            continue
+
+        trip_to_paddle.update(found)
+        print(f"  {book_path}: {len(placed)} distinct paddles tied to a block "
+              f"({rate:.0%})")
+
+    # feed_end_date can reach past the last day any service actually runs -
+    # this feed says 20260907 while every service stops on 20260829. Trusting
+    # the later date would have the app believe the mapping covers days it
+    # describes no trips for, so the earlier of the two is used.
+    last_service = max((c["end_date"] for c in calendar.values()), default="")
+    end = min(info["feed_end_date"], last_service) if last_service else info["feed_end_date"]
+    if end != info["feed_end_date"]:
+        print(f"  feed claims {info['feed_end_date']} but no service runs past "
+              f"{end}; the mapping is marked valid to {end}")
 
     out = {
         "source": "OC Transpo GTFS, City of Ottawa open data",
         "version": info["feed_version"],
         "start": info["feed_start_date"],
-        "end": info["feed_end_date"],
+        "end": end,
         # Realtime feeds report route_id, which is not always the number on
         # the bus - route 10 is served by route_id "10" and "10-371-1" both.
         "routes": {k: v for k, v in short_name.items() if k != v},
