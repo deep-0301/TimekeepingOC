@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { fmtDate } from "@/lib/dateUtils";
 import {
-  ExchangeNotSetUpError,
   createPost,
   isApproved,
   myPostFor,
@@ -72,14 +71,13 @@ export default function DayExchange({
         const post = await myPostFor(dateStr);
         if (!live) return;
         setReady({ state: "ready", post });
-      } catch (err) {
+      } catch {
         if (!live) return;
-        // A database without the exchange tables is not an error the calendar
-        // should shout about - the feature simply is not there.
-        setReady({
-          state: err instanceof ExchangeNotSetUpError ? "hidden" : "ready",
-          post: null,
-        } as Ready);
+        // Any failure to establish that posting would work means not offering
+        // it. Buttons that cannot do anything are worse than no buttons, and
+        // the board itself is where an exchange problem gets explained - the
+        // calendar is not the place to report one.
+        setReady({ state: "hidden" });
       }
     })();
     return () => {

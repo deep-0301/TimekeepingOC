@@ -83,10 +83,28 @@ interface Postgrestish {
   message?: string;
 }
 
+/**
+ * Codes meaning "that does not exist here yet".
+ *
+ * Postgres raises 42P01/42883 for a missing table or function, but PostgREST
+ * answers most of these itself out of its schema cache and returns its own
+ * codes instead - and it uses a different one for a function (PGRST202) than
+ * for a table (PGRST205). Handling only the table code is why a database
+ * without the exchange looked half-there: the table calls were recognised and
+ * the is_approved() call was not, so the calendar believed the exchange was
+ * fine and offered buttons that could not work.
+ */
+const NOT_SET_UP = new Set([
+  "42P01", // undefined_table
+  "42883", // undefined_function
+  "PGRST202", // function not found in schema cache
+  "PGRST205", // table not found in schema cache
+  "PGRST200", // relationship not found in schema cache
+]);
+
 function rethrow(error: unknown): never {
   const e = (error ?? {}) as Postgrestish;
-  // 42P01 undefined_table, 42883 undefined_function, PGRST205 unknown table.
-  if (e.code === "42P01" || e.code === "42883" || e.code === "PGRST205") {
+  if (e.code && NOT_SET_UP.has(e.code)) {
     throw new ExchangeNotSetUpError(
       "The work exchange tables have not been created yet. Run " +
         "supabase/schema.sql in the Supabase SQL editor.",
