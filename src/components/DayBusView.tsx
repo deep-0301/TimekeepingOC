@@ -54,7 +54,12 @@ export default function DayBusView({ dateStr, runs, saved, onRecord }: Props) {
   }
   // Which paddles are on screen, as one value the callback can depend on.
   const paddleKey = paddles.map((p) => p.number).join(",");
-  const isToday = dateStr === fmtDate(new Date());
+  const today = fmtDate(new Date());
+  const isToday = dateStr === today;
+  // A day still ahead has no bus yet, which is a different thing from a past
+  // day whose bus was never written down. Saying "not recorded at the time"
+  // about next Tuesday is simply untrue.
+  const isFuture = dateStr > today;
   const missing = paddles.filter((p) => !saved?.[p.number]);
 
   const look = useCallback(async () => {
@@ -121,7 +126,9 @@ export default function DayBusView({ dateStr, runs, saved, onRecord }: Props) {
                     ? "looking…"
                     : isToday
                       ? "not identified yet"
-                      : "never recorded"}
+                      : isFuture
+                        ? "not assigned yet"
+                        : "never recorded"}
                 </span>
               )}
             </span>
@@ -141,7 +148,12 @@ export default function DayBusView({ dateStr, runs, saved, onRecord }: Props) {
 
       {missing.length > 0 && (
         <div className="note day-bus-note">
-          {!isToday ? (
+          {isFuture ? (
+            <>
+              Buses are assigned on the day. Open this day once it comes round
+              and the bus working this paddle will be found and kept here.
+            </>
+          ) : !isToday ? (
             <>
               A bus can only be identified while it is running — OC Transpo
               publishes where vehicles are now, not where they were. This day

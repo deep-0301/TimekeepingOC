@@ -180,6 +180,33 @@ export async function listPosts(fromDate: string): Promise<ExchangePost[]> {
   return rows.map((r) => toPost(r, who));
 }
 
+/**
+ * This operator's own live post for a date, if there is one.
+ *
+ * Asked by the calendar before offering to post a day, so a day already on
+ * the board says so rather than offering to put it there twice. Withdrawn
+ * and settled posts are not live: a day given away and then taken back can
+ * be offered again.
+ */
+export async function myPostFor(dateStr: string): Promise<ExchangePost | null> {
+  const { data: session } = await supabase.auth.getSession();
+  const uid = session.session?.user.id;
+  if (!uid) return null;
+  const { data, error } = await supabase
+    .from("exchange_posts")
+    .select("*")
+    .eq("owner", uid)
+    .eq("work_date", dateStr)
+    .in("status", ["open", "claimed"])
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (error) rethrow(error);
+  const rows = (data ?? []) as PostRow[];
+  if (rows.length === 0) return null;
+  const who = await directory([rows[0].owner]);
+  return toPost(rows[0], who);
+}
+
 export async function createPost(post: NewPost): Promise<void> {
   const { data: session } = await supabase.auth.getSession();
   const uid = session.session?.user.id;

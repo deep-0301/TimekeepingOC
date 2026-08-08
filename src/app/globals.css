@@ -3363,3 +3363,58 @@ button .mi {
   border: 1px solid var(--line);
   border-radius: 8px;
 }
+
+/*
+ * Putting a day on the exchange, from the day.
+ *
+ * Last of the three rows under the pieces - the bus and the paddle describe
+ * the work, and this is the only one that does something to it.
+ */
+.day-xc {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+
+.day-xc-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.day-xc-row + .day-xc-row {
+  margin-top: 8px;
+}
+
+.day-xc-label {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.day-xc-count {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+
+.day-xc-link {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.day-xc-note {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.day-xc-note-text {
+  margin: 6px 0 0;
+}
+
+.day-xc-error {
+  color: var(--red);
+  margin: 6px 0 0;
+}
