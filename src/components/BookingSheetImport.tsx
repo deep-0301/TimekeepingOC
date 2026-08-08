@@ -7,8 +7,8 @@ import {
   type SheetBlock,
 } from "@/lib/bookingSheetParser";
 import { matchBoardShift } from "@/lib/board";
-import { BOOKING_TYPE_INFO, DEFAULT_SLOTS, type BookingType } from "@/lib/bookingType";
 import { fmtDate, fmtHM, parseDateStr } from "@/lib/dateUtils";
+import { describeSheet, detectSheet, type Detected } from "@/lib/sheetKind";
 import { extractPdfText } from "@/lib/pdfExtract";
 import { newEmptyDayEntry, type EntriesMap, type EntryPiece } from "@/lib/types";
 import HolidaySpareImport from "./HolidaySpareImport";
@@ -30,50 +30,174 @@ function isValidHM(s: string): boolean {
 interface BookingSheetImportProps {
   onImport: (updater: (prev: EntriesMap) => EntriesMap) => void;
   onSeasonAnchorDetected: (dateStr: string) => void;
-  bookingType?: BookingType | null;
 }
 
+/** One sheet that has been read and recognised, awaiting review. */
+interface LoadedSheet {
+  id: number;
+  name: string;
+  text: string;
+  found: Detected;
+}
+
+/**
+ * One place to put a booking sheet, whatever booking it is for.
+ *
+ * The app used to ask which booking the operator held and then offer one or
+ * two labelled boxes to match. That put the question the wrong way round: the
+ * sheet already knows what it is, and an operator who picked the wrong answer
+ * got boxes that did not fit what they had. Now anything can be dropped here
+ * - one file or several - and each is recognised on its own.
+ */
 export default function BookingSheetImport({
   onImport,
   onSeasonAnchorDetected,
-  bookingType,
 }: BookingSheetImportProps) {
-  const slots = bookingType ? BOOKING_TYPE_INFO[bookingType].slots : DEFAULT_SLOTS;
+  const [sheets, setSheets] = useState<LoadedSheet[]>([]);
+  const [pasteText, setPasteText] = useState("");
+  const [status, setStatus] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+  const nextId = useRef(1);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (bookingType === "holiday") {
-    const statSlot = slots[1];
-    return (
-      <section className="panel">
-        <h2>Import your booking sheets</h2>
-        <div className="sheet-import-grid">
-          <HolidaySpareImport onImport={onImport} />
-          <BookingSheetSlot
-            title={statSlot.title}
-            Icon={statSlot.Icon}
-            accent={statSlot.accent}
-            onImport={onImport}
-            onSeasonAnchorDetected={onSeasonAnchorDetected}
-          />
-        </div>
-      </section>
-    );
+  function add(name: string, text: string) {
+    const found = detectSheet(text);
+    if (found.kind === "unrecognised") {
+      setStatus(
+        `${name}: not recognised as a booking sheet. If it is a scan, the ` +
+          "text may not have come through - try pasting it instead.",
+      );
+      return false;
+    }
+    setSheets((prev) => [...prev, { id: nextId.current++, name, text, found }]);
+    return true;
+  }
+
+  async function readFiles(files: File[]) {
+    let done = 0;
+    for (const file of files) {
+      setStatus(`Reading ${file.name}…`);
+      try {
+        let text: string;
+        if (/\.pdf$/i.test(file.name)) {
+          text = await extractPdfText(file, (msg) => setStatus(`${file.name}: ${msg}`));
+        } else if (/\.txt$/i.test(file.name)) {
+          text = await file.text();
+        } else {
+          setStatus(`${file.name}: please choose a .pdf or .txt file.`);
+          continue;
+        }
+        if (add(file.name, text)) done++;
+      } catch (err) {
+        console.error(err);
+        setStatus(
+          `${file.name}: could not be read automatically — try opening it ` +
+            "and pasting the text instead.",
+        );
+      }
+    }
+    if (done > 0) {
+      setStatus(
+        done === 1 ? "Sheet read — check it below." : `${done} sheets read — check them below.`,
+      );
+    }
   }
 
   return (
     <section className="panel">
       <h2>Import your booking sheets</h2>
-      <div className="sheet-import-grid">
-        {slots.map((slot) => (
-          <BookingSheetSlot
-            key={slot.key}
-            title={slot.title}
-            Icon={slot.Icon}
-            accent={slot.accent}
-            onImport={onImport}
-            onSeasonAnchorDetected={onSeasonAnchorDetected}
-          />
-        ))}
+      <div className="note" style={{ marginTop: -4, marginBottom: 10 }}>
+        Drop any booking sheet here — daily, general, or holiday spare. Add as
+        many as you have; each one is recognised on its own, so there is
+        nothing to choose first.
       </div>
+
+      <div
+        className={"dropzone" + (isDragging ? " dropzone-active" : "")}
+        onClick={() => fileInputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragging(false);
+          void readFiles(Array.from(e.dataTransfer.files ?? []));
+        }}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.txt"
+          multiple
+          className="hidden"
+          onChange={(e) => void readFiles(Array.from(e.target.files ?? []))}
+        />
+        <div className="dropzone-icon">
+          <FileUpload />
+        </div>
+        <div className="dropzone-title">Drop your booking sheets here</div>
+        <div className="dropzone-hint">
+          PDF or text, one or several — or click to browse
+        </div>
+      </div>
+
+      <textarea
+        className="sheet-paste"
+        rows={5}
+        placeholder="…or paste a sheet's text here"
+        value={pasteText}
+        onChange={(e) => setPasteText(e.target.value)}
+      />
+      <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 8 }}>
+        <button
+          onClick={() => {
+            if (!pasteText.trim()) {
+              setStatus("Paste some text first.");
+              return;
+            }
+            if (add("Pasted text", pasteText)) {
+              setPasteText("");
+              setStatus("Sheet read — check it below.");
+            }
+          }}
+        >
+          Read pasted sheet
+        </button>
+      </div>
+      {status && (
+        <div className="note" style={{ marginTop: 6 }}>
+          {status}
+        </div>
+      )}
+
+      {sheets.length > 0 && (
+        <div className="sheet-import-grid" style={{ marginTop: 12 }}>
+          {sheets.map((sheet) =>
+            sheet.found.kind === "holidaySpare" ? (
+              <HolidaySpareImport
+                key={sheet.id}
+                onImport={onImport}
+                title={`${sheet.name} — ${describeSheet(sheet.found)}`}
+                initialText={sheet.text}
+                initialName={sheet.name}
+              />
+            ) : (
+              <BookingSheetSlot
+                key={sheet.id}
+                title={`${sheet.name} — ${describeSheet(sheet.found)}`}
+                Icon={Description}
+                accent="steel"
+                onImport={onImport}
+                onSeasonAnchorDetected={onSeasonAnchorDetected}
+                initialText={sheet.text}
+                initialName={sheet.name}
+              />
+            ),
+          )}
+        </div>
+      )}
     </section>
   );
 }
@@ -82,6 +206,26 @@ interface BookingSheetSlotProps extends BookingSheetImportProps {
   title: string;
   Icon: ComponentType<{ size?: number; className?: string }>;
   accent: "steel" | "amber";
+  /**
+   * Text already read from a file elsewhere. Given this, the slot is a review
+   * of one sheet rather than a place to drop one: the state is seeded from it
+   * on the first render, so no effect has to reach in and set it afterwards.
+   */
+  initialText?: string;
+  initialName?: string;
+}
+
+/** Everything the review needs, derived from the sheet's text. */
+function deriveBlocks(text: string) {
+  const { blocks: parsedBlocks } = parseBookingSheetText(text, null);
+  const workBlocks = parsedBlocks.filter((b) => b.isDayOff || b.rows.length > 0);
+  const included: Record<number, boolean> = {};
+  const dates: Record<number, string[]> = {};
+  workBlocks.forEach((b, i) => {
+    included[i] = true;
+    dates[i] = b.dates.map(fmtDate);
+  });
+  return { blocks: workBlocks, included, dates };
 }
 
 function BookingSheetSlot({
@@ -90,15 +234,21 @@ function BookingSheetSlot({
   accent,
   onImport,
   onSeasonAnchorDetected,
+  initialText,
+  initialName,
 }: BookingSheetSlotProps) {
-  const [pasteText, setPasteText] = useState("");
-  const [fileName, setFileName] = useState("");
+  const handed = initialText != null;
+  const seed = () => (handed ? deriveBlocks(initialText!) : null);
+  const [pasteText, setPasteText] = useState(initialText ?? "");
+  const [fileName, setFileName] = useState(initialName ?? "");
   const [isDragging, setIsDragging] = useState(false);
   const [parseStatus, setParseStatus] = useState("");
-  const [blocks, setBlocks] = useState<SheetBlock[]>([]);
-  const [included, setIncluded] = useState<Record<number, boolean>>({});
+  const [blocks, setBlocks] = useState<SheetBlock[]>(() => seed()?.blocks ?? []);
+  const [included, setIncluded] = useState<Record<number, boolean>>(
+    () => seed()?.included ?? {}
+  );
   const [rowDatesList, setRowDatesList] = useState<Record<number, string[]>>(
-    {}
+    () => seed()?.dates ?? {}
   );
   const [totalOverrides, setTotalOverrides] = useState<
     Record<number, { plat: string; pay: string }>
@@ -110,8 +260,7 @@ function BookingSheetSlot({
       setParseStatus("Paste some text first.");
       return;
     }
-    const { anchorDate, seasonEndDate, blocks: parsedBlocks } =
-      parseBookingSheetText(text, null);
+    const { anchorDate, seasonEndDate } = parseBookingSheetText(text, null);
     if (anchorDate) {
       onSeasonAnchorDetected(fmtDate(anchorDate));
     }
@@ -119,20 +268,11 @@ function BookingSheetSlot({
       anchorDate && seasonEndDate
         ? ` Runs ${fmtDate(anchorDate)} to ${fmtDate(seasonEndDate)} — repeating patterns are applied to every matching week through then.`
         : "";
-    setParseStatus(`${parsedBlocks.length} block(s) found.${dateRangeNote}`);
-
-    const workBlocks = parsedBlocks.filter(
-      (b) => b.isDayOff || b.rows.length > 0
-    );
-    setBlocks(workBlocks);
-    const inc: Record<number, boolean> = {};
-    const dates: Record<number, string[]> = {};
-    workBlocks.forEach((b, i) => {
-      inc[i] = true;
-      dates[i] = b.dates.map(fmtDate);
-    });
-    setIncluded(inc);
-    setRowDatesList(dates);
+    const derived = deriveBlocks(text);
+    setParseStatus(`${derived.blocks.length} block(s) found.${dateRangeNote}`);
+    setBlocks(derived.blocks);
+    setIncluded(derived.included);
+    setRowDatesList(derived.dates);
     setTotalOverrides({});
   }
 
@@ -293,6 +433,7 @@ function BookingSheetSlot({
         {title}
       </h3>
 
+      {!handed && (
       <div
         className={
           "dropzone" +
@@ -342,25 +483,30 @@ function BookingSheetSlot({
           </>
         )}
       </div>
+      )}
 
-      <textarea
-        className="sheet-paste"
-        rows={5}
-        placeholder="…or paste this sheet's text here"
-        value={pasteText}
-        onChange={(e) => setPasteText(e.target.value)}
-      />
-      <div
-        style={{
-          display: "flex",
-          gap: 10,
-          alignItems: "center",
-          marginTop: 8,
-          flexWrap: "wrap",
-        }}
-      >
-        <button onClick={() => runParse(pasteText)}>Parse</button>
-      </div>
+      {!handed && (
+        <>
+          <textarea
+            className="sheet-paste"
+            rows={5}
+            placeholder="…or paste this sheet's text here"
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+          />
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              alignItems: "center",
+              marginTop: 8,
+              flexWrap: "wrap",
+            }}
+          >
+            <button onClick={() => runParse(pasteText)}>Parse</button>
+          </div>
+        </>
+      )}
       {parseStatus && (
         <div className="note" style={{ marginTop: 6 }}>
           {parseStatus}

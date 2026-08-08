@@ -13,6 +13,15 @@ import { Description, FileUpload, WbSunny } from "./icons";
 
 interface HolidaySpareImportProps {
   onImport: (updater: (prev: EntriesMap) => EntriesMap) => void;
+  /**
+   * Text already read and recognised elsewhere. Given this, the panel is a
+   * review of one sheet rather than a place to drop one - the state is seeded
+   * from it on the first render, so no effect has to set it afterwards.
+   */
+  initialText?: string;
+  initialName?: string;
+  /** Replaces the heading when several sheets are on screen at once. */
+  title?: string;
 }
 
 const KIND_LABELS: Record<HolidayDayPlan["kind"], string> = {
@@ -22,13 +31,22 @@ const KIND_LABELS: Record<HolidayDayPlan["kind"], string> = {
   dayoff: "Day off",
 };
 
-export default function HolidaySpareImport({ onImport }: HolidaySpareImportProps) {
-  const [pasteText, setPasteText] = useState("");
-  const [fileName, setFileName] = useState("");
+export default function HolidaySpareImport({
+  onImport,
+  initialText,
+  initialName,
+  title,
+}: HolidaySpareImportProps) {
+  const handed = initialText != null;
+  const seeded = () => (handed ? parseHolidaySpareSheet(initialText!) : []);
+  const [pasteText, setPasteText] = useState(initialText ?? "");
+  const [fileName, setFileName] = useState(initialName ?? "");
   const [isDragging, setIsDragging] = useState(false);
   const [parseStatus, setParseStatus] = useState("");
-  const [plans, setPlans] = useState<HolidayDayPlan[]>([]);
-  const [included, setIncluded] = useState<Record<number, boolean>>({});
+  const [plans, setPlans] = useState<HolidayDayPlan[]>(seeded);
+  const [included, setIncluded] = useState<Record<number, boolean>>(() =>
+    Object.fromEntries(seeded().map((_, i) => [i, true]))
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function runParse(text: string) {
@@ -129,9 +147,10 @@ export default function HolidaySpareImport({ onImport }: HolidaySpareImportProps
         <span className="sheet-import-icon">
             <WbSunny />
           </span>
-        Regular holiday work sheet
+        {title ?? "Regular holiday work sheet"}
       </h3>
 
+      {!handed && (
       <div
         className={
           "dropzone" +
@@ -181,25 +200,30 @@ export default function HolidaySpareImport({ onImport }: HolidaySpareImportProps
           </>
         )}
       </div>
+      )}
 
-      <textarea
-        className="sheet-paste"
-        rows={5}
-        placeholder="…or paste this sheet's text here"
-        value={pasteText}
-        onChange={(e) => setPasteText(e.target.value)}
-      />
-      <div
-        style={{
-          display: "flex",
-          gap: 10,
-          alignItems: "center",
-          marginTop: 8,
-          flexWrap: "wrap",
-        }}
-      >
-        <button onClick={() => runParse(pasteText)}>Parse</button>
-      </div>
+      {!handed && (
+        <>
+          <textarea
+            className="sheet-paste"
+            rows={5}
+            placeholder="…or paste this sheet's text here"
+            value={pasteText}
+            onChange={(e) => setPasteText(e.target.value)}
+          />
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              alignItems: "center",
+              marginTop: 8,
+              flexWrap: "wrap",
+            }}
+          >
+            <button onClick={() => runParse(pasteText)}>Parse</button>
+          </div>
+        </>
+      )}
       {parseStatus && (
         <div className="note" style={{ marginTop: 6 }}>
           {parseStatus}

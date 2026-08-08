@@ -25,7 +25,15 @@ export interface PaySettings {
    *   week, and holiday stat work).
    * null until the operator picks one.
    */
-  bookingType: "daily" | "general" | "holiday" | null;
+  /**
+   * Which booking the operator holds.
+   *
+   * No longer asked for or read: a sheet is recognised from its own contents
+   * when it is dropped in, so the question was one the app could answer
+   * itself. Kept on the type because it is already in every saved settings
+   * row, and dropping it would only make old rows fail to parse.
+   */
+  bookingType?: "daily" | "general" | "holiday" | null;
 }
 
 export const DEFAULT_SETTINGS: PaySettings = {
