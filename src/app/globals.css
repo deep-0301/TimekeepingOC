@@ -464,6 +464,54 @@ select.period-select {
 }
 
 /*
+ * The bus that worked the day.
+ *
+ * Sits above the paddle for a reason: the paddle is the schedule, which the
+ * book will still hold next year, and this is the one fact about the day
+ * that stops being knowable the moment the bus is parked.
+ */
+.day-bus {
+  margin-top: 10px;
+}
+
+.day-bus-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.day-bus-label {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.day-bus-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+
+.day-bus-fleet {
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.day-bus-when,
+.day-bus-unknown {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+
+.day-bus-note {
+  margin: 6px 0 0;
+}
+
+/*
  * The way into the paddle book from a day's work.
  *
  * It sits under the pieces rather than on them: the pieces are what was

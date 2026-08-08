@@ -19,7 +19,8 @@ import {
 import { loadPaddleBookForDate, type Paddle } from "@/lib/paddles";
 import { recallBus, rememberBus, type RememberedBus } from "@/lib/paddleBusMemory";
 import { nearestStop, stopById } from "@/lib/stops";
-import { paddleForTrip, tripsForPaddle } from "@/lib/paddleTrips";
+import { paddleForTrip } from "@/lib/paddleTrips";
+import { lookUpPaddleBus } from "@/lib/paddleBus";
 import {
   bestVehicle,
   paddleWorkingTrip,
@@ -651,16 +652,7 @@ function PaddleTrack({
   );
 }
 
-/** The route of a paddle's first trip, for finding its bus before sign-on. */
-function firstRouteOf(paddle: Paddle): string | null {
-  return paddle.t.find((t) => t[3].length)?.[0] ?? null;
-}
-
-/** The route of its last trip, for finding it again after signing off. */
-function lastRouteOf(paddle: Paddle): string | null {
-  return [...paddle.t].reverse().find((t) => t[3].length)?.[0] ?? null;
-}
-
+/** The route the paddle is on, when it is on one. */
 function routeOf(where: PaddleWhere): string {
   return where.state === "running" ? where.segment.route : "";
 }
@@ -743,80 +735,31 @@ export default function BusSearch() {
         }
 
         const today = fmtDate(new Date());
-        const where = paddleWhereAt(paddle, minuteOfDay());
+        const look = await lookUpPaddleBus(number, paddle, minuteOfDay());
+        if (seq.current !== mine) return;
+        const { where, ownTrips } = look;
 
-        if (where.state === "running") {
-          const data = await fetchBuses(where.segment.route);
-          if (seq.current !== mine) return;
-
+        if (look.fleet) {
           // Worth writing down while it is knowable: once the paddle goes on
           // a break it is on no route, and nothing can find the bus again.
-          // Which of these buses is on a trip this paddle actually works.
-          // A lookup, where the shipped mapping covers today.
-          const ownTrips = new Set<string>();
-          for (const v of data.vehicles) {
-            if (v.tripId && (await paddleForTrip(v.tripId)) === number) {
-              ownTrips.add(v.tripId);
-            }
-          }
-          if (seq.current !== mine) return;
+          rememberBus(number, {
+            date: today,
+            fleet: look.fleet,
+            at: look.at ?? Math.floor(Date.now() / 1000),
+            lat: look.lat,
+            lon: look.lon,
+            place: look.place,
+          });
+        }
 
-          const found = bestVehicle(data.vehicles, where.segment, ownTrips).best;
-          if (found?.fleet) {
-            rememberBus(number, {
-              date: today,
-              fleet: found.fleet,
-              at: found.ts ?? Math.floor(Date.now() / 1000),
-              lat: found.lat,
-              lon: found.lon,
-              place: where.segment.from[1],
-            });
-          }
-
+        if (look.feed) {
           setPaddleView({ kind: "found", number, paddle, where, ownTrips });
-          setFeed(data);
+          setFeed(look.feed);
           setError("");
           return;
         }
 
-        // Off the road, so the paddle is on no route and there is nothing to
-        // search by directly. The bus is usually still reporting the trip it
-        // has just finished or the one it is about to start, though, so the
-        // routes either side of the break are asked and the answer is picked
-        // out by trip id - which is exact, not a guess.
-        const ownTrips = await tripsForPaddle(number);
-        if (seq.current !== mine) return;
-
-        const nearby =
-          where.state === "layover"
-            ? [where.prevRoute, where.nextRoute]
-            : where.state === "before"
-              ? [firstRouteOf(paddle)]
-              : [lastRouteOf(paddle)];
-
-        for (const route of [...new Set(nearby.filter((r): r is string => !!r))]) {
-          if (!ownTrips.size) break;
-          const data = await fetchBuses(route);
-          if (seq.current !== mine) return;
-          const found = data.vehicles.find((v) => v.tripId && ownTrips.has(v.tripId));
-          if (!found) continue;
-
-          if (found.fleet) {
-            rememberBus(number, {
-              date: today,
-              fleet: found.fleet,
-              at: found.ts ?? Math.floor(Date.now() / 1000),
-              lat: found.lat,
-              lon: found.lon,
-            });
-          }
-          setPaddleView({ kind: "found", number, paddle, where, ownTrips });
-          setFeed({ ...data, vehicles: [found] });
-          setError("");
-          return;
-        }
-
-        // Nothing on either route is on one of this paddle's trips - the bus
+        // Nothing the feed carries is on one of this paddle's trips - the bus
         // is off the feed. Fall back to whichever one was identified earlier.
         const remembered = recallBus(number, today);
         setPaddleView({ kind: "found", number, paddle, where, remembered });

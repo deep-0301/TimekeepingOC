@@ -12,11 +12,18 @@ import {
 import { computeDay } from "@/lib/pay";
 import { fmtHM, minToHHMM, parseDateStr, toMin } from "@/lib/dateUtils";
 import { getHolidayForDate } from "@/lib/statHolidays";
-import type { DayFieldName, DayFieldValue, EntriesMap, SpareInfo } from "@/lib/types";
+import type {
+  DayFieldName,
+  DayFieldValue,
+  EntriesMap,
+  RecordedBus,
+  SpareInfo,
+} from "@/lib/types";
 import TimeField24 from "./TimeField24";
 import GarageField from "./GarageField";
 import InfoNote from "./InfoNote";
 import DayPaddleView from "./DayPaddleView";
+import DayBusView from "./DayBusView";
 import { hosBreachFor } from "@/lib/hosFlags";
 import { HOS_LIMITS } from "@/lib/hos";
 import { ArrowRightAlt, ChevronRight, Event, ExpandMore } from "./icons";
@@ -29,6 +36,7 @@ interface DayEditorProps {
   entries: EntriesMap;
   onAddShift: (si: number, dateStr: string) => void;
   onClearSheetDay: (dateStr: string) => void;
+  onRecordBus: (dateStr: string, paddleNumber: string, bus: RecordedBus) => void;
   onUpdateDayField: (
     dateStr: string,
     field: DayFieldName,
@@ -44,6 +52,7 @@ export default function DayEditor({
   entries,
   onAddShift,
   onClearSheetDay,
+  onRecordBus,
   onUpdateDayField,
   onUpdateSpare,
   onDeleteDay,
@@ -322,6 +331,12 @@ export default function DayEditor({
               </div>
             </div>
           ))}
+          <DayBusView
+            dateStr={dateStr}
+            runs={pieces.map((p) => p.run)}
+            saved={day?.buses}
+            onRecord={onRecordBus}
+          />
           <DayPaddleView dateStr={dateStr} runs={pieces.map((p) => p.run)} />
         </div>
       )}

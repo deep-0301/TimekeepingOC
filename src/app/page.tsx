@@ -14,6 +14,7 @@ export default function Home() {
     saveSettings,
     addShiftToDate,
     clearSheetDay,
+    recordBus,
     updateDayField,
     updateSpare,
     deleteDay,
@@ -60,6 +61,7 @@ export default function Home() {
         settings={settings}
         onAddShift={addShiftToDate}
         onClearSheetDay={clearSheetDay}
+        onRecordBus={recordBus}
         onUpdateDayField={updateDayField}
         onUpdateSpare={updateSpare}
         onDeleteDay={deleteDay}
