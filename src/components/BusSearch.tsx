@@ -490,6 +490,8 @@ function PaddleTrack({
   remembered,
   ownTrips,
   vehicles,
+  alsoBus,
+  onSearchAsBus,
 }: {
   number: string;
   paddle: Paddle;
@@ -498,6 +500,9 @@ function PaddleTrack({
   remembered?: RememberedBus | null;
   ownTrips?: ReadonlySet<string>;
   vehicles: BusVehicle[];
+  /** The same digits read as a fleet number, where they could be one. */
+  alsoBus?: string;
+  onSearchAsBus?: (q: string) => void;
 }) {
   const [showOthers, setShowOthers] = useState(false);
   const others = match?.others ?? [];
@@ -515,6 +520,13 @@ function PaddleTrack({
       ? (vehicles.find((v) => v.fleet === remembered.fleet) ?? null)
       : null;
 
+  // Whether this paddle has a bus on it, answered in the heading rather than
+  // left to be inferred from which paragraphs appear below. Live first: a bus
+  // identified now beats one remembered from this morning.
+  const onIt =
+    match?.best?.fleet ?? ownTripBus?.fleet ?? recalledVehicle?.fleet ?? remembered?.fleet ?? null;
+  const earlier = !match?.best && !ownTripBus && !!remembered;
+
   return (
     <div className="paddle-track">
       <div className="paddle-track-head">
@@ -524,6 +536,14 @@ function PaddleTrack({
             <span className="bus-route-badge">{where.segment.route}</span>
             <span className="paddle-track-dest">{where.segment.destination}</span>
           </>
+        )}
+        {onIt ? (
+          <span className="paddle-track-bus">
+            Bus {onIt}
+            {earlier && <span className="paddle-track-bus-note">earlier today</span>}
+          </span>
+        ) : (
+          <span className="paddle-track-bus is-none">No bus identified</span>
         )}
       </div>
 
@@ -623,9 +643,23 @@ function PaddleTrack({
         </div>
       )}
 
-      {/* The whole day, the same way Find a Paddle lays it out. Having found
-          the bus, the next question is always what the run does next. */}
+      {/* The whole day, the same way Find a Paddle lays it out. Shown whether
+          or not a bus was identified: the run is what was searched for, and it
+          is the same run either way. */}
       <PaddleTimeline paddle={paddle} />
+
+      {alsoBus && onSearchAsBus && (
+        <div className="paddle-track-alt">
+          Searched for a bus, not a run?{" "}
+          <button
+            type="button"
+            className="link"
+            onClick={() => onSearchAsBus(alsoBus)}
+          >
+            Look up bus {alsoBus} instead
+          </button>
+        </div>
+      )}
 
       {others.length > 0 && (
         <div className="paddle-others">
@@ -709,6 +743,12 @@ type PaddleView =
        * not, and could name one this had ruled out.
        */
       match?: PaddleMatch | null;
+      /**
+       * Set when the same digits could also be a fleet number, so the operator
+       * can say which they meant. Only the book can tell them apart, and it
+       * has just said "paddle" - but it is their number, not ours.
+       */
+      alsoBus?: string;
     };
 
 export default function BusSearch() {
@@ -721,88 +761,137 @@ export default function BusSearch() {
   const [auto, setAuto] = useState(true);
   // Guards against a slow response for an old query landing after a newer one.
   const seq = useRef(0);
+  // The one query the operator has said is a bus, not the paddle it also
+  // spells. Held in a ref because the refresh timer re-runs the same search.
+  const forcedBus = useRef<string | null>(null);
 
-  const load = useCallback(async (q: string) => {
-    const mine = ++seq.current;
-    setLoading(true);
-    try {
-      // A paddle number is answered in two steps - the book says which route
-      // it is on at this minute, and only then is the feed worth asking.
-      const number = normalisePaddleNumber(q);
-      if (number) {
-        const book = await loadPaddleBookForDate(fmtDate(new Date()));
+  /**
+   * Which paddle was searched for, if any.
+   *
+   * Written down, a paddle keeps its leading zeros: 085002. Typed, it rarely
+   * does - "85002" is the same paddle, and so is "85-02". Nothing about the
+   * digits alone settles it, because a bus number is digits too, so the book
+   * decides: if it holds a paddle by that number today, that is what was
+   * meant. A number the book does not know falls through to the bus search it
+   * almost certainly was.
+   */
+  const asPaddle = useCallback(
+    async (q: string): Promise<{ number: string; paddle: Paddle | null; dayType: string } | null> => {
+      const exact = normalisePaddleNumber(q);
+      const padded = /^\d{4,5}$/.test(q.trim()) ? q.trim().padStart(6, "0") : null;
+      const number = exact ?? padded;
+      if (!number) return null;
+
+      const book = await loadPaddleBookForDate(fmtDate(new Date()));
+      const paddle = book.paddles.find((p) => p.p === number) ?? null;
+      // A number written the way only a paddle is written stays a paddle even
+      // when the book has no such run - saying so is more use than searching
+      // the vehicle feed for something that was never a bus.
+      if (!paddle && !exact) return null;
+      return { number, paddle, dayType: book.dayType };
+    },
+    [],
+  );
+
+  const load = useCallback(
+    async (q: string) => {
+      const mine = ++seq.current;
+      setLoading(true);
+      try {
+        // A paddle number is answered in two steps - the book says which route
+        // it is on at this minute, and only then is the feed worth asking.
+        const found = forcedBus.current === q ? null : await asPaddle(q);
         if (seq.current !== mine) return;
 
-        const paddle = book.paddles.find((p) => p.p === number);
-        if (!paddle) {
-          setPaddleView({ kind: "missing", number, dayType: book.dayType });
+        if (found && !found.paddle) {
+          setPaddleView({
+            kind: "missing",
+            number: found.number,
+            dayType: found.dayType,
+          });
           setFeed(null);
           setError("");
           return;
         }
 
-        const today = fmtDate(new Date());
-        const look = await lookUpPaddleBus(number, paddle, minuteOfDay());
-        if (seq.current !== mine) return;
-        const { where, ownTrips } = look;
+        if (found?.paddle) {
+          const { number, paddle } = found;
+          const today = fmtDate(new Date());
+          const look = await lookUpPaddleBus(number, paddle, minuteOfDay());
+          if (seq.current !== mine) return;
+          const { where, ownTrips } = look;
 
-        if (look.fleet) {
-          // Worth writing down while it is knowable: once the paddle goes on
-          // a break it is on no route, and nothing can find the bus again.
-          rememberBus(number, {
-            date: today,
-            fleet: look.fleet,
-            at: look.at ?? Math.floor(Date.now() / 1000),
-            lat: look.lat,
-            lon: look.lon,
-            place: look.place,
-          });
-        }
+          // Ambiguous only where the same digits could also be a fleet number,
+          // which is why the way out is offered rather than assumed.
+          const alsoBus = looksLikeFleetNumber(q.trim()) ? q.trim() : undefined;
 
-        if (look.feed) {
+          if (look.fleet) {
+            // Worth writing down while it is knowable: once the paddle goes on
+            // a break it is on no route, and nothing can find the bus again.
+            rememberBus(number, {
+              date: today,
+              fleet: look.fleet,
+              at: look.at ?? Math.floor(Date.now() / 1000),
+              lat: look.lat,
+              lon: look.lon,
+              place: look.place,
+            });
+          }
+
+          if (look.feed) {
+            setPaddleView({
+              kind: "found",
+              number,
+              paddle,
+              where,
+              ownTrips,
+              match: look.match,
+              alsoBus,
+            });
+            setFeed(look.feed);
+            setError("");
+            return;
+          }
+
+          // Nothing the feed carries is on one of this paddle's trips - the
+          // bus is off the feed. Fall back to whichever was identified earlier.
+          const remembered = recallBus(number, today);
           setPaddleView({
             kind: "found",
             number,
             paddle,
             where,
-            ownTrips,
-            match: look.match,
+            remembered,
+            alsoBus,
           });
-          setFeed(look.feed);
+          if (!remembered) {
+            setFeed(null);
+            setError("");
+            return;
+          }
+
+          const data = await fetchBuses(remembered.fleet);
+          if (seq.current !== mine) return;
+          setFeed(data);
           setError("");
           return;
         }
 
-        // Nothing the feed carries is on one of this paddle's trips - the bus
-        // is off the feed. Fall back to whichever one was identified earlier.
-        const remembered = recallBus(number, today);
-        setPaddleView({ kind: "found", number, paddle, where, remembered });
-        if (!remembered) {
-          setFeed(null);
-          setError("");
-          return;
-        }
-
-        const data = await fetchBuses(remembered.fleet);
+        setPaddleView(null);
+        const data = await fetchBuses(q);
         if (seq.current !== mine) return;
         setFeed(data);
         setError("");
-        return;
+      } catch (err) {
+        if (seq.current !== mine) return;
+        setError(err instanceof Error ? err.message : String(err));
+        setFeed(null);
+      } finally {
+        if (seq.current === mine) setLoading(false);
       }
-
-      setPaddleView(null);
-      const data = await fetchBuses(q);
-      if (seq.current !== mine) return;
-      setFeed(data);
-      setError("");
-    } catch (err) {
-      if (seq.current !== mine) return;
-      setError(err instanceof Error ? err.message : String(err));
-      setFeed(null);
-    } finally {
-      if (seq.current === mine) setLoading(false);
-    }
-  }, []);
+    },
+    [asPaddle],
+  );
 
   useEffect(() => {
     if (!auto || !active) return;
@@ -814,6 +903,15 @@ export default function BusSearch() {
     e.preventDefault();
     const q = query.trim();
     if (!q) return;
+    // A fresh search is asked afresh: whatever was said about the last number
+    // does not decide what this one means.
+    forcedBus.current = null;
+    setActive(q);
+    void load(q);
+  };
+
+  const searchAsBus = (q: string) => {
+    forcedBus.current = q;
     setActive(q);
     void load(q);
   };
@@ -838,7 +936,7 @@ export default function BusSearch() {
     <section className="panel">
       <PanelHeading
         title="Find a bus"
-        info="Live positions from OC Transpo. Type a paddle number (85-02 or 085002) to find the bus working it, the four-digit number on a bus to find that bus, or a route number to see every bus running it."
+        info="Live positions from OC Transpo. Type a run number (85-02, 85002 or 085002) to see the run's whole day and the bus working it, the four-digit number on a bus to find that bus, or a route number to see every bus running it."
       />
 
       <form className="bus-form" onSubmit={submit}>
@@ -900,6 +998,8 @@ export default function BusSearch() {
           remembered={paddleView.remembered}
           ownTrips={paddleView.ownTrips}
           vehicles={vehicles}
+          alsoBus={paddleView.alsoBus}
+          onSearchAsBus={searchAsBus}
         />
       )}
 
