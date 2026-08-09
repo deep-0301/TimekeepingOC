@@ -105,11 +105,19 @@ export default function HolidaySpareImport({
   }
 
   function handleImport() {
-    let count = 0;
+    // Worked out here, before anything is asked to change.
+    //
+    // Counting inside the updater read as simpler and was wrong: React runs an
+    // updater when it next renders, not at the click, and may run it twice. So
+    // the number read back afterwards was sometimes still zero - the days went
+    // in, but the sheet announced it had imported nothing and never told the
+    // page it was finished.
+    const chosen = plans.filter((_, i) => included[i]);
+    const count = chosen.length;
+
     onImport((prev) => {
       const next = { ...prev };
-      plans.forEach((p, i) => {
-        if (!included[i]) return;
+      chosen.forEach((p) => {
         const day = next[p.dateStr] ? { ...next[p.dateStr] } : newEmptyDayEntry();
         if (p.kind === "dayoff") {
           day.dayOff = true;
@@ -144,7 +152,6 @@ export default function HolidaySpareImport({
           };
         }
         next[p.dateStr] = day;
-        count++;
       });
       return next;
     });
