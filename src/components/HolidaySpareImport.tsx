@@ -21,6 +21,8 @@ interface HolidaySpareImportProps {
    */
   initialText?: string;
   initialName?: string;
+  /** Told when days actually went in, so the caller can put the sheet away. */
+  onImported?: (count: number) => void;
   /** Replaces the heading when several sheets are on screen at once. */
   title?: string;
 }
@@ -37,6 +39,7 @@ export default function HolidaySpareImport({
   initialText,
   initialName,
   title,
+  onImported,
 }: HolidaySpareImportProps) {
   const handed = initialText != null;
   const seeded = () => (handed ? parseHolidaySpareSheet(initialText!) : []);
@@ -147,6 +150,7 @@ export default function HolidaySpareImport({
     });
     setImportedCount(count);
     setSheetState(count > 0 ? "done" : "failed");
+    if (count > 0) onImported?.(count);
     setParseStatus(
       count > 0
         ? `Imported — ${count} day${count === 1 ? "" : "s"} added to your calendar.`
