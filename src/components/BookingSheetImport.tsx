@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type ComponentType } from "react";
+import { useRouter } from "next/navigation";
 import {
   hmToMin,
   parseBookingSheetText,
@@ -60,6 +61,7 @@ export default function BookingSheetImport({
   const [pasteText, setPasteText] = useState("");
   const [status, setStatus] = useState("");
   const [state, setState] = useState<SheetState>("idle");
+  const router = useRouter();
   const [isDragging, setIsDragging] = useState(false);
   const nextId = useRef(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -79,12 +81,29 @@ export default function BookingSheetImport({
   }
 
   function markImported(id: number, count: number) {
-    setSheets((prev) =>
-      prev.map((sheet) => (sheet.id === id ? { ...sheet, imported: count } : sheet)),
+    const after = sheets.map((sheet) =>
+      sheet.id === id ? { ...sheet, imported: count } : sheet,
     );
+    setSheets(after);
     setState("done");
+
+    // The days are in the calendar, so that is where to be: seeing them on
+    // the dates they landed on is a better confirmation than any number here.
+    //
+    // Unless something is still waiting. Leaving for the calendar with a
+    // second sheet unimported would strand it behind a page change nobody
+    // asked for, so those stay put and the panel says how many are left.
+    const waiting = after.filter((sheet) => !sheet.imported).length;
+    if (waiting === 0) {
+      setStatus(
+        `Imported — ${count} day${count === 1 ? "" : "s"} added. Opening your calendar…`,
+      );
+      router.push("/");
+      return;
+    }
     setStatus(
-      `Imported — ${count} day${count === 1 ? "" : "s"} added to your calendar.`,
+      `Imported — ${count} day${count === 1 ? "" : "s"} added to your calendar. ` +
+        `${waiting} more sheet${waiting === 1 ? "" : "s"} still to import.`,
     );
   }
 
@@ -396,7 +415,17 @@ function BookingSheetSlot({
   }
 
   function handleImport() {
-    let count = 0;
+    // Which days this will land on, worked out here rather than tallied while
+    // the calendar is being rebuilt. React runs an updater when it next
+    // renders, not at the click, and may run it twice - so a count kept inside
+    // one was sometimes still zero when it was read back, and the sheet said
+    // it had imported nothing while the days were going in.
+    const count = blocks.reduce(
+      (n, b, i) =>
+        included[i] ? n + (rowDatesList[i] || []).filter(Boolean).length : n,
+      0,
+    );
+
     onImport((prev) => {
       const next = { ...prev };
       blocks.forEach((b, i) => {
@@ -414,7 +443,6 @@ function BookingSheetSlot({
             day.dayOff = true;
             day.pieces = [];
             next[dateStr] = day;
-            count++;
             return;
           }
           if (useDriving) {
@@ -492,7 +520,6 @@ function BookingSheetSlot({
           }
           if (b.isHoliday) day.isStat = true;
           next[dateStr] = day;
-          count++;
         });
       });
       return next;
