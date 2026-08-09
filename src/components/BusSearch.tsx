@@ -22,7 +22,6 @@ import { nearestStop, stopById } from "@/lib/stops";
 import { paddleForTrip } from "@/lib/paddleTrips";
 import { lookUpPaddleBus } from "@/lib/paddleBus";
 import {
-  bestVehicle,
   paddleWorkingTrip,
   clockLabel,
   normalisePaddleNumber,
@@ -600,12 +599,14 @@ function PaddleTrack({
 
       {match?.best && (
         <>
-          <div className="paddle-match-why is-sure">
+          <div
+            className={
+              "paddle-match-why" + (match.basis === "trip" ? " is-sure" : "")
+            }
+          >
             {match.basis === "trip"
               ? "The feed has this bus on a trip that belongs to this paddle. That is a lookup, not a guess."
-              : match.basis === "trip-start"
-                ? `Its trip began at ${match.best.startTime}, which is when this paddle's trip was due out.`
-                : `The only bus on route ${routeOf(where)} right now.`}
+              : `Its trip began at ${match.best.startTime}, which is when this paddle's trip was due out on route ${routeOf(where)}. No other bus on the route fits, and none of the buses known to be working other paddles was considered — but this is timing rather than a lookup, so check the run before relying on it.`}
           </div>
           <Match vehicle={match.best} paddle={paddle} where={where} />
         </>
@@ -702,6 +703,12 @@ type PaddleView =
       remembered?: RememberedBus | null;
       /** Trips on screen that the GTFS says belong to this paddle. */
       ownTrips?: ReadonlySet<string>;
+      /**
+       * The match the lookup already made, carried rather than remade. It
+       * knows which buses belong to other paddles; a second call here would
+       * not, and could name one this had ruled out.
+       */
+      match?: PaddleMatch | null;
     };
 
 export default function BusSearch() {
@@ -753,7 +760,14 @@ export default function BusSearch() {
         }
 
         if (look.feed) {
-          setPaddleView({ kind: "found", number, paddle, where, ownTrips });
+          setPaddleView({
+            kind: "found",
+            number,
+            paddle,
+            where,
+            ownTrips,
+            match: look.match,
+          });
           setFeed(look.feed);
           setError("");
           return;
@@ -882,11 +896,7 @@ export default function BusSearch() {
           number={paddleView.number}
           paddle={paddleView.paddle}
           where={paddleView.where}
-          match={
-            paddleView.where.state === "running"
-              ? bestVehicle(vehicles, paddleView.where.segment, paddleView.ownTrips)
-              : null
-          }
+          match={paddleView.match ?? null}
           remembered={paddleView.remembered}
           ownTrips={paddleView.ownTrips}
           vehicles={vehicles}

@@ -225,7 +225,7 @@ export function paddleWorkingTrip(
 }
 
 /** How the one bus was picked out, or why it could not be. */
-export type MatchBasis = "trip" | "trip-start" | "only-bus" | "unidentified";
+export type MatchBasis = "trip" | "trip-start" | "unidentified";
 
 export interface PaddleMatch {
   /** The bus working this paddle, or null when the feed cannot say. */
@@ -236,22 +236,50 @@ export interface PaddleMatch {
 }
 
 /**
+ * Whether two route names are the same route.
+ *
+ * The book prints the number on the bus - "88" - while a feed can report the
+ * GTFS route id it belongs to, "88-371-1". Reducing both to the part before
+ * the first dash is the same rule the edge function uses to turn a route id
+ * into a route number, so the two sides agree by construction.
+ */
+function sameRoute(a: string | undefined, b: string | undefined): boolean {
+  if (!a || !b) return false;
+  const number = (r: string) => r.trim().toUpperCase().split("-")[0].replace(/[^A-Z0-9]/g, "");
+  return number(a) === number(b);
+}
+
+/**
  * The one bus working this paddle.
  *
- * The trip's start time is the only identifier the two sides share. Two buses
- * on a route rarely begin a trip in the same minute, and the paddle knows
- * exactly when its trip was due out, so a match there names the bus.
+ * Naming the wrong bus is worse than naming none - it costs an operator a
+ * phone call, or a walk to the wrong end of a garage - so a bus is returned
+ * only when something actually identifies it.
  *
- * Where that fails, guessing would be worse than not answering: handing an
- * operator the wrong bus number costs them a phone call. So a single bus is
- * returned only when something actually identifies it, and the rest of the
- * route is kept aside rather than presented as an answer.
+ * Three things can be known, in descending order of how much they are worth:
+ *
+ *   1. The feed says which trip the bus is on and that trip belongs to this
+ *      paddle. A lookup, not a guess, and settled before anything else.
+ *   2. The feed says which trip the bus is on and that trip belongs to some
+ *      *other* paddle. That names nobody, but it rules this bus out, which is
+ *      just as useful and was previously ignored.
+ *   3. Its trip began when this paddle's trip was due out, on this paddle's
+ *      route. Weaker - two buses can leave in the same minute - so it is
+ *      taken only from buses not already ruled out.
+ *
+ * What is deliberately not here: naming the only bus reporting on the route.
+ * That was an answer with no evidence behind it at all. Most of a route's
+ * buses are invisible to a route query between trips, so "the only one" is
+ * routinely the only one *reporting*, not the only one running - and the
+ * paddle being asked about is quite often not it.
  */
 export function bestVehicle(
   vehicles: BusVehicle[],
   segment: PaddleSegment,
   /** GTFS trip ids known to belong to this paddle, where that is known. */
   ownTrips?: ReadonlySet<string>,
+  /** Trip ids known to belong to a different paddle, which rule a bus out. */
+  foreignTrips?: ReadonlySet<string>,
 ): PaddleMatch {
   // The strong case: the feed says which trip the bus is on, and the trip is
   // one this paddle works. That is a lookup rather than a guess, so it is
@@ -267,14 +295,24 @@ export function bestVehicle(
     }
   }
 
+  // A bus on a trip that belongs to someone else is not this paddle's,
+  // whatever its clock says. Ruling those out first is what stops a
+  // neighbouring run being handed over on a coincidence of timing.
+  const plausible = foreignTrips?.size
+    ? vehicles.filter((v) => !(v.tripId && foreignTrips.has(v.tripId)))
+    : vehicles;
+
   const due = segment.tripStartMin % 1440;
 
-  // Closest trip start inside a minute either way. The tolerance covers the
-  // feed rounding to the second and the book printing to the minute.
+  // Closest trip start inside a minute either way, and only from a bus on
+  // this paddle's own route. The tolerance covers the feed rounding to the
+  // second and the book printing to the minute; the route check stops a bus
+  // the query happened to return from winning on timing alone.
   let best: BusVehicle | null = null;
   let bestGap = Infinity;
-  for (const v of vehicles) {
+  for (const v of plausible) {
     if (!v.startTime) continue;
+    if (v.route && !sameRoute(v.route, segment.route)) continue;
     const gap = minutesApart(toMin(v.startTime), due);
     if (gap <= 1 && gap < bestGap) {
       best = v;
@@ -288,11 +326,6 @@ export function bestVehicle(
       basis: "trip-start",
       others: vehicles.filter((v) => v !== chosen),
     };
-  }
-
-  // Nothing to choose between when there is nothing else on the route.
-  if (vehicles.length === 1) {
-    return { best: vehicles[0], basis: "only-bus", others: [] };
   }
 
   return { best: null, basis: "unidentified", others: vehicles };

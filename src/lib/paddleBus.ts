@@ -14,7 +14,13 @@
 
 import { fetchBuses, type BusFeed } from "./buses";
 import { paddleForTrip, tripsForPaddle } from "./paddleTrips";
-import { bestVehicle, paddleWhereAt, type PaddleWhere } from "./paddleTracking";
+import {
+  bestVehicle,
+  paddleWhereAt,
+  type MatchBasis,
+  type PaddleMatch,
+  type PaddleWhere,
+} from "./paddleTracking";
 import type { Paddle } from "./paddles";
 
 export interface PaddleBusLookup {
@@ -26,6 +32,24 @@ export interface PaddleBusLookup {
   feed: BusFeed | null;
   /** The bus, when one could be identified. */
   fleet: string | null;
+  /**
+   * What identified it.
+   *
+   * Callers that write the answer down should keep only "trip": that is the
+   * feed naming a trip this paddle works, and it is the one basis that cannot
+   * be a coincidence. A trip-start match is worth showing beside the evidence
+   * for it, but not worth committing to a record that outlives the day.
+   */
+  basis: MatchBasis;
+  /**
+   * The decision itself, for callers that render it.
+   *
+   * Handed over rather than left to be worked out again: the screen used to
+   * call bestVehicle a second time with only half the evidence - no record of
+   * which buses belong to other paddles - so it could name a bus this lookup
+   * had already ruled out. One decision, made once.
+   */
+  match: PaddleMatch | null;
   /** Unix seconds the position was reported, and where it was. */
   at: number | null;
   lat?: number;
@@ -67,19 +91,27 @@ export async function lookUpPaddleBus(
   if (where.state === "running") {
     const feed = await fetchBuses(where.segment.route);
 
+    // Every reported trip is looked up once: it either belongs to this
+    // paddle, or to another one - and knowing whose it is rules that bus out
+    // as firmly as a match rules one in.
     const ownTrips = new Set<string>();
+    const foreignTrips = new Set<string>();
     for (const v of feed.vehicles) {
-      if (v.tripId && (await paddleForTrip(v.tripId)) === number) {
-        ownTrips.add(v.tripId);
-      }
+      if (!v.tripId) continue;
+      const worksIt = await paddleForTrip(v.tripId);
+      if (worksIt === number) ownTrips.add(v.tripId);
+      else if (worksIt) foreignTrips.add(v.tripId);
     }
 
-    const found = bestVehicle(feed.vehicles, where.segment, ownTrips).best;
+    const match = bestVehicle(feed.vehicles, where.segment, ownTrips, foreignTrips);
+    const found = match.best;
     return {
       where,
       ownTrips,
       feed,
+      match,
       fleet: found?.fleet ?? null,
+      basis: match.basis,
       at: found ? (found.ts ?? Math.floor(Date.now() / 1000)) : null,
       lat: found?.lat,
       lon: found?.lon,
@@ -104,12 +136,25 @@ export async function lookUpPaddleBus(
       where,
       ownTrips,
       feed: { ...feed, vehicles: [found] },
+      // Off the road there is no segment to match against; the bus was found
+      // by trip id, which is stronger than any comparison would have been.
+      match: null,
       fleet: found.fleet ?? null,
+      // Found by trip id, which is the same lookup the running path makes.
+      basis: "trip",
       at: found.ts ?? Math.floor(Date.now() / 1000),
       lat: found.lat,
       lon: found.lon,
     };
   }
 
-  return { where, ownTrips, feed: null, fleet: null, at: null };
+  return {
+    where,
+    ownTrips,
+    feed: null,
+    match: null,
+    fleet: null,
+    basis: "unidentified",
+    at: null,
+  };
 }
