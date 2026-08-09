@@ -14,7 +14,8 @@ import { newEmptyDayEntry, type EntriesMap, type EntryPiece } from "@/lib/types"
 import HolidaySpareImport from "./HolidaySpareImport";
 import type { SheetRow } from "@/lib/bookingSheetParser";
 import InfoNote from "./InfoNote";
-import { Description, FileUpload } from "./icons";
+import { CheckCircle, Description, FileUpload, Spinner } from "./icons";
+import SheetStatus, { type SheetState } from "./SheetStatus";
 
 /** When a block's totals line wasn't captured (e.g. an OCR line-break
  * merged it into a row, dropping it), fall back to summing each row's own
@@ -56,6 +57,7 @@ export default function BookingSheetImport({
   const [sheets, setSheets] = useState<LoadedSheet[]>([]);
   const [pasteText, setPasteText] = useState("");
   const [status, setStatus] = useState("");
+  const [state, setState] = useState<SheetState>("idle");
   const [isDragging, setIsDragging] = useState(false);
   const nextId = useRef(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -63,6 +65,7 @@ export default function BookingSheetImport({
   function add(name: string, text: string) {
     const found = detectSheet(text);
     if (found.kind === "unrecognised") {
+      setState("failed");
       setStatus(
         `${name}: not recognised as a booking sheet. If it is a scan, the ` +
           "text may not have come through - try pasting it instead.",
@@ -75,6 +78,7 @@ export default function BookingSheetImport({
 
   async function readFiles(files: File[]) {
     let done = 0;
+    setState("working");
     for (const file of files) {
       setStatus(`Reading ${file.name}…`);
       try {
@@ -84,12 +88,14 @@ export default function BookingSheetImport({
         } else if (/\.txt$/i.test(file.name)) {
           text = await file.text();
         } else {
+          setState("failed");
           setStatus(`${file.name}: please choose a .pdf or .txt file.`);
           continue;
         }
         if (add(file.name, text)) done++;
       } catch (err) {
         console.error(err);
+        setState("failed");
         setStatus(
           `${file.name}: could not be read automatically — try opening it ` +
             "and pasting the text instead.",
@@ -97,9 +103,15 @@ export default function BookingSheetImport({
       }
     }
     if (done > 0) {
+      setState("done");
       setStatus(
-        done === 1 ? "Sheet read — check it below." : `${done} sheets read — check them below.`,
+        done === 1
+          ? "Sheet read — check it below, then import."
+          : `${done} sheets read — check them below, then import.`,
       );
+    } else {
+      // Nothing was added, so whatever went wrong is still the news.
+      setState((prev) => (prev === "working" ? "failed" : prev));
     }
   }
 
@@ -113,8 +125,13 @@ export default function BookingSheetImport({
       </div>
 
       <div
-        className={"dropzone" + (isDragging ? " dropzone-active" : "")}
+        className={
+          "dropzone" +
+          (isDragging ? " dropzone-active" : "") +
+          (state === "working" ? " dropzone-working" : "")
+        }
         onClick={() => fileInputRef.current?.click()}
+        aria-busy={state === "working"}
         onDragOver={(e) => {
           e.preventDefault();
           setIsDragging(true);
@@ -135,11 +152,15 @@ export default function BookingSheetImport({
           onChange={(e) => void readFiles(Array.from(e.target.files ?? []))}
         />
         <div className="dropzone-icon">
-          <FileUpload />
+          {state === "working" ? <Spinner className="mi-spin" /> : <FileUpload />}
         </div>
-        <div className="dropzone-title">Drop your booking sheets here</div>
+        <div className="dropzone-title">
+          {state === "working" ? "Reading…" : "Drop your booking sheets here"}
+        </div>
         <div className="dropzone-hint">
-          PDF or text, one or several — or click to browse
+          {state === "working"
+            ? "A scanned sheet is read in the page and can take a minute"
+            : "PDF or text, one or several — or click to browse"}
         </div>
       </div>
 
@@ -154,23 +175,21 @@ export default function BookingSheetImport({
         <button
           onClick={() => {
             if (!pasteText.trim()) {
+              setState("failed");
               setStatus("Paste some text first.");
               return;
             }
             if (add("Pasted text", pasteText)) {
               setPasteText("");
-              setStatus("Sheet read — check it below.");
+              setState("done");
+              setStatus("Sheet read — check it below, then import.");
             }
           }}
         >
           Read pasted sheet
         </button>
       </div>
-      {status && (
-        <div className="note" style={{ marginTop: 6 }}>
-          {status}
-        </div>
-      )}
+      <SheetStatus state={state}>{status}</SheetStatus>
 
       {sheets.length > 0 && (
         <div className="sheet-import-grid" style={{ marginTop: 12 }}>
@@ -243,6 +262,10 @@ function BookingSheetSlot({
   const [fileName, setFileName] = useState(initialName ?? "");
   const [isDragging, setIsDragging] = useState(false);
   const [parseStatus, setParseStatus] = useState("");
+  const [sheetState, setSheetState] = useState<SheetState>("idle");
+  // How many days this sheet has put into the calendar, so the panel can
+  // say plainly that it worked rather than looking untouched.
+  const [importedCount, setImportedCount] = useState<number | null>(null);
   const [blocks, setBlocks] = useState<SheetBlock[]>(() => seed()?.blocks ?? []);
   const [included, setIncluded] = useState<Record<number, boolean>>(
     () => seed()?.included ?? {}
@@ -278,6 +301,7 @@ function BookingSheetSlot({
 
   async function handleFile(file: File) {
     setFileName(file.name);
+    setSheetState("working");
     setParseStatus("Reading file…");
     try {
       let text: string;
@@ -291,6 +315,7 @@ function BookingSheetSlot({
       }
       setPasteText(text);
       setParseStatus("File read — parsing…");
+      setSheetState("idle");
       runParse(text);
     } catch (err) {
       console.error(err);
@@ -421,11 +446,23 @@ function BookingSheetSlot({
       });
       return next;
     });
-    setParseStatus(`Imported ${count} day(s).`);
+    setImportedCount(count);
+    setSheetState(count > 0 ? "done" : "failed");
+    setParseStatus(
+      count > 0
+        ? `Imported — ${count} day${count === 1 ? "" : "s"} added to your calendar.`
+        : "Nothing was imported — every row was unchecked.",
+    );
   }
 
   return (
-    <div className={"sheet-import-slot sheet-import-slot-" + accent}>
+    <div
+      className={
+        "sheet-import-slot sheet-import-slot-" +
+        accent +
+        (importedCount ? " is-imported" : "")
+      }
+    >
       <h3>
         <span className="sheet-import-icon">
           <Icon />
@@ -507,11 +544,7 @@ function BookingSheetSlot({
           </div>
         </>
       )}
-      {parseStatus && (
-        <div className="note" style={{ marginTop: 6 }}>
-          {parseStatus}
-        </div>
-      )}
+      <SheetStatus state={sheetState}>{parseStatus}</SheetStatus>
 
       {blocks.length === 0 ? null : (
         <>
@@ -676,8 +709,20 @@ function BookingSheetSlot({
               })}
             </tbody>
           </table>
-          <div style={{ marginTop: 10 }}>
-            <button onClick={handleImport}>Import checked rows</button>
+          <div style={{ marginTop: 10, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <button onClick={handleImport}>
+              {importedCount == null ? "Import checked rows" : "Import again"}
+            </button>
+            {importedCount != null && importedCount > 0 && (
+              <span className="sheet-status sheet-status-done" style={{ marginTop: 0 }}>
+                <span className="sheet-status-icon">
+                  <CheckCircle />
+                </span>
+                <span>
+                  {importedCount} day{importedCount === 1 ? "" : "s"} imported
+                </span>
+              </span>
+            )}
           </div>
         </>
       )}
