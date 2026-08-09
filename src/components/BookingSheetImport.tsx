@@ -39,6 +39,8 @@ interface LoadedSheet {
   name: string;
   text: string;
   found: Detected;
+  /** Days that went into the calendar, once it has been imported. */
+  imported?: number;
 }
 
 /**
@@ -74,6 +76,16 @@ export default function BookingSheetImport({
     }
     setSheets((prev) => [...prev, { id: nextId.current++, name, text, found }]);
     return true;
+  }
+
+  function markImported(id: number, count: number) {
+    setSheets((prev) =>
+      prev.map((sheet) => (sheet.id === id ? { ...sheet, imported: count } : sheet)),
+    );
+    setState("done");
+    setStatus(
+      `Imported — ${count} day${count === 1 ? "" : "s"} added to your calendar.`,
+    );
   }
 
   async function readFiles(files: File[]) {
@@ -194,13 +206,48 @@ export default function BookingSheetImport({
       {sheets.length > 0 && (
         <div className="sheet-import-grid" style={{ marginTop: 12 }}>
           {sheets.map((sheet) =>
-            sheet.found.kind === "holidaySpare" ? (
+            // Once the days are in the calendar the rows have done their job.
+            // Leaving several dozen checked lines and a button that still
+            // offers to import them reads as though nothing happened - so the
+            // sheet folds down to the one thing left worth saying.
+            sheet.imported ? (
+              <div key={sheet.id} className="sheet-done">
+                <span className="sheet-status-icon">
+                  <CheckCircle />
+                </span>
+                <span className="sheet-done-text">
+                  <b>
+                    {sheet.imported} day{sheet.imported === 1 ? "" : "s"} imported
+                  </b>{" "}
+                  from {sheet.name}
+                </span>
+                <button
+                  className="ghost small"
+                  onClick={() => setSheets((prev) => prev.filter((x) => x.id !== sheet.id))}
+                >
+                  Done
+                </button>
+                <button
+                  className="ghost small"
+                  onClick={() =>
+                    setSheets((prev) =>
+                      prev.map((x) =>
+                        x.id === sheet.id ? { ...x, imported: undefined } : x,
+                      ),
+                    )
+                  }
+                >
+                  Show the rows again
+                </button>
+              </div>
+            ) : sheet.found.kind === "holidaySpare" ? (
               <HolidaySpareImport
                 key={sheet.id}
                 onImport={onImport}
                 title={`${sheet.name} — ${describeSheet(sheet.found)}`}
                 initialText={sheet.text}
                 initialName={sheet.name}
+                onImported={(n) => markImported(sheet.id, n)}
               />
             ) : (
               <BookingSheetSlot
@@ -212,6 +259,7 @@ export default function BookingSheetImport({
                 onSeasonAnchorDetected={onSeasonAnchorDetected}
                 initialText={sheet.text}
                 initialName={sheet.name}
+                onImported={(n) => markImported(sheet.id, n)}
               />
             ),
           )}
@@ -232,6 +280,8 @@ interface BookingSheetSlotProps extends BookingSheetImportProps {
    */
   initialText?: string;
   initialName?: string;
+  /** Told when days actually went in, so the caller can put the sheet away. */
+  onImported?: (count: number) => void;
 }
 
 /** Everything the review needs, derived from the sheet's text. */
@@ -255,6 +305,7 @@ function BookingSheetSlot({
   onSeasonAnchorDetected,
   initialText,
   initialName,
+  onImported,
 }: BookingSheetSlotProps) {
   const handed = initialText != null;
   const seed = () => (handed ? deriveBlocks(initialText!) : null);
@@ -448,6 +499,7 @@ function BookingSheetSlot({
     });
     setImportedCount(count);
     setSheetState(count > 0 ? "done" : "failed");
+    if (count > 0) onImported?.(count);
     setParseStatus(
       count > 0
         ? `Imported — ${count} day${count === 1 ? "" : "s"} added to your calendar.`

@@ -3500,3 +3500,32 @@ button .mi {
 .dropzone-working .dropzone-icon {
   color: var(--steel);
 }
+
+/*
+ * A sheet that has been imported.
+ *
+ * All that is left of it: what went in, and where from. The rows and the
+ * button are gone because they have been used - leaving them would say the
+ * import had not happened.
+ */
+.sheet-done {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--green);
+  border-radius: 8px;
+  background: #e6f0e4;
+  font-size: 13px;
+  color: #2f6b3a;
+}
+
+.sheet-done .sheet-status-icon {
+  color: var(--green);
+}
+
+.sheet-done-text {
+  flex: 1 1 160px;
+  min-width: 0;
+}
