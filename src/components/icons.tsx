@@ -150,3 +150,19 @@ export const SwapHoriz = icon(
   "SwapHoriz",
   "M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z",
 );
+
+/**
+ * A ring with a gap, spun by CSS.
+ *
+ * Drawn rather than animated here so it costs nothing when still: the
+ * rotation lives in `.mi-spin` and only applies where it is asked for.
+ */
+export const Spinner = icon(
+  "Spinner",
+  "M12 2a10 10 0 0 1 10 10h-2a8 8 0 0 0-8-8V2z",
+);
+
+export const CloudUpload = icon(
+  "CloudUpload",
+  "M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z",
+);

@@ -3418,3 +3418,85 @@ button .mi {
   color: var(--red);
   margin: 6px 0 0;
 }
+
+/*
+ * A spinning glyph, for work that takes long enough to wonder about.
+ *
+ * Reading a scanned sheet runs OCR in the page and can take tens of seconds;
+ * without something moving it reads as a frozen app.
+ */
+@keyframes mi-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.mi-spin {
+  animation: mi-spin 0.9s linear infinite;
+}
+
+/* Someone who has said they do not want motion should not be spun at. */
+@media (prefers-reduced-motion: reduce) {
+  .mi-spin {
+    animation-duration: 3s;
+  }
+}
+
+/* A line of status with its own symbol, so the state is legible at a glance. */
+.sheet-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.sheet-status-icon {
+  flex: none;
+  margin-top: 1px;
+}
+
+.sheet-status-working .sheet-status-icon {
+  color: var(--steel);
+}
+
+/* Done is the one state worth colouring: it is the answer to "did that work". */
+.sheet-status-done {
+  color: #2f6b3a;
+  font-weight: 600;
+}
+
+.sheet-status-done .sheet-status-icon {
+  color: var(--green);
+}
+
+.sheet-status-failed {
+  color: var(--red);
+}
+
+.sheet-status-failed .sheet-status-icon {
+  color: var(--red);
+}
+
+/* An imported sheet is finished with, so it stops competing for attention. */
+.sheet-import-slot.is-imported {
+  opacity: 0.75;
+}
+
+.sheet-import-slot.is-imported .sheet-status-done {
+  opacity: 1;
+}
+
+/* A dropzone that is busy should not look like one waiting to be clicked. */
+.dropzone-working {
+  border-style: solid;
+  border-color: var(--steel);
+  background: #eef4f7;
+  cursor: progress;
+}
+
+.dropzone-working .dropzone-icon {
+  color: var(--steel);
+}

@@ -9,7 +9,8 @@ import { fmtHM, minToHHMM } from "@/lib/dateUtils";
 import { extractPdfText } from "@/lib/pdfExtract";
 import { newEmptyDayEntry, type EntriesMap, type EntryPiece } from "@/lib/types";
 import InfoNote from "./InfoNote";
-import { Description, FileUpload, WbSunny } from "./icons";
+import { CheckCircle, Description, FileUpload, WbSunny } from "./icons";
+import SheetStatus, { type SheetState } from "./SheetStatus";
 
 interface HolidaySpareImportProps {
   onImport: (updater: (prev: EntriesMap) => EntriesMap) => void;
@@ -43,6 +44,10 @@ export default function HolidaySpareImport({
   const [fileName, setFileName] = useState(initialName ?? "");
   const [isDragging, setIsDragging] = useState(false);
   const [parseStatus, setParseStatus] = useState("");
+  const [sheetState, setSheetState] = useState<SheetState>("idle");
+  // How many days this sheet has put into the calendar, so the panel can
+  // say plainly that it worked rather than looking untouched.
+  const [importedCount, setImportedCount] = useState<number | null>(null);
   const [plans, setPlans] = useState<HolidayDayPlan[]>(seeded);
   const [included, setIncluded] = useState<Record<number, boolean>>(() =>
     Object.fromEntries(seeded().map((_, i) => [i, true]))
@@ -72,6 +77,7 @@ export default function HolidaySpareImport({
 
   async function handleFile(file: File) {
     setFileName(file.name);
+    setSheetState("working");
     setParseStatus("Reading file…");
     try {
       let text: string;
@@ -85,6 +91,7 @@ export default function HolidaySpareImport({
       }
       setPasteText(text);
       setParseStatus("File read — parsing…");
+      setSheetState("idle");
       runParse(text);
     } catch (err) {
       console.error(err);
@@ -138,11 +145,22 @@ export default function HolidaySpareImport({
       });
       return next;
     });
-    setParseStatus(`Imported ${count} day(s).`);
+    setImportedCount(count);
+    setSheetState(count > 0 ? "done" : "failed");
+    setParseStatus(
+      count > 0
+        ? `Imported — ${count} day${count === 1 ? "" : "s"} added to your calendar.`
+        : "Nothing was imported — every row was unchecked.",
+    );
   }
 
   return (
-    <div className="sheet-import-slot sheet-import-slot-steel">
+    <div
+      className={
+        "sheet-import-slot sheet-import-slot-steel" +
+        (importedCount ? " is-imported" : "")
+      }
+    >
       <h3>
         <span className="sheet-import-icon">
             <WbSunny />
@@ -224,11 +242,7 @@ export default function HolidaySpareImport({
           </div>
         </>
       )}
-      {parseStatus && (
-        <div className="note" style={{ marginTop: 6 }}>
-          {parseStatus}
-        </div>
-      )}
+      <SheetStatus state={sheetState}>{parseStatus}</SheetStatus>
 
       {plans.length > 0 && (
         <>
@@ -284,8 +298,20 @@ export default function HolidaySpareImport({
               })}
             </tbody>
           </table>
-          <div style={{ marginTop: 10 }}>
-            <button onClick={handleImport}>Import checked days</button>
+          <div style={{ marginTop: 10, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <button onClick={handleImport}>
+              {importedCount == null ? "Import checked days" : "Import again"}
+            </button>
+            {importedCount != null && importedCount > 0 && (
+              <span className="sheet-status sheet-status-done" style={{ marginTop: 0 }}>
+                <span className="sheet-status-icon">
+                  <CheckCircle />
+                </span>
+                <span>
+                  {importedCount} day{importedCount === 1 ? "" : "s"} imported
+                </span>
+              </span>
+            )}
           </div>
         </>
       )}
