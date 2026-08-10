@@ -13,7 +13,7 @@ import type {
   SpareInfo,
 } from "@/lib/types";
 import DayEditor from "./DayEditor";
-import { ChevronLeft, ChevronRight } from "./icons";
+import { ChevronLeft, ChevronRight, Event, Today } from "./icons";
 import { hosBreaches } from "@/lib/hosFlags";
 
 interface MonthCalendarProps {
@@ -104,7 +104,7 @@ export default function MonthCalendar({
   return (
     <>
     <section className="panel">
-      <h2>Calendar</h2>
+      <h2><span className="panel-icon"><Event /></span>Calendar</h2>
       <div className="cal-nav">
         <button
           className="ghost small"
@@ -249,7 +249,7 @@ export default function MonthCalendar({
 
     {selectedDate && (
       <section className="panel" ref={editorRef}>
-        <h2>Day Details</h2>
+        <h2><span className="panel-icon"><Today /></span>Day Details</h2>
         <DayEditor
           key={selectedDate}
           dateStr={selectedDate}

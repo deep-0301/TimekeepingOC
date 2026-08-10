@@ -34,7 +34,7 @@ import {
 import PanelHeading from "./PanelHeading";
 import PaddleTimeline from "./PaddleTimeline";
 import MapDialog from "./MapDialog";
-import { ChevronRight, ExpandMore } from "./icons";
+import { ChevronRight, DirectionsBus, ExpandMore } from "./icons";
 
 const REFRESH_MS = 15_000;
 
@@ -936,6 +936,7 @@ export default function BusSearch() {
     <section className="panel">
       <PanelHeading
         title="Find a bus"
+        Icon={DirectionsBus}
         info="Live positions from OC Transpo. Type a run number (85-02, 85002 or 085002) to see the run's whole day and the bus working it, the four-digit number on a bus to find that bus, or a route number to see every bus running it."
       />
 

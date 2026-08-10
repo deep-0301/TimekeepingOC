@@ -5,6 +5,7 @@ import { useAppState } from "@/lib/AppStateContext";
 import WeekNav from "@/components/WeekNav";
 import BiweeklyTable from "@/components/BiweeklyTable";
 import InfoNote from "@/components/InfoNote";
+import { DateRange } from "@/components/icons";
 
 export default function BiweeklyPage() {
   const {
@@ -36,7 +37,7 @@ export default function BiweeklyPage() {
 
       <section className="summary panel">
         <div className="summary-head">
-          <h2>Biweekly Hours ({periodLabel})</h2>
+          <h2><span className="panel-icon"><DateRange /></span>Biweekly Hours ({periodLabel})</h2>
           <InfoNote label="Biweekly hours">
             One row per day in the pay period, broken down by hour type.
             Totals at the bottom match the Pay Summary page.

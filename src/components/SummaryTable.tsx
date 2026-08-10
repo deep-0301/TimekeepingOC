@@ -14,46 +14,59 @@ interface PaystubRow {
 }
 
 export default function SummaryTable({ week, settings }: SummaryTableProps) {
+  // The rate the period was actually paid at, which is not always the one
+  // typed into the settings: an operator still stepping up is paid from the
+  // date they started, and a raise can land part-way through a period. Where
+  // two rates were used, the column says so rather than picking one.
+  const rates = week.rates.length ? week.rates : [settings.baseRate];
+  const rateCol = rates.map((r) => fmtMoney(r)).join(" → ");
+  const otRateCol = rates
+    .map((r) => fmtMoney(r * settings.otMultiplier))
+    .join(" → ");
+  const sundayRateCol = rates
+    .map((r) => fmtMoney(r * (settings.sundayMultiplier - 1)))
+    .join(" → ");
+
   const rows: PaystubRow[] = [
     {
       label: "Regular Pay",
-      rate: fmtMoney(settings.baseRate),
+      rate: rateCol,
       hrs: week.regularHrs.toFixed(2),
       earn: fmtMoney(week.regularPay),
     },
     {
       label: "Booking Hours",
-      rate: fmtMoney(settings.baseRate),
+      rate: rateCol,
       hrs: week.sumBooking.toFixed(2),
       earn: fmtMoney(week.bookingPay),
     },
     {
       label: "Non-Platform",
-      rate: fmtMoney(settings.baseRate),
+      rate: rateCol,
       hrs: week.sumNonPlat.toFixed(2),
       earn: fmtMoney(week.nonPlatPay),
     },
     {
       label: "CLC Break Paid",
-      rate: fmtMoney(settings.baseRate),
+      rate: rateCol,
       hrs: week.clcBreakHrs.toFixed(2),
       earn: fmtMoney(week.clcBreakPay),
     },
     {
       label: `Overtime Time & Half (×${settings.otMultiplier})`,
-      rate: fmtMoney(settings.baseRate * settings.otMultiplier),
+      rate: otRateCol,
       hrs: week.otHrs.toFixed(2),
       earn: fmtMoney(week.otPay),
     },
     {
       label: "Callup",
-      rate: fmtMoney(settings.baseRate),
+      rate: rateCol,
       hrs: week.sumCallup.toFixed(2),
       earn: fmtMoney(week.callupPay),
     },
     {
       label: `Sunday Premium (+${((settings.sundayMultiplier - 1) * 100).toFixed(0)}%)`,
-      rate: fmtMoney(settings.baseRate * (settings.sundayMultiplier - 1)),
+      rate: sundayRateCol,
       hrs: week.sundayHrs.toFixed(2),
       earn: fmtMoney(week.sundayPay),
     },

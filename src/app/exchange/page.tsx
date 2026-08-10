@@ -23,7 +23,7 @@ import {
   type PostKind,
 } from "@/lib/exchange";
 import PanelHeading from "@/components/PanelHeading";
-import { ChevronRight, ExpandMore } from "@/components/icons";
+import { ChevronRight, ExpandMore, SwapHoriz } from "@/components/icons";
 
 /**
  * Work exchange - a board of shifts operators want covered or want to pick up.
@@ -474,6 +474,7 @@ export default function ExchangePage() {
       <section className="panel">
         <PanelHeading
           title="Work Exchange"
+          Icon={SwapHoriz}
           info={
             <>
               A board for work you need covered and work you would like to

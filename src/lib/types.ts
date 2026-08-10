@@ -34,6 +34,16 @@ export interface PaySettings {
    * row, and dropping it would only make old rows fail to parse.
    */
   bookingType?: "daily" | "general" | "holiday" | null;
+  /**
+   * The day they started as a bus operator, after training (yyyy-mm-dd).
+   *
+   * A new operator is paid 85% of the Bus Operator rate, stepping to 90% at
+   * nine months, 95% at seventeen and the full rate after two years. Given
+   * this date the rate follows from it and steps up on the day it should,
+   * including part-way through a pay period. Left empty, baseRate is used as
+   * typed - which is what an operator already on the full rate wants.
+   */
+  serviceStart?: string;
 }
 
 export const DEFAULT_SETTINGS: PaySettings = {
@@ -253,6 +263,13 @@ export interface WeekComputed {
   clcBreakHrs: number;
   clcBreakPay: number;
   totalHrs: number;
+  /**
+   * The hourly rates this period's money was worked out at, lowest first.
+   *
+   * Normally one. Two means a service raise landed part-way through, and the
+   * days either side of it were paid differently.
+   */
+  rates: number[];
 }
 
 export function newEmptyDayEntry(): DayEntry {

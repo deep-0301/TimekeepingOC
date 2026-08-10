@@ -14,6 +14,7 @@ import {
 import SeasonDayPicker from "./SeasonDayPicker";
 import { readPrefToday, writePrefToday } from "@/lib/uiPrefs";
 import { fmtDate, fmtHM, dayLabel, parseDateStr } from "@/lib/dateUtils";
+import { Search } from "./icons";
 
 interface RunSearchProps {
   periodDays: Date[];
@@ -85,7 +86,7 @@ export default function RunSearch({ periodDays, onAddShift }: RunSearchProps) {
 
   return (
     <section className="panel">
-      <h2>Add a shift to a date</h2>
+      <h2><span className="panel-icon"><Search /></span>Add a shift to a date</h2>
       <SeasonDayPicker
         legend="Which board?"
         options={segmentsForDisplay().map((s) => ({

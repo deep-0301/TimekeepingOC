@@ -14,7 +14,7 @@ import { fmtDate } from "@/lib/dateUtils";
 import type { DayType, SeasonId } from "@/lib/board";
 import SeasonDayPicker from "./SeasonDayPicker";
 import { readPrefToday, writePrefToday } from "@/lib/uiPrefs";
-import { ArrowRightAlt, ChevronRight, ExpandMore } from "./icons";
+import { ArrowRightAlt, ChevronRight, ExpandMore, Search } from "./icons";
 import PaddleTimeline from "./PaddleTimeline";
 
 const BOOK_PREF = "paddleBook";
@@ -147,7 +147,7 @@ export default function PaddleSearch() {
 
   return (
     <section className="panel">
-      <h2>Find a paddle</h2>
+      <h2><span className="panel-icon"><Search /></span>Find a paddle</h2>
       <SeasonDayPicker
         legend="Which paddle book?"
         options={options.map((o) => ({

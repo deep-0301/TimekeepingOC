@@ -1,4 +1,5 @@
 import { BOARD_DATA } from "./board";
+import { rateOn } from "./rate";
 import {
   fmtDate,
   getPayPeriodDates,
@@ -311,6 +312,23 @@ export function computeWeek(
   const dailyOtThreshMin = settings.otThreshold * 60;
   const periodOtThreshMin = settings.periodOtThreshold * 60;
 
+  // Money is worked out a day at a time rather than from the period's totals,
+  // because the rate is not always the same for the whole period. An operator
+  // in their first two years steps up on the anniversary of starting, and
+  // that day lands mid-period once every eight months - the days before it
+  // are paid at the old rate and the days after at the new one, which is what
+  // the pay stub will show. With one rate all through, this comes to the
+  // same total as multiplying at the end.
+  let regularPayWithBreak = 0;
+  let otPay = 0;
+  let nonPlatPay = 0;
+  let callupPay = 0;
+  let bookingPay = 0;
+  let sundayPay = 0;
+  let clcBreakPay = 0;
+  let clcBreakMinTotal = 0;
+  const ratesUsed = new Set<number>();
+
   const perDay: DayComputedWithOt[] = days.map((d) => {
     const dateStr = fmtDate(d);
     const dc = computeDay(entries, dateStr);
@@ -342,28 +360,39 @@ export function computeWeek(
     sumBooking += dc.booking;
     if (dc.isStat) statDays++;
     if (dc.isSunday) sundayHrs += dc.payMin / 60;
+
+    // What this day was worth, at the rate in force on this day.
+    const rate = rateOn(settings.serviceStart, dateStr) ?? settings.baseRate;
+    ratesUsed.add(rate);
+    // Overtime is never on the CLC break, so a day's regular minutes are
+    // whatever is left of its paid minutes once its own overtime is out.
+    const dayRegMin = Math.max(0, dc.payMin - dayOt);
+    // The break is paid at straight time and reported on its own line, so it
+    // is taken out of the regular minutes rather than counted twice.
+    const dayClcMin = Math.min(Math.max(0, dc.payMin - dc.platMin), dayRegMin);
+    clcBreakMinTotal += dayClcMin;
+    regularPayWithBreak += (dayRegMin / 60) * rate;
+    clcBreakPay += (dayClcMin / 60) * rate;
+    otPay += (dayOt / 60) * rate * settings.otMultiplier;
+    nonPlatPay += dc.nonPlatform * rate;
+    callupPay += dc.callup * rate;
+    bookingPay += dc.booking * rate;
+    if (dc.isSunday) {
+      sundayPay += (dc.payMin / 60) * rate * (settings.sundayMultiplier - 1);
+    }
     return { dateStr, ...dc, dayOt };
   });
 
   const regMin = Math.max(0, sumPay - otMin);
   const regularHrsWithBreak = regMin / 60;
   const otHrs = otMin / 60;
-  const regularPayWithBreak = regularHrsWithBreak * settings.baseRate;
-  const otPay = otHrs * settings.baseRate * settings.otMultiplier;
-  // sumNonPlat/sumCallup/sumBooking are already in hours (entered directly
-  // as hours, not minutes) - no /60 conversion needed here.
-  const nonPlatPay = sumNonPlat * settings.baseRate;
-  const callupPay = sumCallup * settings.baseRate;
-  const bookingPay = sumBooking * settings.baseRate;
-  const sundayPay =
-    sundayHrs * settings.baseRate * (settings.sundayMultiplier - 1);
+  // Stat holiday pay is a day's money, not an hourly rate, so it does not
+  // step with service.
   const statPay = statDays * settings.statHolidayPay;
 
   // CLC break time is reported as its own paid line (straight time),
   // matching the real paystub, split back out of the combined pay minutes.
-  const clcBreakMinTotal = Math.max(0, sumPay - sumPlat);
-  const clcBreakHrs = Math.min(clcBreakMinTotal, regMin) / 60;
-  const clcBreakPay = clcBreakHrs * settings.baseRate;
+  const clcBreakHrs = clcBreakMinTotal / 60;
   const regularHrs = regularHrsWithBreak - clcBreakHrs;
   const regularPay = regularPayWithBreak - clcBreakPay;
 
@@ -408,6 +437,9 @@ export function computeWeek(
     clcBreakHrs,
     clcBreakPay,
     totalHrs,
+    // The rates this period was actually paid at, lowest first. More than one
+    // means a raise landed part-way through it.
+    rates: [...ratesUsed].sort((a, b) => a - b),
   };
 }
 

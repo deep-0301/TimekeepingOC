@@ -7,6 +7,7 @@ import type { DayFieldName, DayFieldValue, SpareInfo } from "@/lib/types";
 import TimeField24 from "./TimeField24";
 import GarageField from "./GarageField";
 import PanelHeading from "./PanelHeading";
+import { Edit } from "./icons";
 
 type Frequency = "once" | "daily" | "weekly" | "biweekly";
 type Mode = "run" | "spare" | "dayoff";
@@ -236,6 +237,7 @@ export default function ManualWorkEntry({
     <section className="panel">
       <PanelHeading
         title="Add work manually"
+        Icon={Edit}
         info="No booking sheet handy? Add a single day's work directly — a paddle number, a spare/standby shift, or a recurring day off."
       />
       <div className="day-editor-extras">
