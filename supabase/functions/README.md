@@ -96,3 +96,82 @@ The same caution applies to the fleet number. Some agencies put it in
 `vehicle.vehicle.id`, others use an internal key there and put the painted
 number in `label`. Both are checked, preferring a bare three-to-five digit
 value.
+
+## `record-buses` — which bus worked which run, kept for good
+
+The `bus` function above answers *now*. It cannot answer *last Tuesday*,
+because OC Transpo publishes where vehicles are and nothing about where they
+were: a run nobody was watching is blank for ever.
+
+This function is the watcher. On a schedule it reads the vehicle feed once,
+turns each reported trip into the paddle that works it using the mapping the
+site already ships, and writes one row per run per bus per day.
+
+One row per run per bus — not one per position report. The question being
+answered is which bus worked the run, and a bus that worked it all morning is
+one fact, not four hundred. That is roughly 700 rows a day rather than a
+million, which is the difference between comfortably inside the free tier and
+outgrowing it in a week.
+
+Each sweep bumps a count rather than overwriting. At a terminus the feed
+briefly shows the bus finishing the last trip and the bus starting the next on
+the same trip id; over a day that mistake scores one or two while the bus that
+actually worked the run scores hundreds, so the answer is simply whichever was
+seen most. Same rule the app already applies to its own sightings.
+
+### Setting it up
+
+1. Create the table and the write functions — run `supabase/history.sql` in the
+   Supabase SQL editor. It is safe to run twice.
+
+2. Deploy the function. It reuses `OCT_API_KEY`, so if `bus` is already
+   deployed there is no new secret:
+
+   ```bash
+   supabase functions deploy record-buses
+   ```
+
+3. Schedule it. In the SQL editor, with `pg_cron` and `pg_net` enabled
+   (Database → Extensions):
+
+   ```sql
+   select cron.schedule(
+     'record-buses',
+     '* * * * *',
+     $$ select net.http_post(
+          url := 'https://nxjpabakfubquvnyyirs.supabase.co/functions/v1/record-buses',
+          headers := '{"Authorization":"Bearer <service-role-key>"}'::jsonb
+        ) $$
+   );
+   ```
+
+   Every minute is plenty — a bus stays on a run for hours, and the count only
+   has to be large enough to drown out a bad minute. Stop it again with
+   `select cron.unschedule('record-buses');`.
+
+### Checking it works
+
+```bash
+curl -X POST "$SUPABASE_URL/functions/v1/record-buses" \
+  -H "Authorization: Bearer $SERVICE_ROLE_KEY"
+```
+
+It answers with what it did:
+
+```json
+{ "date": "2026-08-10", "vehicles": 612, "unmapped": 44, "recorded": 568 }
+```
+
+`unmapped` is the count of reported trips the paddle mapping could not name a
+run for. A small number is normal — charters, and trips added since the
+mapping was built. A number close to `vehicles` means the mapping has expired
+and the new booking's needs building with `scripts/build-paddle-trips.py`.
+
+### What it does not do
+
+It does not store positions, delays, or cancellations, so it cannot answer
+where a bus was at 3 pm or how late it ran. That is what
+[Better Transit Ottawa's tracker](https://github.com/Better-Transit-Ottawa/bus-tracker)
+is for, and it keeps a row per vehicle per sweep to do it. This keeps the one
+fact an operator needs off it — which bus was on my run — for a thousandth of
+the storage.

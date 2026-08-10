@@ -6,24 +6,28 @@ import { lookUpPaddleBus } from "@/lib/paddleBus";
 import { loadPaddleBookForDate, paddleBookForDate } from "@/lib/paddles";
 import { normalisePaddleNumber } from "@/lib/paddleTracking";
 import { seenCounts, type BusSighting, type RecordedBus } from "@/lib/types";
+import { historyFor, HistoryNotSetUpError, type HistoryByPaddle } from "@/lib/busHistory";
 
 /**
- * Which bus worked this day, kept with the day.
+ * Which bus worked this day.
  *
  * The bus number is only knowable while the bus is running: OC Transpo
- * publishes where vehicles are now and nothing about where they were, so a
- * bus that was not written down at the time cannot be recovered afterwards
- * at all. An operator wanting to know which bus they had last Tuesday has
- * one chance to find out, and it was last Tuesday.
+ * publishes where vehicles are now and nothing about where they were. So it
+ * has to be written down at the time or not at all, and there are two things
+ * writing it down.
  *
- * So opening today's day asks the feed and saves what it learns. Every day
- * after that just reads what was saved, and asks nothing.
+ * This screen is one. Opening today asks the feed and saves what it learns
+ * against the day - and asks again on every visit, not only the first, since
+ * the feed does not always answer the same way over a day. The sightings are
+ * tallied and the bus kept is whichever has worked the paddle most, so one
+ * odd reading in the evening does not displace the bus confirmed all morning.
  *
- * Today is asked again on every visit, not only the first. The feed does not
- * always answer the same way over a day - a bus swapped out mid-run, or one
- * bad match near a layover - so the sightings are tallied and the bus kept is
- * whichever has worked the paddle most. One odd reading in the evening does
- * not displace the bus confirmed all morning.
+ * The recorder is the other, and it does not need anybody to be looking: it
+ * watches the feed all day and keeps one row per run per bus. That is what
+ * answers a day this operator never opened - or a run that was somebody
+ * else's until they picked it up. A day's own record is preferred where there
+ * is one, because it is this operator's app watching their own run; the
+ * history stands behind it.
  */
 
 interface Props {
@@ -59,6 +63,9 @@ function confidence(bus: RecordedBus): string {
 export default function DayBusView({ dateStr, runs, saved, onRecord }: Props) {
   const [state, setState] = useState<State>("idle");
   const [error, setError] = useState("");
+  // What the recorder saw on this day, for the days nobody had open.
+  const [history, setHistory] = useState<HistoryByPaddle>({});
+  const [noHistory, setNoHistory] = useState(false);
   // Which day the automatic look-up has already been spent on, so re-rendering
   // the panel does not keep asking the feed for the same answer.
   const asked = useRef<string | null>(null);
@@ -81,7 +88,24 @@ export default function DayBusView({ dateStr, runs, saved, onRecord }: Props) {
   // day whose bus was never written down. Saying "not recorded at the time"
   // about next Tuesday is simply untrue.
   const isFuture = dateStr > today;
-  const missing = paddles.filter((p) => !saved?.[p.number]);
+  // The day's own record first - it is what this operator's app saw, on their
+  // own run - and the recorder's history behind it.
+  const busFor = (number: string): { fleet: string; note: string } | null => {
+    const own = saved?.[number];
+    if (own) return { fleet: own.fleet, note: confidence(own) };
+    const kept = history[number];
+    if (kept) {
+      return {
+        fleet: kept.fleet,
+        note:
+          kept.sightings > 1
+            ? `from the record · seen ${kept.sightings}×`
+            : "from the record · seen once",
+      };
+    }
+    return null;
+  };
+  const missing = paddles.filter((p) => !busFor(p.number));
 
   const look = useCallback(async () => {
     setState("looking");
@@ -120,16 +144,36 @@ export default function DayBusView({ dateStr, runs, saved, onRecord }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateStr, paddleKey, onRecord]);
 
-  // Only today can be answered - every other day costs no request at all -
-  // but today is asked once per visit even when a bus is already known, so
-  // the tally keeps building and the answer settles on the bus that actually
-  // worked the run.
+  // Only today can be answered from the live feed - every other day costs no
+  // request at all - but today is asked once per visit even when a bus is
+  // already known, so the tally keeps building and the answer settles on the
+  // bus that actually worked the run.
   useEffect(() => {
     if (!isToday) return;
     if (asked.current === dateStr) return;
     asked.current = dateStr;
     void look();
   }, [isToday, dateStr, look]);
+
+  // A past day is asked of the record instead. Nothing was written down at
+  // the time unless somebody had the day open, but the recorder was watching
+  // the feed regardless, so there is usually an answer there.
+  useEffect(() => {
+    if (isFuture || paddleKey === "") return;
+    let live = true;
+    historyFor(dateStr, paddleKey.split(","))
+      .then((found) => {
+        if (live) setHistory(found);
+      })
+      .catch((err) => {
+        if (!live) return;
+        setHistory({});
+        setNoHistory(err instanceof HistoryNotSetUpError);
+      });
+    return () => {
+      live = false;
+    };
+  }, [dateStr, paddleKey, isFuture]);
 
   if (paddles.length === 0) return null;
   if (!paddleBookForDate(dateStr)) return null;
@@ -141,14 +185,14 @@ export default function DayBusView({ dateStr, runs, saved, onRecord }: Props) {
           {paddles.length === 1 ? "Bus" : "Buses"}
         </span>
         {paddles.map(({ number, run }) => {
-          const bus = saved?.[number];
+          const bus = busFor(number);
           return (
             <span key={number} className="day-bus-item">
               {bus ? (
                 <>
                   <b className="day-bus-fleet">{bus.fleet}</b>
                   {paddles.length > 1 && <span className="shift-tag">{run}</span>}
-                  <span className="day-bus-when">{confidence(bus)}</span>
+                  <span className="day-bus-when">{bus.note}</span>
                 </>
               ) : (
                 <span className="day-bus-unknown">
@@ -184,11 +228,22 @@ export default function DayBusView({ dateStr, runs, saved, onRecord }: Props) {
               and the bus working this paddle will be found and kept here.
             </>
           ) : !isToday ? (
-            <>
-              A bus can only be identified while it is running — OC Transpo
-              publishes where vehicles are now, not where they were. This day
-              was not recorded at the time, so it cannot be looked up.
-            </>
+            noHistory ? (
+              <>
+                No bus was written down on this day, and the history that would
+                have caught it is not set up yet — run{" "}
+                <code>supabase/history.sql</code> and deploy the{" "}
+                <code>record-buses</code> function, and every day from then on
+                will have an answer whether or not anyone opened it.
+              </>
+            ) : (
+              <>
+                Nothing was recorded for this run on this day. A bus can only be
+                identified while it is running — OC Transpo publishes where
+                vehicles are now, not where they were — so a day before the
+                history started watching cannot be recovered.
+              </>
+            )
           ) : state === "failed" && error ? (
             <>The feed could not be reached: {error}</>
           ) : state === "failed" ? (
