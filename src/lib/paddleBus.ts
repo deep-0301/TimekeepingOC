@@ -13,10 +13,13 @@
  */
 
 import { fetchBuses, type BusFeed } from "./buses";
+import { fmtDate, minToHHMM } from "./dateUtils";
+import { loadPaddleBookForDate } from "./paddles";
 import { paddleForTrip, tripsForPaddle } from "./paddleTrips";
 import {
   bestVehicle,
   paddleWhereAt,
+  paddleWorkingTrip,
   type MatchBasis,
   type PaddleMatch,
   type PaddleWhere,
@@ -33,12 +36,21 @@ export interface PaddleBusLookup {
   /** The bus, when one could be identified. */
   fleet: string | null;
   /**
+   * Whether the trip is far enough along to trust the answer.
+   *
+   * A bus found in the first five minutes of a trip is shown but not written
+   * down: that is the minute where the feed still has the previous trip on
+   * one bus and the next one on another, both parked at the same terminus.
+   */
+  settled: boolean;
+  /**
    * What identified it.
    *
-   * Callers that write the answer down should keep only "trip": that is the
-   * feed naming a trip this paddle works, and it is the one basis that cannot
-   * be a coincidence. A trip-start match is worth showing beside the evidence
-   * for it, but not worth committing to a record that outlives the day.
+   * Callers that write the answer down should keep only a settled "trip":
+   * that is the feed naming a trip this paddle works, on a trip far enough
+   * along to be believed. A trip resolved from its route and departure minute
+   * is worth showing beside the evidence for it, but not worth committing to
+   * a record that outlives the day.
    */
   basis: MatchBasis;
   /**
@@ -103,7 +115,29 @@ export async function lookUpPaddleBus(
       else if (worksIt) foreignTrips.add(v.tripId);
     }
 
-    const match = bestVehicle(feed.vehicles, where.segment, ownTrips, foreignTrips);
+    // Whether this route and this departure minute belong to this paddle and
+    // no other.
+    //
+    // Resolving a trip by route and scheduled departure only identifies it if
+    // the schedule has one trip answering that description. Two paddles due
+    // out on the same route in the same minute - which happens on a frequent
+    // route - and the bus reporting it could be either, so nothing is named.
+    const book = await loadPaddleBookForDate(fmtDate(new Date()));
+    const owner = paddleWorkingTrip(
+      book,
+      where.segment.route,
+      minToHHMM(where.segment.tripStartMin % 1440),
+    );
+    const departureIsOurs = owner?.p === number;
+
+    const match = bestVehicle(
+      feed.vehicles,
+      where.segment,
+      ownTrips,
+      foreignTrips,
+      minOfDay,
+      departureIsOurs,
+    );
     const found = match.best;
     return {
       where,
@@ -112,6 +146,7 @@ export async function lookUpPaddleBus(
       match,
       fleet: found?.fleet ?? null,
       basis: match.basis,
+      settled: match.settled,
       at: found ? (found.ts ?? Math.floor(Date.now() / 1000)) : null,
       lat: found?.lat,
       lon: found?.lon,
@@ -142,6 +177,10 @@ export async function lookUpPaddleBus(
       fleet: found.fleet ?? null,
       // Found by trip id, which is the same lookup the running path makes.
       basis: "trip",
+      // Off the road there is no trip part-way through to be unsure about:
+      // the bus is reporting a trip that belongs to this paddle and nothing
+      // else on the feed does.
+      settled: true,
       at: found.ts ?? Math.floor(Date.now() / 1000),
       lat: found.lat,
       lon: found.lon,
@@ -155,6 +194,7 @@ export async function lookUpPaddleBus(
     match: null,
     fleet: null,
     basis: "unidentified",
+    settled: false,
     at: null,
   };
 }

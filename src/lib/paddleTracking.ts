@@ -224,8 +224,60 @@ export function paddleWorkingTrip(
   return found[0] ?? null;
 }
 
-/** How the one bus was picked out, or why it could not be. */
-export type MatchBasis = "trip" | "trip-start" | "unidentified";
+/**
+ * A revenue route, which is the only kind a booked paddle runs.
+ *
+ * Route numbers from 800 up are school and charter work. Better Transit
+ * Ottawa's tracker drops them before tying a trip to a block, and for the
+ * same reason: they are not what an operator's run is made of, and letting
+ * one match is a wrong answer rather than a missing one.
+ */
+export function isRevenueRoute(route: string | undefined): boolean {
+  const n = parseInt((route ?? "").trim(), 10);
+  return !Number.isFinite(n) || n < 800;
+}
+
+/** When the trip being run was due out and due in, in minutes of the day. */
+export function tripWindow(segment: PaddleSegment): { start: number; end: number } {
+  const stops = segment.trip[3];
+  return {
+    start: segment.tripStartMin,
+    end: segment.tripStartMin + Math.max(0, toMin(stops[stops.length - 1][0]) - toMin(stops[0][0])),
+  };
+}
+
+/**
+ * Whether a trip is far enough along to believe what the feed says about it.
+ *
+ * The first minutes of a trip are where wrong answers come from. At a
+ * terminus a bus is still reporting the trip it has just finished, the bus
+ * about to take the next one is already reporting that, and both are sitting
+ * in the same place - so whatever the feed says at 6:00 for a trip due out at
+ * 6:00 is the least reliable thing it will say all trip.
+ *
+ * Better Transit Ottawa's tracker will not tie a bus to a block from a
+ * sighting inside the first five minutes, and looks at the middle of the trip
+ * when it wants to be sure. This is the same rule, asked of the clock rather
+ * than of a stored history.
+ */
+const SETTLE_MIN = 5;
+
+export function tripIsSettled(segment: PaddleSegment, minOfDay: number): boolean {
+  const { start, end } = tripWindow(segment);
+  const now = minOfDay < start ? minOfDay + 1440 : minOfDay;
+  return now >= start + SETTLE_MIN && now < end;
+}
+
+/**
+ * How the one bus was picked out, or why it could not be.
+ *
+ * - `trip`: the feed named a trip this paddle works. A lookup, not a guess.
+ * - `resolved`: the feed's trip id was no use - OC Transpo sends ids the
+ *   static schedule does not contain - so the trip was identified by its
+ *   route and the exact minute it was due out, the way the tracker resolves
+ *   one. Weaker than a lookup, stronger than proximity.
+ */
+export type MatchBasis = "trip" | "resolved" | "unidentified";
 
 export interface PaddleMatch {
   /** The bus working this paddle, or null when the feed cannot say. */
@@ -233,6 +285,15 @@ export interface PaddleMatch {
   basis: MatchBasis;
   /** Everything else on the route, kept for when the answer looks wrong. */
   others: BusVehicle[];
+  /**
+   * Whether the trip is far enough along for the answer to be trusted.
+   *
+   * False inside the first five minutes of a trip, and after it should have
+   * finished. The bus is still shown - it is the best the feed has - but it
+   * is not written into the day's record, because a wrong bus number kept for
+   * a month is worse than a blank one.
+   */
+  settled: boolean;
 }
 
 /**
@@ -280,16 +341,34 @@ export function bestVehicle(
   ownTrips?: ReadonlySet<string>,
   /** Trip ids known to belong to a different paddle, which rule a bus out. */
   foreignTrips?: ReadonlySet<string>,
+  /**
+   * The minute of the day, for judging whether the trip is far enough along
+   * to be believed. Omitted, the answer is treated as settled.
+   */
+  minOfDay?: number,
+  /**
+   * Whether the schedule gives this route and departure minute to this paddle
+   * alone. False means a trip resolved that way could be someone else's, so
+   * it is not resolved at all. Omitted, it is taken to be unique.
+   */
+  departureIsOurs = true,
 ): PaddleMatch {
+  const settled = minOfDay === undefined ? true : tripIsSettled(segment, minOfDay);
+
+  // School and charter work is not what a booked paddle runs, so it is out
+  // before anything is compared.
+  const revenue = vehicles.filter((v) => isRevenueRoute(v.route));
+
   // The strong case: the feed says which trip the bus is on, and the trip is
   // one this paddle works. That is a lookup rather than a guess, so it is
   // settled before anything is measured against the clock.
   if (ownTrips?.size) {
-    const onOurTrip = vehicles.find((v) => v.tripId && ownTrips.has(v.tripId));
+    const onOurTrip = revenue.find((v) => v.tripId && ownTrips.has(v.tripId));
     if (onOurTrip) {
       return {
         best: onOurTrip,
         basis: "trip",
+        settled,
         others: vehicles.filter((v) => v !== onOurTrip),
       };
     }
@@ -299,36 +378,39 @@ export function bestVehicle(
   // whatever its clock says. Ruling those out first is what stops a
   // neighbouring run being handed over on a coincidence of timing.
   const plausible = foreignTrips?.size
-    ? vehicles.filter((v) => !(v.tripId && foreignTrips.has(v.tripId)))
-    : vehicles;
+    ? revenue.filter((v) => !(v.tripId && foreignTrips.has(v.tripId)))
+    : revenue;
 
   const due = segment.tripStartMin % 1440;
 
-  // Closest trip start inside a minute either way, and only from a bus on
-  // this paddle's own route. The tolerance covers the feed rounding to the
-  // second and the book printing to the minute; the route check stops a bus
-  // the query happened to return from winning on timing alone.
-  let best: BusVehicle | null = null;
-  let bestGap = Infinity;
-  for (const v of plausible) {
-    if (!v.startTime) continue;
-    if (v.route && !sameRoute(v.route, segment.route)) continue;
-    const gap = minutesApart(toMin(v.startTime), due);
-    if (gap <= 1 && gap < bestGap) {
-      best = v;
-      bestGap = gap;
-    }
-  }
-  if (best) {
-    const chosen = best;
+  // The feed's trip id was no help - OC Transpo sends ids the published
+  // schedule does not contain - so the trip is identified the way Better
+  // Transit Ottawa's tracker resolves one: by its route and the exact minute
+  // it was due out. The feed reports the trip's *scheduled* start, not when
+  // the bus actually moved, so this is an equality and not a proximity test.
+  //
+  // Only one bus may answer. Two buses claiming the same scheduled departure
+  // on the same route means the feed cannot tell them apart, and naming
+  // either of them would be a coin toss.
+  const exact = departureIsOurs
+    ? plausible.filter(
+    (v) =>
+      v.startTime &&
+      sameRoute(v.route, segment.route) &&
+        minutesApart(toMin(v.startTime), due) === 0,
+      )
+    : [];
+  if (exact.length === 1) {
+    const chosen = exact[0];
     return {
       best: chosen,
-      basis: "trip-start",
+      basis: "resolved",
+      settled,
       others: vehicles.filter((v) => v !== chosen),
     };
   }
 
-  return { best: null, basis: "unidentified", others: vehicles };
+  return { best: null, basis: "unidentified", settled, others: vehicles };
 }
 
 /** The minute of the day the bus is really at, given how late it is running. */
