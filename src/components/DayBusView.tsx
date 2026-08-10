@@ -95,12 +95,14 @@ export default function DayBusView({ dateStr, runs, saved, onRecord }: Props) {
         const paddle = book.paddles.find((p) => p.p === number);
         if (!paddle) continue;
         const hit = await lookUpPaddleBus(number, paddle, minOfDay);
-        // Only a trip lookup is written down. A bus picked out because its
-        // trip started at the right minute is worth showing live beside the
-        // reason for it, but this record outlives the day and is what an
-        // operator will trust in a month - so it is kept for the answers that
-        // cannot be a coincidence.
-        if (hit.fleet && hit.basis === "trip") {
+        // Only a settled trip lookup is written down. Two things have to
+        // hold: the feed named a trip this paddle works, and the trip is far
+        // enough along to be believed - not in its first five minutes, when
+        // the bus finishing the previous trip and the bus starting this one
+        // are both sitting at the terminus reporting. This record outlives
+        // the day, and a wrong bus number kept for a month is worse than a
+        // blank one.
+        if (hit.fleet && hit.basis === "trip" && hit.settled) {
           found++;
           onRecord(dateStr, number, {
             fleet: hit.fleet,

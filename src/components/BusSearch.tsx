@@ -626,7 +626,15 @@ function PaddleTrack({
           >
             {match.basis === "trip"
               ? "The feed has this bus on a trip that belongs to this paddle. That is a lookup, not a guess."
-              : `Its trip began at ${match.best.startTime}, which is when this paddle's trip was due out on route ${routeOf(where)}. No other bus on the route fits, and none of the buses known to be working other paddles was considered — but this is timing rather than a lookup, so check the run before relying on it.`}
+              : `The feed does not give a trip id this paddle's schedule knows, so the trip was identified by its route and the minute it was due out: ${match.best.startTime} on route ${routeOf(where)}, which is exactly when this paddle's trip was due. It is the only bus on the route claiming that departure, and none known to be working another paddle was considered.`}
+            {!match.settled && (
+              <>
+                {" "}
+                This trip has only just started, which is the one time the feed
+                is unreliable — the bus finishing the last trip and the bus
+                taking this one are both at the terminus. Give it five minutes.
+              </>
+            )}
           </div>
           <Match vehicle={match.best} paddle={paddle} where={where} />
         </>
