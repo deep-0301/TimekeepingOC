@@ -15,7 +15,7 @@ import { newEmptyDayEntry, type EntriesMap, type EntryPiece } from "@/lib/types"
 import HolidaySpareImport from "./HolidaySpareImport";
 import type { SheetRow } from "@/lib/bookingSheetParser";
 import InfoNote from "./InfoNote";
-import { CheckCircle, Description, FileUpload, Spinner } from "./icons";
+import { CheckCircle, CloudUpload, Description, FileUpload, Spinner } from "./icons";
 import SheetStatus, { type SheetState } from "./SheetStatus";
 
 /** When a block's totals line wasn't captured (e.g. an OCR line-break
@@ -148,7 +148,7 @@ export default function BookingSheetImport({
 
   return (
     <section className="panel">
-      <h2>Import your booking sheets</h2>
+      <h2><span className="panel-icon"><CloudUpload /></span>Import your booking sheets</h2>
       <div className="note" style={{ marginTop: -4, marginBottom: 10 }}>
         Drop any booking sheet here — daily, general, or holiday spare. Add as
         many as you have; each one is recognised on its own, so there is

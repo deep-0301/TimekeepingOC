@@ -1,12 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ComponentType } from "react";
 import InfoIcon from "./InfoIcon";
 
 interface Props {
   title: string;
   /** Folded behind an "i" button beside the title. */
   info?: React.ReactNode;
+  /**
+   * The panel's own symbol, shown before the title.
+   *
+   * Every screen here is one panel deep, so the symbol is what tells them
+   * apart while scrolling - a bus, a calendar, a dollar sign are recognised
+   * before the words under them are read.
+   */
+  Icon?: ComponentType<{ size?: number; className?: string }>;
+}
+
+/** The title, with its symbol where one was given. */
+function Title({ title, Icon }: Pick<Props, "title" | "Icon">) {
+  return (
+    <h2>
+      {Icon && (
+        <span className="panel-icon">
+          <Icon />
+        </span>
+      )}
+      {title}
+    </h2>
+  );
 }
 
 /**
@@ -16,15 +38,15 @@ interface Props {
  * so this owns the open state instead of dropping an InfoNote into the row -
  * a note nested in the flex row would lay out beside the title.
  */
-export default function PanelHeading({ title, info }: Props) {
+export default function PanelHeading({ title, info, Icon }: Props) {
   const [open, setOpen] = useState(false);
 
-  if (!info) return <h2>{title}</h2>;
+  if (!info) return <Title title={title} Icon={Icon} />;
 
   return (
     <>
       <div className="panel-head">
-        <h2>{title}</h2>
+        <Title title={title} Icon={Icon} />
         <button
           type="button"
           className={"info-dot" + (open ? " is-open" : "")}

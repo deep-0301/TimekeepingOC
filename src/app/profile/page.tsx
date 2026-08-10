@@ -8,6 +8,7 @@ import {
   saveMyContact,
   type MyContact,
 } from "@/lib/exchange";
+import { Person, SwapHoriz } from "@/components/icons";
 
 interface BasicProfile {
   name: string;
@@ -139,7 +140,7 @@ export default function ProfilePage() {
   return (
     <>
       <section className="panel">
-        <h2>Profile</h2>
+        <h2><span className="panel-icon"><Person /></span>Profile</h2>
         {profile ? (
           <div className="day-editor-extras">
             <div className="field">
@@ -161,7 +162,7 @@ export default function ProfilePage() {
       </section>
 
       <section className="panel">
-        <h2>Work Exchange contact</h2>
+        <h2><span className="panel-icon"><SwapHoriz /></span>Work Exchange contact</h2>
         <ContactSettings />
       </section>
     </>

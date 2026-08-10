@@ -6,6 +6,7 @@ import { fmtDate, fmtHM, parseDateStr } from "@/lib/dateUtils";
 import { HOS_LIMITS, hosRows, hosTotals, type HosCycle } from "@/lib/hos";
 import HoursOfServiceTable from "@/components/HoursOfServiceTable";
 import WeekNav from "@/components/WeekNav";
+import { Schedule } from "@/components/icons";
 
 const MTO_URL =
   "https://www.ontario.ca/document/official-ministry-transportation-mto-truck-handbook/hours-service";
@@ -92,7 +93,7 @@ export default function HosPage() {
 
       <section className="summary panel">
         <div className="summary-head">
-          <h2>Hours of Service ({periodLabel})</h2>
+          <h2><span className="panel-icon"><Schedule /></span>Hours of Service ({periodLabel})</h2>
           <select
             className="period-select"
             value={currentPeriodValue}

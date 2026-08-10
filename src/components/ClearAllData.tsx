@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import PanelHeading from "./PanelHeading";
+import { Restart } from "./icons";
 
 interface ClearAllDataProps {
   onClearAll: () => void;
@@ -14,6 +15,7 @@ export default function ClearAllData({ onClearAll }: ClearAllDataProps) {
     <section className="panel">
       <PanelHeading
         title="Start over"
+        Icon={Restart}
         info="This clears every day you've imported or entered — booked shifts, day off, spare, everything. There's no undo, so only use this if you want to wipe the calendar and begin again."
       />
       {!armed ? (

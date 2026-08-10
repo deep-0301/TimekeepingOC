@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import type { PaySettings } from "@/lib/types";
+import { fmtDate } from "@/lib/dateUtils";
+import { describeStep, nextStep, stepOn } from "@/lib/rate";
 import PanelHeading from "./PanelHeading";
+import { AttachMoney } from "./icons";
 
 interface SettingsPanelProps {
   settings: PaySettings;
@@ -25,29 +28,70 @@ const PAY_RULES_INFO = (
       at 1.5× under its own line (those hours are excluded from Regular).
       Stat holiday amounts vary and aren&apos;t fully derivable from a
       single paystub — adjust to match your CBA/paystub if needed.
+      <br />
+      Give the date you started as an operator and the hourly rate follows
+      from it: 85% of the Bus Operator rate for the first eight months, 90%
+      from the ninth, 95% from the seventeenth, and the full rate after two
+      years. Raises land on the anniversary of that date, part-way through a
+      pay period if that is where it falls, and the days either side are paid
+      at their own rate. Leave the date empty to keep typing the rate in
+      yourself.
   </>
 );
 
 export default function SettingsPanel({ settings, onSave }: SettingsPanelProps) {
   const [form, setForm] = useState<PaySettings>(settings);
 
+  const today = fmtDate(new Date());
+  const step = stepOn(form.serviceStart, today);
+  const derivedRate = step?.rate ?? null;
+  const ahead = nextStep(form.serviceStart, today);
+
   return (
     <section className="panel">
       <PanelHeading
         title="Pay Rules"
+        Icon={AttachMoney}
         info={PAY_RULES_INFO}
       />
       <div className="settings-grid">
         <div className="field">
-          <label>Base hourly rate ($)</label>
+          <label>Started as an operator (after training)</label>
           <input
-            type="number"
-            step="0.001"
-            value={form.baseRate}
+            type="date"
+            value={form.serviceStart ?? ""}
             onChange={(e) =>
-              setForm({ ...form, baseRate: parseFloat(e.target.value) || 0 })
+              setForm({ ...form, serviceStart: e.target.value || undefined })
             }
           />
+        </div>
+        <div className="field">
+          <label>
+            {form.serviceStart ? "Rate today (from that date)" : "Base hourly rate ($)"}
+          </label>
+          {form.serviceStart ? (
+            // Worked out rather than typed: an operator on the way up gets
+            // three raises in two years, and a rate typed by hand is wrong
+            // from the day one lands until they remember to change it.
+            <output className="rate-derived">
+              ${derivedRate!.toFixed(3)}
+              <span className="rate-derived-note">
+                {describeStep(step!)}
+                {ahead
+                  ? ` · $${ahead.step.rate.toFixed(3)} from ${ahead.date}`
+                  : ""}
+              </span>
+            </output>
+          ) : (
+            <input
+              type="number"
+              step="0.001"
+              value={form.baseRate}
+              onChange={(e) =>
+                setForm({ ...form, baseRate: parseFloat(e.target.value) || 0 })
+              }
+            />
+          )}
         </div>
         <div className="field">
           <label>Overtime multiplier (×)</label>

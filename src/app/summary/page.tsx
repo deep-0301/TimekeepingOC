@@ -6,7 +6,8 @@ import GrossPaySign from "@/components/GrossPaySign";
 import WeekNav from "@/components/WeekNav";
 import SummaryTable from "@/components/SummaryTable";
 import SettingsPanel from "@/components/SettingsPanel";
-import { Settings } from "@/components/icons";
+import ServiceRateNote from "@/components/ServiceRateNote";
+import { AttachMoney, Settings } from "@/components/icons";
 
 export default function SummaryPage() {
   const {
@@ -47,7 +48,7 @@ export default function SummaryPage() {
 
       <section className="summary panel">
         <div className="summary-head">
-          <h2>Pay Period Summary ({periodLabel})</h2>
+          <h2><span className="panel-icon"><AttachMoney /></span>Pay Period Summary ({periodLabel})</h2>
           <select
             className="period-select"
             value={currentPeriodValue}
@@ -66,6 +67,10 @@ export default function SummaryPage() {
             Pay rules
           </button>
         </div>
+        <ServiceRateNote
+          settings={settings}
+          onOpenRules={() => setSettingsOpen(true)}
+        />
         <SummaryTable week={periodComputed} settings={settings} />
       </section>
 

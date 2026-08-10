@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useAppState } from "@/lib/AppStateContext";
 import MonthCalendar from "@/components/MonthCalendar";
 import PanelHeading from "@/components/PanelHeading";
+import { WbSunny } from "@/components/icons";
 
 export default function Home() {
   const {
@@ -25,6 +26,7 @@ export default function Home() {
         <section className="panel">
           <PanelHeading
             title="Get started"
+            Icon={WbSunny}
             info={
               <>
             You haven&apos;t added any work yet.{" "}

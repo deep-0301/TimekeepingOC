@@ -136,9 +136,25 @@ nav.top-nav {
   font-size: 13px;
   color: var(--ink-soft);
   text-decoration: none;
-  padding: 9px 14px;
+  padding: 9px 12px;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.top-nav-icon {
+  display: inline-flex;
+  font-size: 17px;
+  /* Held back a shade so the tab is read as a word with a mark beside it,
+     not as two things competing. The active tab brings it up to full. */
+  opacity: 0.72;
+}
+
+.top-nav-link-active .top-nav-icon,
+.top-nav-link:hover .top-nav-icon {
+  opacity: 1;
 }
 
 .top-nav-link:hover {
@@ -293,6 +309,17 @@ select.period-select {
   margin: 0 0 12px;
   text-transform: uppercase;
   color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* The panel's own symbol. Sized above the text so it is what the eye lands on
+   first, and kept in the heading's own colour so it never competes with it. */
+.panel-icon {
+  display: inline-flex;
+  font-size: 19px;
+  color: var(--steel);
 }
 
 .summary-head {
@@ -649,6 +676,138 @@ select.period-select {
 .manage-work-caret {
   font-size: 10px;
   transition: transform 0.15s;
+}
+
+.manage-work-icon {
+  display: inline-flex;
+  font-size: 15px;
+}
+
+/* Which rate the pay was worked out at, above the figures it produced. */
+.rate-note {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--steel);
+  background: rgba(61, 95, 122, 0.05);
+  border-radius: 0 6px 6px 0;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+.rate-note-icon {
+  display: inline-flex;
+  font-size: 16px;
+  color: var(--steel);
+}
+
+.rate-note-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+/* The rate a start date implies. An output, not an input - so it is not
+   dressed up as a box waiting to be typed in. */
+.rate-derived {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 0 0;
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--steel-dark);
+}
+
+.rate-derived-note {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+/* A short list of choices, shown rather than hidden behind a dropdown.
+
+   Each choice is its own symbol with the word beneath it: the symbol is what
+   is read at a glance one-handed at a garage door, the word settles what it
+   means the first time. They sit on one line and wrap only if the screen is
+   too narrow to hold them. */
+.choice-field {
+  display: block;
+}
+
+.choice-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--ink-soft);
+  margin-bottom: 5px;
+}
+
+.choice-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.choice {
+  flex: 1 1 0;
+  min-width: 86px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 8px 6px 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper, #fff);
+  color: var(--ink-soft);
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.choice:hover {
+  border-color: var(--steel);
+  color: var(--steel-dark);
+}
+
+.choice-icon {
+  display: inline-flex;
+  font-size: 21px;
+}
+
+.choice-text {
+  text-align: center;
+}
+
+/* The chosen one is filled rather than merely outlined: on a phone in
+   daylight an outline shifts by one shade and reads as nothing at all. */
+.choice.is-on {
+  background: var(--steel-dark);
+  border-color: var(--steel-dark);
+  color: #fff;
+}
+
+.choice.is-on:hover {
+  color: #fff;
+}
+
+.choice:focus-visible {
+  outline: 2px solid var(--steel);
+  outline-offset: 2px;
 }
 
 .badge {

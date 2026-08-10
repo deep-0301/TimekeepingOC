@@ -27,7 +27,40 @@ import DayBusView from "./DayBusView";
 import DayExchange from "./DayExchange";
 import { hosBreachFor } from "@/lib/hosFlags";
 import { HOS_LIMITS } from "@/lib/hos";
-import { ArrowRightAlt, ChevronRight, Event, ExpandMore } from "./icons";
+import ChoicePicker, { type Choice } from "./ChoicePicker";
+import {
+  Alarm,
+  ArrowRightAlt,
+  CheckCircle,
+  ChevronRight,
+  DirectionsBus,
+  Event,
+  ExpandMore,
+  HourglassEmpty,
+  MoreTime,
+  Traffic,
+  Tune,
+  Weekend,
+} from "./icons";
+
+/**
+ * What became of a day that was already booked.
+ *
+ * The same three answers wherever the question is asked - a booked driving
+ * day, or a spare that got dispatched - so they are written once.
+ */
+const BOOKED_ACTIONS: readonly Choice<"" | "late" | "dayoff">[] = [
+  { value: "", label: "As scheduled", Icon: CheckCircle, hint: "Worked as scheduled" },
+  { value: "late", label: "Late", Icon: Alarm, hint: "Arrived late" },
+  { value: "dayoff", label: "Day off", Icon: Weekend, hint: "Took the day off" },
+];
+
+/** Why the day ran past its scheduled finish. */
+const LATE_REASONS: readonly Choice<"" | "traffic_weather" | "extended">[] = [
+  { value: "", label: "Not said", Icon: HourglassEmpty, hint: "No reason given yet" },
+  { value: "traffic_weather", label: "Traffic", Icon: Traffic, hint: "Traffic or weather" },
+  { value: "extended", label: "Extended", Icon: MoreTime, hint: "Extended" },
+];
 
 /** AVLC rule: revised time = AVLC time + 5 minutes. */
 const AVLC_BUMP_MIN = 5;
@@ -354,10 +387,13 @@ export default function DayEditor({
         className={"manage-work-toggle" + (manageOpen ? " open" : "")}
         onClick={() => setManageOpen((o) => !o)}
       >
+        <span className="manage-work-icon">
+          <Tune />
+        </span>
+        Manage work
         <span className="manage-work-caret">
           {manageOpen ? <ExpandMore /> : <ChevronRight />}
         </span>
-        Manage work
       </button>
 
       {manageOpen && (
@@ -366,17 +402,12 @@ export default function DayEditor({
         <div className="day-editor-extras">
           {dc.fromSheet && !isDayOff && (
             <>
-              <div className="field">
-                <label>What happened?</label>
-                <select
-                  value={bookedAction}
-                  onChange={(e) => handleBookedActionChange(e.target.value)}
-                >
-                  <option value="">Working as scheduled</option>
-                  <option value="late">Arrived late</option>
-                  <option value="dayoff">Take a day off</option>
-                </select>
-              </div>
+              <ChoicePicker
+                label="What happened?"
+                value={bookedAction as "" | "late" | "dayoff"}
+                choices={BOOKED_ACTIONS}
+                onChange={handleBookedActionChange}
+              />
               {bookedAction === "late" && (
                 <>
                   <TimeField24
@@ -404,42 +435,46 @@ export default function DayEditor({
                       onUpdateDayField(dateStr, "revisedTimeMin", val)
                     }
                   />
-                  <div className="field">
-                    <label>Reason</label>
-                    <select
-                      value={day?.lateReason || ""}
-                      onChange={(e) =>
-                        onUpdateDayField(dateStr, "lateReason", e.target.value)
-                      }
-                    >
-                      <option value="">Choose a reason</option>
-                      <option value="traffic_weather">Traffic or weather</option>
-                      <option value="extended">Extended</option>
-                    </select>
-                  </div>
+                  <ChoicePicker
+                    label="Reason"
+                    value={(day?.lateReason || "") as "" | "traffic_weather" | "extended"}
+                    choices={LATE_REASONS}
+                    onChange={(v) => onUpdateDayField(dateStr, "lateReason", v)}
+                  />
                 </>
               )}
             </>
           )}
           {!dc.fromSheet && !isDayOff && !isSpare && (
-            <div className="field">
-              <label>What happened?</label>
-              <select
-                value=""
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (v === "dayoff") {
-                    onUpdateDayField(dateStr, "dayOff", true);
-                  } else if (v === "spare") {
-                    onUpdateSpare(dateStr, { guaranteeHrs: 8, runNumber: null });
-                  }
-                }}
-              >
-                <option value="">Working (add manually below)</option>
-                <option value="dayoff">Day off</option>
-                <option value="spare">Spare / standby</option>
-              </select>
-            </div>
+            <ChoicePicker
+              label="What happened?"
+              // Nothing has been said about this day yet, so "working" is where
+              // it stands - and it is the one choice that needs no writing
+              // down, since work is added below.
+              value={"work" as const}
+              choices={[
+                {
+                  value: "work",
+                  label: "Working",
+                  Icon: DirectionsBus,
+                  hint: "Working — add the run below",
+                },
+                { value: "dayoff", label: "Day off", Icon: Weekend, hint: "Day off" },
+                {
+                  value: "spare",
+                  label: "Spare",
+                  Icon: HourglassEmpty,
+                  hint: "Spare or standby",
+                },
+              ]}
+              onChange={(v) => {
+                if (v === "dayoff") {
+                  onUpdateDayField(dateStr, "dayOff", true);
+                } else if (v === "spare") {
+                  onUpdateSpare(dateStr, { guaranteeHrs: 8, runNumber: null });
+                }
+              }}
+            />
           )}
         </div>
         )}
@@ -467,21 +502,27 @@ export default function DayEditor({
             </div>
 
             <div className="day-editor-extras">
-              <div className="field">
-                <label>What happened?</label>
-                <select
-                  value={day.spare.afternoonMode || ""}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    patchSpare({
-                      afternoonMode: v === "" ? undefined : "work",
-                    });
-                  }}
-                >
-                  <option value="">Just standby (whole day)</option>
-                  <option value="work">Paddle number (if dispatched)</option>
-                </select>
-              </div>
+              <ChoicePicker
+                label="What happened?"
+                value={day.spare.afternoonMode === "work" ? "work" : "standby"}
+                choices={[
+                  {
+                    value: "standby",
+                    label: "Standby",
+                    Icon: HourglassEmpty,
+                    hint: "Just standby, the whole day",
+                  },
+                  {
+                    value: "work",
+                    label: "Dispatched",
+                    Icon: DirectionsBus,
+                    hint: "Dispatched — add the paddle number",
+                  },
+                ]}
+                onChange={(v) =>
+                  patchSpare({ afternoonMode: v === "work" ? "work" : undefined })
+                }
+              />
             </div>
 
             {day.spare.afternoonMode === "work" && (
@@ -578,19 +619,12 @@ export default function DayEditor({
                     </div>
 
                     <div className="day-editor-extras">
-                      <div className="field">
-                        <label>What happened?</label>
-                        <select
-                          value={spareLateAction}
-                          onChange={(e) =>
-                            handleSpareLateActionChange(e.target.value)
-                          }
-                        >
-                          <option value="">Working as scheduled</option>
-                          <option value="late">Arrived late</option>
-                          <option value="dayoff">Take a day off</option>
-                        </select>
-                      </div>
+                      <ChoicePicker
+                        label="What happened?"
+                        value={spareLateAction as "" | "late" | "dayoff"}
+                        choices={BOOKED_ACTIONS}
+                        onChange={handleSpareLateActionChange}
+                      />
                     </div>
                     {spareLateAction === "late" && (
                       <>
@@ -623,25 +657,19 @@ export default function DayEditor({
                             onUpdateDayField(dateStr, "revisedTimeMin", val)
                           }
                         />
-                        <div className="field">
-                          <label>Reason</label>
-                          <select
-                            value={day?.lateReason || ""}
-                            onChange={(e) =>
-                              onUpdateDayField(
-                                dateStr,
-                                "lateReason",
-                                e.target.value
-                              )
-                            }
-                          >
-                            <option value="">Choose a reason</option>
-                            <option value="traffic_weather">
-                              Traffic or weather
-                            </option>
-                            <option value="extended">Extended</option>
-                          </select>
-                        </div>
+                        <ChoicePicker
+                          label="Reason"
+                          value={
+                            (day?.lateReason || "") as
+                              | ""
+                              | "traffic_weather"
+                              | "extended"
+                          }
+                          choices={LATE_REASONS}
+                          onChange={(v) =>
+                            onUpdateDayField(dateStr, "lateReason", v)
+                          }
+                        />
                       </>
                     )}
                   </>

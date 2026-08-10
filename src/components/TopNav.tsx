@@ -36,16 +36,21 @@ export default function TopNav({ open, onOpen }: Props) {
       </button>
 
       <div className="nav-bar-links">
-        {NAV_LINKS.map((link) => (
+        {NAV_LINKS.map(({ href, label, Icon }) => (
           <Link
-            key={link.href}
-            href={link.href}
+            key={href}
+            href={href}
             className={
               "top-nav-link" +
-              (isActiveHref(link.href, pathname) ? " top-nav-link-active" : "")
+              (isActiveHref(href, pathname) ? " top-nav-link-active" : "")
             }
           >
-            {link.label}
+            {/* The same symbol the page's own heading carries, so a tab and
+                the panel it opens are recognised as one thing. */}
+            <span className="top-nav-icon">
+              <Icon />
+            </span>
+            {label}
           </Link>
         ))}
       </div>
