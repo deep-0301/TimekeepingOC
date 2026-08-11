@@ -166,12 +166,18 @@ seen most. Same rule the app already applies to its own sightings.
 ### Checking it is running
 
 ```sql
--- Is the job there, and when did it last fire?
+-- Is the job there?
 select jobid, schedule, active from cron.job where jobname = 'record-buses';
-select status, return_message, start_time
-from cron.job_run_details
-where jobid = (select jobid from cron.job where jobname = 'record-buses')
-order by start_time desc limit 5;
+
+-- What the function actually answered. This is the one that matters:
+-- cron.job_run_details reports whether the SQL ran, so it says "succeeded"
+-- even when the request came back 401 because the key was wrong.
+--   200 with {"recorded": …} - working
+--   401 - the service-role key in the job is wrong or still a placeholder
+--   404 - the function is not deployed
+select status_code, content, created
+from net._http_response
+order by created desc limit 5;
 
 -- The only proof that matters: rows arriving, and counts climbing.
 select service_date,
