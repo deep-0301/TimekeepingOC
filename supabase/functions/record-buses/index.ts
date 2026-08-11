@@ -190,6 +190,28 @@ function json(body: Json, status = 200): Response {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
+  /**
+   * Who is allowed to set this off.
+   *
+   * Nothing but a schedule should be calling this, and the platform's own JWT
+   * check is an awkward way to say so: it wants a key in a particular format,
+   * which changes as Supabase changes its key formats, and it means the key
+   * that bypasses every access rule in the database has to be written into a
+   * cron job to make a bus recorder work. Neither is worth it for a job whose
+   * whole risk is spending someone else's API quota.
+   *
+   * So: set RECORDER_SECRET to any random string, have the schedule send it,
+   * and turn the platform's JWT check off. The secret is worth nothing beyond
+   * triggering this one function.
+   *
+   * Unset, nothing changes - the platform's check is doing the work, which is
+   * the arrangement that was here before.
+   */
+  const secret = Deno.env.get("RECORDER_SECRET");
+  if (secret && req.headers.get("x-recorder-secret") !== secret) {
+    return json({ error: "not allowed" }, 401);
+  }
+
   const apiKey = Deno.env.get("OCT_API_KEY");
   const url = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -197,9 +219,22 @@ Deno.serve(async (req) => {
   if (!url || !serviceKey) return json({ error: "Supabase env is not set" }, 500);
 
   try {
+    // GTFS-Realtime is a protobuf format, and that is what the gateway sends
+    // unless asked otherwise - `format=json` is not optional here, it is the
+    // difference between a feed this can read and a binary blob. The `bus`
+    // function has always asked; this one did not, and spent its first
+    // deployment reporting a JSON parse error on the feed header.
+    const target = new URL(VP_URL);
+    target.searchParams.set("format", "json");
+
     const [map, res] = await Promise.all([
       paddleTrips(),
-      fetch(VP_URL, { headers: { "Ocp-Apim-Subscription-Key": apiKey } }),
+      fetch(target, {
+        headers: {
+          "Ocp-Apim-Subscription-Key": apiKey,
+          accept: "application/json",
+        },
+      }),
     ]);
     if (!res.ok) return json({ error: `vehicle feed ${res.status}` }, 502);
 
