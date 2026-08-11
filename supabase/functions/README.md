@@ -135,19 +135,57 @@ seen most. Same rule the app already applies to its own sightings.
    (Database → Extensions):
 
    ```sql
+   create extension if not exists pg_cron;
+   create extension if not exists pg_net;
+
    select cron.schedule(
      'record-buses',
      '* * * * *',
-     $$ select net.http_post(
-          url := 'https://nxjpabakfubquvnyyirs.supabase.co/functions/v1/record-buses',
-          headers := '{"Authorization":"Bearer <service-role-key>"}'::jsonb
-        ) $$
+     $$
+     select net.http_post(
+       url := 'https://nxjpabakfubquvnyyirs.supabase.co/functions/v1/record-buses',
+       headers := jsonb_build_object(
+         'Content-Type', 'application/json',
+         'Authorization', 'Bearer <service-role-key>'
+       ),
+       timeout_milliseconds := 30000
+     );
+     $$
    );
    ```
+
+   `timeout_milliseconds` is load-bearing. pg_net defaults to one second, and
+   this function calls OC Transpo and waits for an answer, which takes longer
+   than that on a bad minute. Left at the default the job looks scheduled,
+   runs, and quietly records nothing.
 
    Every minute is plenty — a bus stays on a run for hours, and the count only
    has to be large enough to drown out a bad minute. Stop it again with
    `select cron.unschedule('record-buses');`.
+
+### Checking it is running
+
+```sql
+-- Is the job there, and when did it last fire?
+select jobid, schedule, active from cron.job where jobname = 'record-buses';
+select status, return_message, start_time
+from cron.job_run_details
+where jobid = (select jobid from cron.job where jobname = 'record-buses')
+order by start_time desc limit 5;
+
+-- The only proof that matters: rows arriving, and counts climbing.
+select service_date,
+       count(*) as rows,
+       count(distinct paddle) as runs,
+       max(sightings) as most_seen
+from bus_history
+group by service_date
+order by service_date desc;
+```
+
+`most_seen` climbing by roughly one a minute is the job working. Rows but no
+climb means it is inserting and never updating, which would mean the paddle
+numbers are not matching between sweeps.
 
 ### Checking it works
 
