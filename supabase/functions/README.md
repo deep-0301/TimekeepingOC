@@ -154,6 +154,41 @@ seen most. Same rule the app already applies to its own sightings.
    );
    ```
 
+   **If that answers 401**, the platform's JWT check is refusing the key, and
+   the format it wants moves as Supabase changes its key formats. Skip it
+   rather than fight it — nothing but a schedule should be calling this, and
+   the key that bypasses every access rule in the database is a heavy thing to
+   write into a cron job for a bus recorder:
+
+   1. Pick any random string as a secret and set it on the function —
+      Edge Functions → `record-buses` → Secrets, or
+      `supabase secrets set RECORDER_SECRET=<random string>`.
+   2. Turn off the JWT check for this function — its settings page has the
+      toggle (named something like *Verify JWT*), or deploy with
+      `supabase functions deploy record-buses --no-verify-jwt`.
+   3. Schedule it with that secret instead of the key:
+
+   ```sql
+   select cron.schedule(
+     'record-buses',
+     '* * * * *',
+     $$
+     select net.http_post(
+       url := 'https://nxjpabakfubquvnyyirs.supabase.co/functions/v1/record-buses',
+       headers := jsonb_build_object(
+         'Content-Type', 'application/json',
+         'x-recorder-secret', '<the random string>'
+       ),
+       timeout_milliseconds := 30000
+     );
+     $$
+   );
+   ```
+
+   The function checks the secret itself, so it is no less protected — and the
+   secret is worth nothing beyond setting off one bus recorder, where the
+   service-role key would have been worth everything.
+
    `timeout_milliseconds` is load-bearing. pg_net defaults to one second, and
    this function calls OC Transpo and waits for an answer, which takes longer
    than that on a bad minute. Left at the default the job looks scheduled,
