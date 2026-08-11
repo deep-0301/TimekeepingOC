@@ -219,9 +219,22 @@ Deno.serve(async (req) => {
   if (!url || !serviceKey) return json({ error: "Supabase env is not set" }, 500);
 
   try {
+    // GTFS-Realtime is a protobuf format, and that is what the gateway sends
+    // unless asked otherwise - `format=json` is not optional here, it is the
+    // difference between a feed this can read and a binary blob. The `bus`
+    // function has always asked; this one did not, and spent its first
+    // deployment reporting a JSON parse error on the feed header.
+    const target = new URL(VP_URL);
+    target.searchParams.set("format", "json");
+
     const [map, res] = await Promise.all([
       paddleTrips(),
-      fetch(VP_URL, { headers: { "Ocp-Apim-Subscription-Key": apiKey } }),
+      fetch(target, {
+        headers: {
+          "Ocp-Apim-Subscription-Key": apiKey,
+          accept: "application/json",
+        },
+      }),
     ]);
     if (!res.ok) return json({ error: `vehicle feed ${res.status}` }, 502);
 
