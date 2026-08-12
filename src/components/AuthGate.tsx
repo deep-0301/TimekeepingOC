@@ -18,6 +18,28 @@ const PASSWORD_RULES: { label: string; test: (pw: string) => boolean }[] = [
   { label: "At least one number", test: (pw) => /[0-9]/.test(pw) },
 ];
 
+/**
+ * Whether signing in and creating an account are offered.
+ *
+ * Off for now. A visitor lands on the bus tracker and that is the whole app
+ * as far as they are concerned - no forms, and nothing offering an account
+ * that is not being taken yet.
+ *
+ * This hides the door rather than locking it. An operator who is already
+ * signed in still opens the full timesheet, and the forms are still reachable
+ * at #signin - which matters, because this is a static site with no way to
+ * let anybody back in short of a redeploy. Set this back to true to offer
+ * them again.
+ */
+const SIGN_IN_OFFERED = false;
+
+/** The way back to the forms while they are not being offered. */
+const SIGN_IN_HASH = "#signin";
+
+function wantsSignIn(): boolean {
+  return typeof window !== "undefined" && window.location.hash === SIGN_IN_HASH;
+}
+
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -32,7 +54,12 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
    * on someone else's phone - should be able to ask that question and get an
    * answer, rather than be asked to create an account first.
    */
+  // Chosen from the sign-in card, where that card is on offer at all. Where
+  // it is not, `formsAvailable` below is what puts a visitor on the tracker.
   const [tracking, setTracking] = useState(false);
+  // Asked for by the address bar rather than by a button, while the forms are
+  // not being offered.
+  const [asked, setAsked] = useState(wantsSignIn);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -42,12 +69,20 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
       setSession(sess);
     });
-    return () => sub.subscription.unsubscribe();
+    const onHash = () => setAsked(wantsSignIn());
+    window.addEventListener("hashchange", onHash);
+    return () => {
+      sub.subscription.unsubscribe();
+      window.removeEventListener("hashchange", onHash);
+    };
   }, []);
 
   if (loading) return null;
 
-  if (!session && tracking) {
+  // The forms, where they are on offer or have been asked for by name.
+  const formsAvailable = SIGN_IN_OFFERED || asked;
+
+  if (!session && (tracking || !formsAvailable)) {
     return (
       <div className="auth-shell auth-shell-wide">
         <div className="public-track">
@@ -59,23 +94,27 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
               <div className="auth-brand-title">Find a bus</div>
               <div className="auth-brand-sub">No account needed</div>
             </div>
-            <button
-              type="button"
-              className="ghost small public-track-back"
-              onClick={() => setTracking(false)}
-            >
-              <ChevronLeft />
-              Sign in
-            </button>
+            {formsAvailable && (
+              <button
+                type="button"
+                className="ghost small public-track-back"
+                onClick={() => setTracking(false)}
+              >
+                <ChevronLeft />
+                Sign in
+              </button>
+            )}
           </div>
 
           <BusSearch />
 
-          <div className="public-track-note">
-            Signing in adds the rest: your booking sheets imported into a
-            calendar, pay worked out per period, hours of service, and the bus
-            you had on a run kept with the day.
-          </div>
+          {formsAvailable && (
+            <div className="public-track-note">
+              Signing in adds the rest: your booking sheets imported into a
+              calendar, pay worked out per period, hours of service, and the
+              bus you had on a run kept with the day.
+            </div>
+          )}
         </div>
       </div>
     );
