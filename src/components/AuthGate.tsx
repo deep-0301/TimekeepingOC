@@ -4,7 +4,13 @@ import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabaseClient";
 import { describeAuthError } from "@/lib/authErrors";
-import { CheckCircle, DirectionsBus, RadioButtonUnchecked } from "./icons";
+import BusSearch from "./BusSearch";
+import {
+  CheckCircle,
+  ChevronLeft,
+  DirectionsBus,
+  RadioButtonUnchecked,
+} from "./icons";
 
 const PASSWORD_RULES: { label: string; test: (pw: string) => boolean }[] = [
   { label: "At least 8 characters", test: (pw) => pw.length >= 8 },
@@ -16,6 +22,17 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<"login" | "signup">("login");
+  /**
+   * Looking up a bus without an account.
+   *
+   * Everything else here is one operator's own record and needs a sign-in to
+   * mean anything. Which bus is on a run is not: it is public information,
+   * painted on the side of the bus and published in OC Transpo's own feed. An
+   * operator standing at a garage door who has not signed up yet - or who is
+   * on someone else's phone - should be able to ask that question and get an
+   * answer, rather than be asked to create an account first.
+   */
+  const [tracking, setTracking] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -29,6 +46,40 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   }, []);
 
   if (loading) return null;
+
+  if (!session && tracking) {
+    return (
+      <div className="auth-shell auth-shell-wide">
+        <div className="public-track">
+          <div className="auth-brand">
+            <div className="auth-brand-icon">
+              <DirectionsBus />
+            </div>
+            <div>
+              <div className="auth-brand-title">Find a bus</div>
+              <div className="auth-brand-sub">No account needed</div>
+            </div>
+            <button
+              type="button"
+              className="ghost small public-track-back"
+              onClick={() => setTracking(false)}
+            >
+              <ChevronLeft />
+              Sign in
+            </button>
+          </div>
+
+          <BusSearch />
+
+          <div className="public-track-note">
+            Signing in adds the rest: your booking sheets imported into a
+            calendar, pay worked out per period, hours of service, and the bus
+            you had on a run kept with the day.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!session) {
     return (
@@ -64,6 +115,17 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
           </div>
 
           {mode === "login" ? <LoginForm /> : <SignupForm />}
+
+          <div className="auth-aside">
+            <button
+              type="button"
+              className="auth-aside-link"
+              onClick={() => setTracking(true)}
+            >
+              <DirectionsBus />
+              Just looking for a bus? Track one without an account
+            </button>
+          </div>
         </div>
       </div>
     );
