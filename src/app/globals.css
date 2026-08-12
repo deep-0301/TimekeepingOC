@@ -1465,13 +1465,26 @@ textarea.sheet-paste {
 
 .public-track .auth-brand {
   margin-bottom: 12px;
+  /* A phone has no room for a title and two buttons on one line, so the
+     buttons drop underneath rather than crushing the title. */
+  flex-wrap: wrap;
+  row-gap: 10px;
 }
 
-.public-track-back {
+/* Both ways in, top right of the tracker. Kept together and pushed to the
+   end of the brand row so they read as one offer rather than two stray
+   buttons, and allowed to sit under the title on a narrow screen rather than
+   squeezing it. */
+.public-track-auth {
   margin-left: auto;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.public-track-auth button {
+  white-space: nowrap;
 }
 
 .public-track-note {
