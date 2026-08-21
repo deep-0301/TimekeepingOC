@@ -3,6 +3,7 @@
 import { useRef, useState, type ComponentType } from "react";
 import { useRouter } from "next/navigation";
 import {
+  cycleWeekOn,
   hmToMin,
   parseBookingSheetText,
   type SheetBlock,
@@ -362,7 +363,22 @@ function BookingSheetSlot({
         ? ` Runs ${fmtDate(anchorDate)} to ${fmtDate(seasonEndDate)} — repeating patterns are applied to every matching week through then.`
         : "";
     const derived = deriveBlocks(text);
-    setParseStatus(`${derived.blocks.length} block(s) found.${dateRangeNote}`);
+    // Which week of the cycle this booking opens on, said out loud. The cycle
+    // runs straight through a booking change, so a booking does not always
+    // open on week 1 - and an operator checking their first Saturday against
+    // the sheet should be able to see why it landed where it did.
+    const cycle = derived.blocks.reduce(
+      (max, b) => (b.weekday && b.cycleN ? Math.max(max, b.cycleN) : max),
+      0,
+    );
+    const opensOn = cycleWeekOn(anchorDate, cycle);
+    const cycleNote =
+      cycle > 1
+        ? ` This booking opens on week ${opensOn} of ${cycle}, so its first week is the week ${opensOn} work.`
+        : "";
+    setParseStatus(
+      `${derived.blocks.length} block(s) found.${dateRangeNote}${cycleNote}`,
+    );
     setBlocks(derived.blocks);
     setIncluded(derived.included);
     setRowDatesList(derived.dates);

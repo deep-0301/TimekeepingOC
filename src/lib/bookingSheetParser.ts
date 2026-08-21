@@ -56,6 +56,47 @@ export interface SheetBlock {
   dates: Date[];
 }
 
+/**
+ * The Sunday on or before a date, which is where a bid week starts.
+ */
+function weekStart(d: Date): Date {
+  const s = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  s.setDate(s.getDate() - s.getDay());
+  return s;
+}
+
+/**
+ * The first week of the cycle, and when it ran.
+ *
+ * Summer 2026 opened on Sunday 28 June, and its first week was week 1 of the
+ * cycle. Everything since is counted from there.
+ */
+const CYCLE_EPOCH = new Date(2026, 5, 28);
+
+/**
+ * Which week of the bid cycle a booking opens on.
+ *
+ * The cycle does not restart when the booking does. It runs 1, 2, 1, 2
+ * straight through, and a booking simply begins wherever the count has got
+ * to - so which week a booking opens on depends on how many weeks have run
+ * since the cycle was last known to be on week 1, not on the booking.
+ *
+ * Summer 2026 is nine weeks long, which is odd, so its last week is week 1
+ * and the fall booking opens on week 2. Assuming every booking opens on week
+ * 1 put every alternating pattern in the fall a week out.
+ *
+ * Returns 1 where there is no cycle to speak of, which leaves a sheet with no
+ * alternating weeks exactly as it was.
+ */
+export function cycleWeekOn(date: Date | null, cycleLength: number): number {
+  if (!date || cycleLength <= 1) return 1;
+  const days = Math.round(
+    (weekStart(date).getTime() - weekStart(CYCLE_EPOCH).getTime()) / 86400000,
+  );
+  const weeks = Math.floor(days / 7);
+  return (((weeks % cycleLength) + cycleLength) % cycleLength) + 1;
+}
+
 export function extractTimeTokens(s: string) {
   const matches = [...s.matchAll(/\d{1,2}[:h]\d{2}/g)];
   return matches.map((m) => ({
@@ -265,6 +306,16 @@ export function parseBookingSheetText(
   }
   pushCurrent();
 
+  // How many weeks the bid cycle runs before repeating, taken from the sheet
+  // itself: a sheet with "Saturday 1" and "Saturday 2" is on a two-week
+  // cycle. Needed before the dates are worked out, because which week of the
+  // cycle this booking opens on depends on it.
+  const cycleLength = blocks.reduce(
+    (max, b) => (b.weekday && b.cycleN ? Math.max(max, b.cycleN) : max),
+    0,
+  );
+  const opensOn = cycleWeekOn(anchorDate, cycleLength);
+
   blocks.forEach((b) => {
     if (b.explicitDate) {
       b.date = b.explicitDate;
@@ -272,8 +323,14 @@ export function parseBookingSheetText(
       const wIdx = WEEKDAYS7.indexOf(b.weekday);
       const aIdx = anchorDate.getDay();
       const offsetInWeek = (wIdx - aIdx + 7) % 7;
+      // Which week of this booking the block falls in. Week 1 of the cycle is
+      // not necessarily the booking's first week - see cycleWeekOn.
+      const weeksIn =
+        cycleLength > 1
+          ? (((b.cycleN ?? 1) - opensOn + cycleLength) % cycleLength)
+          : 0;
       const d = new Date(anchorDate);
-      d.setDate(d.getDate() + 7 * ((b.cycleN ?? 1) - 1) + offsetInWeek);
+      d.setDate(d.getDate() + 7 * weeksIn + offsetInWeek);
       b.date = d;
     } else {
       b.date = null;
@@ -296,10 +353,6 @@ export function parseBookingSheetText(
   // A weekday+cycle block's pattern repeats every `cycleLength` weeks for
   // the rest of the season (e.g. a 2-week bid cycle repeats all summer).
   // Explicit-date (holiday) blocks are one-off and never repeat.
-  const cycleLength = blocks.reduce(
-    (max, b) => (b.weekday && b.cycleN ? Math.max(max, b.cycleN) : max),
-    0
-  );
   blocks.forEach((b) => {
     if (b.isDaily) {
       const dates: Date[] = [];
