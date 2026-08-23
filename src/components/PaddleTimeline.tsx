@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { isReliefStop, type Paddle, type PaddleStop } from "@/lib/paddles";
+import { buildSections, type Section } from "@/lib/paddleSections";
 import { ArrowRightAlt, ChevronRight, ExpandMore } from "./icons";
 
 /**
@@ -37,24 +38,7 @@ function StopRow({
   );
 }
 
-function hm(t: string): number {
-  const [h, m] = t.split(":").map(Number);
-  return h * 60 + m;
-}
-
-interface Section {
-  key: string;
-  route: string;
-  dest: string;
-  num: number | null;
-  garage: boolean;
-  stops: PaddleStop[];
-  /** Starts on the day after the paddle signed on. */
-  nextDay: boolean;
-  lastIsSignOff: boolean;
-}
-
-function TripSection({ section }: { section: Section }) {
+export function TripSection({ section }: { section: Section }) {
   const [open, setOpen] = useState(false);
   const { stops } = section;
   const from = stops.length ? stops[0][0] : null;
@@ -118,58 +102,7 @@ function TripSection({ section }: { section: Section }) {
 }
 
 export default function PaddleTimeline({ paddle }: { paddle: Paddle }) {
-  // A paddle can run past midnight, where the printed clock restarts at
-  // 0:00. Tracking the rollover lets a trip say which day it belongs to
-  // instead of its times looking like they jump backwards.
-  const sections = useMemo(() => {
-    const out: Section[] = [];
-    let prev = -1;
-    let dayOffset = 0;
-
-    const add = (
-      key: string,
-      route: string,
-      dest: string,
-      num: number | null,
-      garage: boolean,
-      stops: PaddleStop[],
-      lastIsSignOff: boolean
-    ) => {
-      let startsNextDay = dayOffset > 0;
-      stops.forEach((s, i) => {
-        const v = hm(s[0]);
-        if (prev >= 0 && v < prev - 180) {
-          dayOffset += 1;
-          if (i === 0) startsNextDay = true;
-        }
-        prev = v;
-      });
-      out.push({
-        key,
-        route,
-        dest,
-        num,
-        garage,
-        stops,
-        nextDay: startsNextDay,
-        lastIsSignOff,
-      });
-    };
-
-    add("pre", "Sign on", "Pull out of the garage", null, true, paddle.pre, false);
-    paddle.t.forEach(([route, dest, num, stops], ti) =>
-      add(
-        `t${ti}`,
-        route,
-        dest,
-        num,
-        false,
-        stops,
-        ti === paddle.t.length - 1
-      )
-    );
-    return out;
-  }, [paddle]);
+  const sections = useMemo(() => buildSections(paddle), [paddle]);
 
   return (
     <div className="pt">
