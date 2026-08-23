@@ -10,6 +10,7 @@ import {
 } from "@/lib/paddles";
 import { normalisePaddleNumber } from "@/lib/paddleTracking";
 import {
+  breakLabel,
   buildSections,
   joinPieces,
   pieceWindow,
@@ -188,8 +189,15 @@ export default function DayPaddleView({ dateStr, pieces }: Props) {
                   return (
                     <Fragment key={part.key}>
                       {before && (
-                        <div className="pt-break">
-                          <span className="pt-break-label">Break</span>
+                        <div
+                          className={
+                            "pt-break" +
+                            (part.fromMin - before.toMin > 60 ? " is-split" : "")
+                          }
+                        >
+                          <span className="pt-break-label">
+                            {breakLabel(part.fromMin - before.toMin)}
+                          </span>
                           <span className="pt-break-time">
                             {before.to} – {part.from}
                           </span>

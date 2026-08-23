@@ -98,6 +98,17 @@ export function windowInPaddle(paddle: Paddle, piece: WorkedPiece): Window {
   return { fromMin, toMin };
 }
 
+/**
+ * What to call the gap between two pieces.
+ *
+ * Anything over an hour is a split - the day is genuinely broken in two and
+ * the gap is the operator's own time. An hour or less is the CLC break the
+ * run carries, which is paid.
+ */
+export function breakLabel(mins: number): string {
+  return mins > 60 ? "Split break" : "CLC break";
+}
+
 /** A gap between two pieces, written the way an operator says it. */
 export function spanLabel(fromMin: number, toMin: number): string {
   const mins = Math.max(0, toMin - fromMin);

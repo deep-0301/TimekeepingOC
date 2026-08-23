@@ -2059,12 +2059,26 @@ html {
   color: var(--ink-soft);
 }
 
+/* A split break is the operator's own time and can be hours long; a CLC
+   break is the short paid one the run carries. They read differently
+   because they mean different things on the pay side. */
+.pt-break.is-split {
+  border-top-style: solid;
+  border-bottom-style: solid;
+  border-color: var(--holiday);
+  background: var(--holiday-bg);
+}
+
 .pt-break-label {
   font-weight: 600;
   color: var(--ink);
   letter-spacing: 0.03em;
   text-transform: uppercase;
   font-size: 11px;
+}
+
+.pt-break.is-split .pt-break-label {
+  color: var(--holiday);
 }
 
 .pt-break-time {
