@@ -371,7 +371,7 @@ export default function DayEditor({
             saved={day?.buses}
             onRecord={onRecordBus}
           />
-          <DayPaddleView dateStr={dateStr} runs={pieces.map((p) => p.run)} />
+          <DayPaddleView dateStr={dateStr} pieces={pieces} />
           <DayExchange
             dateStr={dateStr}
             paddle={pieces[0]?.run ?? null}
