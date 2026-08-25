@@ -1,14 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { GARAGES } from "@/lib/garages";
 
-export const GARAGES = [
-  "Industrial",
-  "Merivale",
-  "Pinecrest",
-  "St-Laurent",
-  "Any Garage",
-];
+export { GARAGES };
 
 export default function GarageField({
   label = "Garage",

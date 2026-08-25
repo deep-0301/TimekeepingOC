@@ -38,6 +38,7 @@ import {
   ExpandMore,
   HourglassEmpty,
   MoreTime,
+  Schedule,
   Traffic,
   Tune,
   Weekend,
@@ -114,7 +115,13 @@ export default function DayEditor({
   const [spareLateAction, setSpareLateAction] = useState(() =>
     day?.avlcMin || day?.revisedTimeMin ? "late" : ""
   );
-  const [manageOpen, setManageOpen] = useState(false);
+  // A spare nobody has settled yet is a question, not a setting: the day
+  // cannot be paid until the operator says whether they drove or stood by,
+  // so it opens asking rather than waiting to be found.
+  const [manageOpen, setManageOpen] = useState(
+    () =>
+      !!entries[dateStr]?.spare && !entries[dateStr]?.spare?.afternoonMode
+  );
 
   const board = useMemo(() => boardForDate(dateStr), [dateStr]);
 
@@ -489,43 +496,70 @@ export default function DayEditor({
               time of exactly 9:30, 12:30, 14:30, 16:30 or 18:30 always
               gets a 30-minute callup.
             </InfoNote>
-            <div className="day-editor-extras">
-              <GarageField
-                value={day.spare.garage || ""}
-                onChange={(v) => patchSpare({ garage: v })}
-              />
-              <TimeField24
-                label="Reports"
-                valueMin={day.spare.startMin}
-                onCommit={(val) => patchSpare({ startMin: val })}
-              />
-            </div>
+            {day.spare.floating && (
+              <div className="note spare-floating-note">
+                Floating spare — the sheet does not say what this day turned
+                into. You were phoned the day before: choose below whether
+                you were given a run or put on standby.
+              </div>
+            )}
+            {/* A run given on the call needs no garage or report time -
+                there was no standby to report for. */}
+            {day.spare.afternoonMode !== "worked" && (
+              <div className="day-editor-extras">
+                <GarageField
+                  value={day.spare.garage || ""}
+                  onChange={(v) => patchSpare({ garage: v })}
+                />
+                <TimeField24
+                  label="Reports"
+                  valueMin={day.spare.startMin}
+                  onCommit={(val) => patchSpare({ startMin: val })}
+                />
+              </div>
+            )}
 
             <div className="day-editor-extras">
               <ChoicePicker
                 label="What happened?"
-                value={day.spare.afternoonMode === "work" ? "work" : "standby"}
+                value={
+                  day.spare.afternoonMode === "work"
+                    ? "work"
+                    : day.spare.afternoonMode === "worked"
+                      ? "worked"
+                      : "standby"
+                }
                 choices={[
                   {
                     value: "standby",
                     label: "Standby",
                     Icon: HourglassEmpty,
-                    hint: "Just standby, the whole day",
+                    hint: "Stood by the whole day, never sent out",
                   },
                   {
                     value: "work",
-                    label: "Dispatched",
+                    label: "Standby, then out",
+                    Icon: Schedule,
+                    hint: "Reported for standby, then got a run",
+                  },
+                  {
+                    value: "worked",
+                    label: "Given a run",
                     Icon: DirectionsBus,
-                    hint: "Dispatched — add the paddle number",
+                    hint: "Took work on the call - no standby first",
                   },
                 ]}
                 onChange={(v) =>
-                  patchSpare({ afternoonMode: v === "work" ? "work" : undefined })
+                  patchSpare({
+                    afternoonMode:
+                      v === "work" ? "work" : v === "worked" ? "worked" : undefined,
+                  })
                 }
               />
             </div>
 
-            {day.spare.afternoonMode === "work" && (
+            {(day.spare.afternoonMode === "work" ||
+              day.spare.afternoonMode === "worked") && (
               <>
                 <div className="day-editor-extras">
                   <div className="field">

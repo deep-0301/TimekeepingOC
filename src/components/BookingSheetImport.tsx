@@ -151,7 +151,7 @@ export default function BookingSheetImport({
     <section className="panel">
       <h2><span className="panel-icon"><CloudUpload /></span>Import your booking sheets</h2>
       <div className="note" style={{ marginTop: -4, marginBottom: 10 }}>
-        Drop any booking sheet here — daily, general, or holiday spare. Add as
+        Drop any booking sheet here — daily, general, weekly or holiday. Add as
         many as you have; each one is recognised on its own, so there is
         nothing to choose first.
       </div>
