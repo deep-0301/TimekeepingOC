@@ -1,8 +1,9 @@
 /**
  * Working out what kind of booking sheet this is, so nobody has to say.
  *
- * There are two formats, and they look nothing like each other: the ordinary
- * booking sheet, and the holiday spare sheet organised into WEEK N blocks.
+ * There are two formats, and they look nothing like each other: the pattern
+ * sheet, which prints one week's shape and repeats it, and the weekly sheet
+ * organised into WEEK N blocks, which dates every week outright.
  * The app used to ask which booking the operator held and then offer the
  * matching boxes, which put the question the wrong way round - the sheet in
  * their hand already knows what it is.
@@ -14,7 +15,11 @@
  */
 
 import { parseBookingSheetText, type SheetBlock } from "./bookingSheetParser";
-import { parseHolidaySpareSheet, type HolidayDayPlan } from "./holidaySpareParser";
+import {
+  parseHolidaySpareSheet,
+  type HolidayDayPlan,
+  type SheetGap,
+} from "./holidaySpareParser";
 
 export type SheetKind = "booking" | "holidaySpare" | "unrecognised";
 
@@ -28,6 +33,8 @@ export interface DetectedBooking {
 export interface DetectedHoliday {
   kind: "holidaySpare";
   plans: HolidayDayPlan[];
+  /** Lines the parser could not place, for the operator to settle. */
+  gaps: SheetGap[];
 }
 
 export interface DetectedNothing {
@@ -54,9 +61,9 @@ function tryBooking(text: string): DetectedBooking | null {
 
 function tryHoliday(text: string): DetectedHoliday | null {
   try {
-    const plans = parseHolidaySpareSheet(text);
+    const { plans, gaps } = parseHolidaySpareSheet(text);
     if (plans.length === 0) return null;
-    return { kind: "holidaySpare", plans };
+    return { kind: "holidaySpare", plans, gaps };
   } catch {
     return null;
   }
@@ -92,7 +99,7 @@ export function describeSheet(found: Detected): string {
   if (found.kind === "holidaySpare") {
     const weeks = new Set(found.plans.map((p) => p.weekLabel)).size;
     return (
-      `Holiday spare sheet — ${found.plans.length} day` +
+      `Weekly booking sheet — ${found.plans.length} day` +
       `${found.plans.length === 1 ? "" : "s"} across ${weeks} week` +
       `${weeks === 1 ? "" : "s"}`
     );

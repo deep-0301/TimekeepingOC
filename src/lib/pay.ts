@@ -118,7 +118,10 @@ export function computeDay(
         ? SPARE_CALLUP_HRS
         : 0;
 
-    if (sp.afternoonMode === "work" && sp.runNumber) {
+    if (
+      (sp.afternoonMode === "work" || sp.afternoonMode === "worked") &&
+      sp.runNumber
+    ) {
       // Dispatched: standby time from report to the run's actual start,
       // plus the run's own worked time - using manual overrides when the
       // operator's actual times differed from the board (e.g. a shortened
@@ -134,10 +137,15 @@ export function computeDay(
       const hasOverride =
         sp.workOnTimeOverride != null || sp.workOffTimeOverride != null;
 
+      // A floating spare given its run on the call the day before never
+      // stood by: it goes straight out on the run, so there is no standby
+      // in front of it to pay.
       const standbyBeforeMin =
-        startMin != null && workOnMin != null
-          ? Math.max(0, workOnMin - startMin)
-          : 0;
+        sp.afternoonMode === "worked"
+          ? 0
+          : startMin != null && workOnMin != null
+            ? Math.max(0, workOnMin - startMin)
+            : 0;
 
       const shiftPlatMin = shift ? shift[1] : 0;
       const shiftPayMin = shift ? shift[2] : 0;

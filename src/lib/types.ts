@@ -103,8 +103,20 @@ export interface SpareInfo {
   startMin?: number;
   /** Garage the spare reported to for standby. */
   garage?: string;
-  /** Recorded outcome, once known - otherwise paid the flat guaranteeHrs. */
-  afternoonMode?: "work" | "standby";
+  /**
+   * A floating spare (FSP, FSPE, FSPEE): the operator is phoned the day
+   * before and told whether they are driving or standing by, so the sheet
+   * cannot say which it was and the day has to ask.
+   */
+  floating?: boolean;
+  /**
+   * Recorded outcome, once known - otherwise paid the flat guaranteeHrs.
+   *
+   * "work" is standby that turned into a run: paid from the report time
+   * through to the end of the run. "worked" is a run given on the call the
+   * day before, with no standby in front of it.
+   */
+  afternoonMode?: "work" | "worked" | "standby";
   /** Clock time standby ended, for the "standby" (not dispatched) outcome. */
   standbyEndMin?: number;
   /** Manual override of the dispatched run's actual start/finish time, in

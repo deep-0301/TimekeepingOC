@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import {
   parseHolidaySpareSheet,
   type HolidayDayPlan,
+  type SheetGap,
 } from "@/lib/holidaySpareParser";
 import { fmtHM, minToHHMM } from "@/lib/dateUtils";
 import { extractPdfText } from "@/lib/pdfExtract";
@@ -29,8 +30,8 @@ interface HolidaySpareImportProps {
 
 const KIND_LABELS: Record<HolidayDayPlan["kind"], string> = {
   work: "Working",
-  spare_manual: "Spare (add manually)",
-  spare_timed: "Spare (pre-filled)",
+  spare_manual: "Floating spare",
+  spare_timed: "Spare",
   dayoff: "Day off",
 };
 
@@ -42,7 +43,8 @@ export default function HolidaySpareImport({
   onImported,
 }: HolidaySpareImportProps) {
   const handed = initialText != null;
-  const seeded = () => (handed ? parseHolidaySpareSheet(initialText!) : []);
+  const seeded = () =>
+    handed ? parseHolidaySpareSheet(initialText!) : { plans: [], gaps: [] };
   const [pasteText, setPasteText] = useState(initialText ?? "");
   const [fileName, setFileName] = useState(initialName ?? "");
   const [isDragging, setIsDragging] = useState(false);
@@ -51,9 +53,13 @@ export default function HolidaySpareImport({
   // How many days this sheet has put into the calendar, so the panel can
   // say plainly that it worked rather than looking untouched.
   const [importedCount, setImportedCount] = useState<number | null>(null);
-  const [plans, setPlans] = useState<HolidayDayPlan[]>(seeded);
+  const [plans, setPlans] = useState<HolidayDayPlan[]>(() => seeded().plans);
+  // Lines the sheet had that became no day at all. Shown rather than
+  // swallowed: a week nobody accounted for is a week of missing pay, and the
+  // operator is the only one who can say what was really on it.
+  const [gaps, setGaps] = useState<SheetGap[]>(() => seeded().gaps);
   const [included, setIncluded] = useState<Record<number, boolean>>(() =>
-    Object.fromEntries(seeded().map((_, i) => [i, true]))
+    Object.fromEntries(seeded().plans.map((_, i) => [i, true]))
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -62,8 +68,9 @@ export default function HolidaySpareImport({
       setParseStatus("Paste some text first.");
       return;
     }
-    const parsed = parseHolidaySpareSheet(text);
+    const { plans: parsed, gaps: found } = parseHolidaySpareSheet(text);
     setPlans(parsed);
+    setGaps(found);
     const inc: Record<number, boolean> = {};
     parsed.forEach((_, i) => {
       inc[i] = true;
@@ -73,7 +80,10 @@ export default function HolidaySpareImport({
       parsed.length
         ? `${parsed.length} day(s) found across ${
             new Set(parsed.map((p) => p.weekLabel)).size
-          } week(s).`
+          } week(s).` +
+            (found.length
+              ? ` ${found.length} line${found.length === 1 ? "" : "s"} could not be read — see below.`
+              : "")
         : "No weeks recognized - check the pasted text."
     );
   }
@@ -149,6 +159,7 @@ export default function HolidaySpareImport({
             runNumber: null,
             garage: p.garage,
             startMin: p.startMin,
+            floating: p.floating,
           };
         }
         next[p.dateStr] = day;
@@ -176,7 +187,7 @@ export default function HolidaySpareImport({
         <span className="sheet-import-icon">
             <WbSunny />
           </span>
-        {title ?? "Regular holiday work sheet"}
+        {title ?? "Weekly booking sheet"}
       </h3>
 
       {!handed && (
@@ -255,12 +266,35 @@ export default function HolidaySpareImport({
       )}
       <SheetStatus state={sheetState}>{parseStatus}</SheetStatus>
 
+      {gaps.length > 0 && (
+        <div className="sheet-gaps">
+          <div className="sheet-gaps-head">
+            {gaps.length === 1
+              ? "One line on this sheet could not be read"
+              : `${gaps.length} lines on this sheet could not be read`}
+          </div>
+          <p className="sheet-gaps-why">
+            Everything else imported normally. Add these days yourself from
+            the Calendar — open the day and use Manage work.
+          </p>
+          <ul className="sheet-gaps-list">
+            {gaps.map((g, i) => (
+              <li key={i}>
+                {g.weekLabel && <b>{g.weekLabel}</b>}{" "}
+                <code>{g.line}</code>
+                <span className="sheet-gaps-note">{g.why}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {plans.length > 0 && (
         <>
           <InfoNote label="Reviewing what was parsed">
             Review below, uncheck anything you don&apos;t want, then import.
-            Floating-spare days come in with no report time or garage yet —
-            add those from the Calendar once imported.
+            A floating spare is settled on the day: open it in the Calendar
+            and say whether you were given a run or stood by.
           </InfoNote>
           <table className="summary-table" style={{ marginTop: 6 }}>
             <tbody>
@@ -276,7 +310,15 @@ export default function HolidaySpareImport({
                     p.startMin != null ? minToHHMM(p.startMin) : "—"
                   } · guarantee ${p.guaranteeHrs}h`;
                 } else if (p.kind === "spare_manual") {
-                  details = `Guarantee ${p.guaranteeHrs}h — garage/time added manually`;
+                  const where = [
+                    p.garage,
+                    p.startMin != null ? `Reports ${minToHHMM(p.startMin)}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ");
+                  details =
+                    (where ? `${where} · ` : "") +
+                    `guarantee ${p.guaranteeHrs}h — say on the day whether you worked or stood by`;
                 }
                 return (
                   <tr key={i}>
