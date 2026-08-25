@@ -167,12 +167,26 @@ type PlanRow =
       label: string;
     };
 
+/**
+ * One shift's worth of rows: the day's work as the sheet numbers it.
+ *
+ * The three-digit number at the head of a row is the shift, and one day
+ * carries one of them - the rows under it repeat the run instead. So a
+ * second shift number is a second day, whether or not the heading between
+ * them survived being scanned. That makes the shift number, not the
+ * heading, the thing that can be relied on to tell days apart.
+ */
+interface RowGroup {
+  shift: string;
+  rows: PlanRow[];
+}
+
 interface WeekState {
   weekNum: number;
   start: Date;
   dayOff: Set<WeekdayKey>;
-  defaultRows: PlanRow[];
-  dayRows: Partial<Record<WeekdayKey, PlanRow[]>>;
+  defaultGroups: RowGroup[];
+  dayGroups: Partial<Record<WeekdayKey, RowGroup[]>>;
   /** Which day the rows being read belong to; null means the week default. */
   target: WeekdayKey | null;
   currentBlockNum: string;
@@ -184,12 +198,72 @@ function newWeekState(weekNum: number, start: Date): WeekState {
     weekNum,
     start,
     dayOff: new Set(),
-    defaultRows: [],
-    dayRows: {},
+    defaultGroups: [],
+    dayGroups: {},
     target: null,
     currentBlockNum: "",
     gaps: [],
   };
+}
+
+/**
+ * Which day each group of rows belongs to.
+ *
+ * A day heading places the first group under it. Any further group is the
+ * next day's work - the sheet gives one shift to a day - so it moves on to
+ * the following working day rather than piling onto the one before it. That
+ * is what keeps Tuesday's shift off Tuesday's Thursday when the heading in
+ * between came through the scanner as something else entirely.
+ *
+ * Rows printed before any heading are the week's default. One shift there is
+ * the same work Monday to Friday; several are the week's days in order, the
+ * headings having been lost altogether.
+ */
+function assignGroups(w: WeekState): Partial<Record<WeekdayKey, PlanRow[]>> {
+  const out: Partial<Record<WeekdayKey, PlanRow[]>> = {};
+  const spoken = new Set<WeekdayKey>();
+
+  const free = (from: WeekdayKey | null): WeekdayKey | null => {
+    const start = from ? WEEK_ORDER.indexOf(from) + 1 : 0;
+    for (let i = start; i < WEEK_ORDER.length; i++) {
+      const k = WEEK_ORDER[i];
+      if (!WEEKDAY_KEYS.includes(k)) continue;
+      if (w.dayOff.has(k) || spoken.has(k) || w.dayGroups[k]) continue;
+      return k;
+    }
+    return null;
+  };
+
+  for (const k of WEEK_ORDER) {
+    const groups = w.dayGroups[k];
+    if (!groups || groups.length === 0) continue;
+    out[k] = groups[0].rows;
+    spoken.add(k);
+    let after: WeekdayKey | null = k;
+    for (const extra of groups.slice(1)) {
+      const to = free(after);
+      if (!to) break;
+      out[to] = extra.rows;
+      spoken.add(to);
+      after = to;
+    }
+  }
+
+  if (w.defaultGroups.length === 1) {
+    for (const k of WEEKDAY_KEYS) {
+      if (!w.dayOff.has(k) && !out[k]) out[k] = w.defaultGroups[0].rows;
+    }
+  } else {
+    let after: WeekdayKey | null = null;
+    for (const group of w.defaultGroups) {
+      const to = free(after);
+      if (!to) break;
+      out[to] = group.rows;
+      spoken.add(to);
+      after = to;
+    }
+  }
+  return out;
 }
 
 /** A run row either repeats the block/shift number (a fresh block) or
@@ -290,6 +364,7 @@ export function parseHolidaySpareSheet(text: string): ParsedSheet {
   const gaps: SheetGap[] = [];
   let week: WeekState | null = null;
   let pendingWeekNum: number | null = null;
+  let rowSeq = 0;
 
   const DATE_RE = /\d{1,2}\/\d{1,2}\/\d{4}/;
 
@@ -301,6 +376,8 @@ export function parseHolidaySpareSheet(text: string): ParsedSheet {
     const weekLabel = `Week ${w.weekNum}`;
     const dateOf = (k: WeekdayKey) => addDays(w.start, WEEK_ORDER.indexOf(k));
 
+    const rowsByDay = assignGroups(w);
+
     let emitted = 0;
     for (const k of WEEK_ORDER) {
       const dateStr = fmtDate(dateOf(k));
@@ -309,11 +386,7 @@ export function parseHolidaySpareSheet(text: string): ParsedSheet {
         emitted++;
         continue;
       }
-      // A day named on the sheet gets exactly what was printed under it. The
-      // week's default is Monday-to-Friday work; a weekend not spelled out is
-      // not a working day.
-      const rows =
-        w.dayRows[k] ?? (WEEKDAY_KEYS.includes(k) ? w.defaultRows : []);
+      const rows = rowsByDay[k];
       if (!rows || rows.length === 0) continue;
 
       const pieces = rows
@@ -361,9 +434,23 @@ export function parseHolidaySpareSheet(text: string): ParsedSheet {
     }
   }
 
-  function rowsForTarget(w: WeekState): PlanRow[] {
-    if (w.target === null) return w.defaultRows;
-    return (w.dayRows[w.target] ??= []);
+  function groupsForTarget(w: WeekState): RowGroup[] {
+    if (w.target === null) return w.defaultGroups;
+    return (w.dayGroups[w.target] ??= []);
+  }
+
+  /**
+   * Puts a row where it belongs, opening a new group when the shift changes.
+   *
+   * A row that names a shift the current group does not is the start of the
+   * next day's work, even when the heading that should have said so did not
+   * survive being scanned.
+   */
+  function addRow(w: WeekState, row: PlanRow, shift: string) {
+    const groups = groupsForTarget(w);
+    const last = groups[groups.length - 1];
+    if (last && last.shift === shift) last.rows.push(row);
+    else groups.push({ shift, rows: [row] });
   }
 
   for (const line of lines) {
@@ -422,8 +509,14 @@ export function parseHolidaySpareSheet(text: string): ParsedSheet {
 
     const times = extractTimeTokens(line);
     if (times.length === 0) {
-      // A day heading: "Monday - 1", and whatever OCR made of it.
-      const headMatch = line.match(/^(\S+)\s*[-–—]\s*(\d+)/);
+      // A day heading: "Monday - 1", and whatever OCR made of it. The
+      // weekday need not be the first thing on the line - a stray mark
+      // scans as a word - so the whole line is searched, as long as it is
+      // short enough to be a heading and not a row.
+      const headMatch =
+        line.length <= 40
+          ? line.match(/([A-Za-z]{4,12})\s*[-–—]\s*(\d+)/)
+          : null;
       const k = headMatch ? weekdayNear(headMatch[1]) : null;
       if (k) {
         week.target = k;
@@ -444,10 +537,18 @@ export function parseHolidaySpareSheet(text: string): ParsedSheet {
         });
         continue;
       }
-      rowsForTarget(week).push(
+      // A spare has no shift number, so each row stands on its own.
+      //
+      // A floating spare keeps only its guarantee. What it prints for a
+      // garage and a report time is the booking it floats against, not
+      // where the operator was actually sent, and filling those in would
+      // put a time on the day that nobody told them to report at.
+      addRow(
+        week,
         floatMatch
-          ? { kind: "floating", ...read, label: line }
-          : { kind: "spare", ...read }
+          ? { kind: "floating", guaranteeHrs: read.guaranteeHrs, label: line }
+          : { kind: "spare", ...read },
+        `spare:${rowSeq++}`
       );
       continue;
     }
@@ -462,7 +563,7 @@ export function parseHolidaySpareSheet(text: string): ParsedSheet {
       continue;
     }
     week.currentBlockNum = parsed.blockNum;
-    rowsForTarget(week).push({ kind: "work", piece: parsed.row });
+    addRow(week, { kind: "work", piece: parsed.row }, parsed.blockNum);
   }
   flushWeek();
 

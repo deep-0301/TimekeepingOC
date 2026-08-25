@@ -6,6 +6,7 @@ import {
   type HolidayDayPlan,
   type SheetGap,
 } from "@/lib/holidaySpareParser";
+import { matchBoardShift } from "@/lib/board";
 import { fmtHM, minToHHMM } from "@/lib/dateUtils";
 import { extractPdfText } from "@/lib/pdfExtract";
 import { newEmptyDayEntry, type EntriesMap, type EntryPiece } from "@/lib/types";
@@ -133,27 +134,57 @@ export default function HolidaySpareImport({
           day.dayOff = true;
           day.pieces = [];
           day.spare = null;
+          day.fromSheet = undefined;
         } else if (p.kind === "work" && p.pieces) {
-          const totalPlatMin = p.pieces.reduce((a, r) => a + r.platMin, 0);
-          const allRuns = p.pieces.map((r) => r.run);
+          // The sheet prints the three-digit shift number and each run's own
+          // driving time, but never the shift's totals - so summing the rows
+          // makes pay equal platform and quietly pays no CLC break. The board
+          // holds the authoritative figures, and the shift number is what
+          // finds them.
+          const match = matchBoardShift(
+            p.pieces.map((r) => ({
+              run: r.run,
+              onTime: r.onTime,
+              offTime: r.offTime,
+            })),
+            p.pieces[0]?.shiftId ?? null,
+            p.dateStr
+          );
+          const boardShift = match && match.complete ? match.shift : null;
+          const summed = p.pieces.reduce((a, r) => a + r.platMin, 0);
+          const platMin = boardShift ? boardShift[1] : summed;
+          const payMin = boardShift ? boardShift[2] : summed;
+          const allRuns = boardShift
+            ? boardShift[3].map((r) => r[0])
+            : p.pieces.map((r) => r.run);
           day.fromSheet = true;
-          day.sheetPlat = totalPlatMin;
-          day.sheetPay = totalPlatMin;
+          day.fromBoard = boardShift ? true : undefined;
+          day.sheetPlat = platMin;
+          day.sheetPay = payMin;
+          // A day that was a spare on a previous import is a working day now.
+          day.spare = null;
+          day.dayOff = undefined;
           day.pieces = p.pieces.map(
             (r): EntryPiece => ({
               run: r.run,
-              shiftId: r.shiftId,
-              shiftPlat: totalPlatMin,
-              shiftPay: totalPlatMin,
+              shiftId: boardShift ? boardShift[0] : r.shiftId,
+              shiftPlat: platMin,
+              shiftPay: payMin,
               onTime: r.onTime,
               offTime: r.offTime,
               onLoc: r.onLoc,
               offLoc: r.offLoc,
               platMin: r.platMin,
+              shiftIndex: match ? match.si : null,
               allRuns,
             })
           );
         } else if (p.kind === "spare_manual" || p.kind === "spare_timed") {
+          // Likewise the other way round: whatever this day was before, it
+          // is a spare now and carries no runs of its own.
+          day.pieces = [];
+          day.dayOff = undefined;
+          day.fromSheet = undefined;
           day.spare = {
             guaranteeHrs: p.guaranteeHrs ?? 8,
             runNumber: null,
@@ -293,6 +324,9 @@ export default function HolidaySpareImport({
         <>
           <InfoNote label="Reviewing what was parsed">
             Review below, uncheck anything you don&apos;t want, then import.
+            A working day is matched to its shift on the board by the
+            three-digit number the sheet prints, so it comes in with the
+            board&apos;s own platform and pay rather than the rows added up.
             A floating spare is settled on the day: open it in the Calendar
             and say whether you were given a run or stood by.
           </InfoNote>
@@ -301,10 +335,22 @@ export default function HolidaySpareImport({
               {plans.map((p, i) => {
                 let details = "";
                 if (p.kind === "work" && p.pieces) {
-                  const total = p.pieces.reduce((a, r) => a + r.platMin, 0);
-                  details = `${p.pieces.map((r) => r.run).join(" + ")} — ${fmtHM(
-                    total
-                  )} plat`;
+                  const match = matchBoardShift(
+                    p.pieces.map((r) => ({
+                      run: r.run,
+                      onTime: r.onTime,
+                      offTime: r.offTime,
+                    })),
+                    p.pieces[0]?.shiftId ?? null,
+                    p.dateStr
+                  );
+                  const shift = match && match.complete ? match.shift : null;
+                  const runs = p.pieces.map((r) => r.run).join(" + ");
+                  details = shift
+                    ? `shift ${shift[0]} · ${runs} — ${fmtHM(shift[1])} plat / ${fmtHM(shift[2])} pay`
+                    : `shift ${p.pieces[0]?.shiftId ?? "?"} · ${runs} — ${fmtHM(
+                        p.pieces.reduce((a, r) => a + r.platMin, 0)
+                      )} plat, not found on the board`;
                 } else if (p.kind === "spare_timed") {
                   details = `${p.garage || "—"} · Reports ${
                     p.startMin != null ? minToHHMM(p.startMin) : "—"
